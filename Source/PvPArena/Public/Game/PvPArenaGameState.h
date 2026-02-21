@@ -20,6 +20,10 @@ enum class EPvPArenaMatchEndReason : uint8
     TimeUp
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPvPArenaMatchPhaseChangedSignature, EPvPArenaMatchPhase, NewPhase);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPvPArenaRemainingSecondsChangedSignature, int32, NewRemainingSeconds);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPvPArenaTeamScoreChangedSignature, int32, TeamAScore, int32, TeamBScore);
+
 UCLASS()
 class PVPARENA_API APvPArenaGameState : public AGameStateBase
 {
@@ -40,16 +44,37 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Score")
     void ResetTeamScores();
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    UFUNCTION()
+    void OnRep_MatchPhase();
+
+    UFUNCTION()
+    void OnRep_RemainingSeconds();
+
+    UFUNCTION()
+    void OnRep_TeamAScore();
+
+    UFUNCTION()
+    void OnRep_TeamBScore();
+
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FPvPArenaMatchPhaseChangedSignature OnMatchPhaseChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FPvPArenaRemainingSecondsChangedSignature OnRemainingSecondsChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FPvPArenaTeamScoreChangedSignature OnTeamScoreChanged;
+
+    UPROPERTY(ReplicatedUsing = OnRep_MatchPhase, BlueprintReadOnly, Category = "Match")
     EPvPArenaMatchPhase MatchPhase;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    UPROPERTY(ReplicatedUsing = OnRep_RemainingSeconds, BlueprintReadOnly, Category = "Match")
     int32 RemainingSeconds;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Score")
+    UPROPERTY(ReplicatedUsing = OnRep_TeamAScore, BlueprintReadOnly, Category = "Score")
     int32 TeamAScore;
 
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Score")
+    UPROPERTY(ReplicatedUsing = OnRep_TeamBScore, BlueprintReadOnly, Category = "Score")
     int32 TeamBScore;
 
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")

@@ -24,12 +24,25 @@ void APvPArenaGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 void APvPArenaGameState::SetMatchPhase(EPvPArenaMatchPhase NewPhase)
 {
+    if (MatchPhase == NewPhase)
+    {
+        return;
+    }
+
     MatchPhase = NewPhase;
+    OnMatchPhaseChanged.Broadcast(MatchPhase);
 }
 
 void APvPArenaGameState::SetRemainingSeconds(int32 NewRemainingSeconds)
 {
-    RemainingSeconds = FMath::Max(0, NewRemainingSeconds);
+    const int32 ClampedRemaining = FMath::Max(0, NewRemainingSeconds);
+    if (RemainingSeconds == ClampedRemaining)
+    {
+        return;
+    }
+
+    RemainingSeconds = ClampedRemaining;
+    OnRemainingSecondsChanged.Broadcast(RemainingSeconds);
 }
 
 void APvPArenaGameState::SetMatchEndReason(EPvPArenaMatchEndReason NewEndReason)
@@ -52,10 +65,33 @@ void APvPArenaGameState::AddTeamScore(int32 TeamId, int32 Delta)
     {
         TeamBScore += Delta;
     }
+
+    OnTeamScoreChanged.Broadcast(TeamAScore, TeamBScore);
 }
 
 void APvPArenaGameState::ResetTeamScores()
 {
     TeamAScore = 0;
     TeamBScore = 0;
+    OnTeamScoreChanged.Broadcast(TeamAScore, TeamBScore);
+}
+
+void APvPArenaGameState::OnRep_MatchPhase()
+{
+    OnMatchPhaseChanged.Broadcast(MatchPhase);
+}
+
+void APvPArenaGameState::OnRep_RemainingSeconds()
+{
+    OnRemainingSecondsChanged.Broadcast(RemainingSeconds);
+}
+
+void APvPArenaGameState::OnRep_TeamAScore()
+{
+    OnTeamScoreChanged.Broadcast(TeamAScore, TeamBScore);
+}
+
+void APvPArenaGameState::OnRep_TeamBScore()
+{
+    OnTeamScoreChanged.Broadcast(TeamAScore, TeamBScore);
 }
