@@ -1,7 +1,9 @@
 #include "Combat/PvPArenaWeaponComponent.h"
 
+#include "Game/PvPArenaGameState.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/PvPArenaCharacter.h"
+#include "Player/PvPArenaPlayerState.h"
 
 UPvPArenaWeaponComponent::UPvPArenaWeaponComponent()
 {
@@ -35,8 +37,20 @@ void UPvPArenaWeaponComponent::ServerTryFire_Implementation(FVector_NetQuantize 
 
     bIsReloading = false;
 
-    (void)TraceStart;
-    (void)Dir;
+    FHitResult HitResult;
+    if (World)
+    {
+        const FVector TraceEnd = TraceStart + (FVector(Dir) * 10000.0f);
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(ServerWeaponTrace), false, GetOwner());
+        if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+        {
+            if (APvPArenaCharacter* HitCharacter = Cast<APvPArenaCharacter>(HitResult.GetActor()))
+            {
+                HandleConfirmedHit(HitCharacter, 34.0f);
+            }
+        }
+    }
+
     (void)ShotSeq;
 }
 
@@ -64,4 +78,32 @@ bool UPvPArenaWeaponComponent::CanServerFire() const
     const UWorld* World = GetWorld();
     const float Now = World ? World->GetTimeSeconds() : 0.0f;
     return (Now - LastServerFireTimeSeconds) >= FireIntervalSeconds;
+}
+
+void UPvPArenaWeaponComponent::HandleConfirmedHit(APvPArenaCharacter* VictimCharacter, float DamageAmount)
+{
+    APvPArenaCharacter* InstigatorCharacter = Cast<APvPArenaCharacter>(GetOwner());
+    if (!InstigatorCharacter || !VictimCharacter || InstigatorCharacter == VictimCharacter || DamageAmount <= 0.0f)
+    {
+        return;
+    }
+
+    const bool bVictimWasDead = VictimCharacter->bIsDead;
+    VictimCharacter->ApplyDamageServer(DamageAmount);
+
+    if (bVictimWasDead || !VictimCharacter->bIsDead)
+    {
+        return;
+    }
+
+    APvPArenaPlayerState* InstigatorState = InstigatorCharacter->GetPlayerState<APvPArenaPlayerState>();
+    if (InstigatorState)
+    {
+        InstigatorState->AddKill();
+    }
+
+    if (APvPArenaGameState* PvPGameState = GetWorld() ? GetWorld()->GetGameState<APvPArenaGameState>() : nullptr)
+    {
+        PvPGameState->AddTeamScore(InstigatorState ? InstigatorState->TeamId : 0, 1);
+    }
 }

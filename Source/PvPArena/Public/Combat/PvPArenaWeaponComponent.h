@@ -4,6 +4,8 @@
 #include "Components/ActorComponent.h"
 #include "PvPArenaWeaponComponent.generated.h"
 
+class APvPArenaCharacter;
+
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class PVPARENA_API UPvPArenaWeaponComponent : public UActorComponent
 {
@@ -19,6 +21,9 @@ public:
 
     UFUNCTION(Server, Reliable)
     void ServerReload();
+
+    UFUNCTION(BlueprintCallable, Category = "Weapon")
+    void HandleConfirmedHit(APvPArenaCharacter* VictimCharacter, float DamageAmount);
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
     int32 MaxAmmo;

@@ -24,6 +24,7 @@ public:
 
     void SetMatchPhase(EPvPArenaMatchPhase NewPhase);
     void SetRemainingSeconds(int32 NewRemainingSeconds);
+    UFUNCTION(BlueprintCallable, Category = "Score")
     void AddTeamScore(int32 TeamId, int32 Delta);
 
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
