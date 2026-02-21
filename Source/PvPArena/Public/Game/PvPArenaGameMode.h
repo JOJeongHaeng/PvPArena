@@ -1,9 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/GameModeBase.h"
 #include "Game/PvPArenaGameState.h"
+#include "GameFramework/GameModeBase.h"
 #include "PvPArenaGameMode.generated.h"
+
+class APvPArenaPlayerState;
 
 UCLASS()
 class PVPARENA_API APvPArenaGameMode : public AGameModeBase
@@ -13,10 +15,16 @@ class PVPARENA_API APvPArenaGameMode : public AGameModeBase
 public:
     APvPArenaGameMode();
 
+    virtual void PostLogin(APlayerController* NewPlayer) override;
+
+    bool TryAssignTeam(APvPArenaPlayerState* InPlayerState, int32 DesiredTeamId);
+
 protected:
     virtual void BeginPlay() override;
 
 private:
+    bool IsLobbyPhase() const;
+    int32 CountPlayersOnTeam(int32 TeamId) const;
     void StartPhase(EPvPArenaMatchPhase NewPhase, int32 DurationSeconds);
     void HandlePhaseTick();
 

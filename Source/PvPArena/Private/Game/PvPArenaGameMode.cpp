@@ -1,15 +1,36 @@
 #include "Game/PvPArenaGameMode.h"
 
 #include "Engine/World.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerController.h"
+#include "Player/PvPArenaPlayerState.h"
 #include "TimerManager.h"
 
 APvPArenaGameMode::APvPArenaGameMode()
 {
     GameStateClass = APvPArenaGameState::StaticClass();
+    PlayerStateClass = APvPArenaPlayerState::StaticClass();
 
     LobbyDurationSeconds = 30;
     CombatDurationSeconds = 360;
     ResultDurationSeconds = 20;
+}
+
+void APvPArenaGameMode::PostLogin(APlayerController* NewPlayer)
+{
+    Super::PostLogin(NewPlayer);
+
+    APvPArenaPlayerState* PvPPlayerState = NewPlayer ? Cast<APvPArenaPlayerState>(NewPlayer->PlayerState) : nullptr;
+    if (!PvPPlayerState)
+    {
+        return;
+    }
+
+    const int32 Team0Count = CountPlayersOnTeam(0);
+    const int32 Team1Count = CountPlayersOnTeam(1);
+    const int32 AutoAssignedTeam = (Team0Count <= Team1Count) ? 0 : 1;
+
+    TryAssignTeam(PvPPlayerState, AutoAssignedTeam);
 }
 
 void APvPArenaGameMode::BeginPlay()
@@ -17,6 +38,44 @@ void APvPArenaGameMode::BeginPlay()
     Super::BeginPlay();
 
     StartPhase(EPvPArenaMatchPhase::Lobby, LobbyDurationSeconds);
+}
+
+bool APvPArenaGameMode::TryAssignTeam(APvPArenaPlayerState* InPlayerState, int32 DesiredTeamId)
+{
+    if (!InPlayerState || !IsLobbyPhase())
+    {
+        return false;
+    }
+
+    InPlayerState->SetTeamId(DesiredTeamId);
+    return true;
+}
+
+bool APvPArenaGameMode::IsLobbyPhase() const
+{
+    const APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    return PvPGameState && PvPGameState->MatchPhase == EPvPArenaMatchPhase::Lobby;
+}
+
+int32 APvPArenaGameMode::CountPlayersOnTeam(int32 TeamId) const
+{
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return 0;
+    }
+
+    int32 TeamCount = 0;
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (PvPPlayerState && PvPPlayerState->TeamId == TeamId)
+        {
+            ++TeamCount;
+        }
+    }
+
+    return TeamCount;
 }
 
 void APvPArenaGameMode::StartPhase(EPvPArenaMatchPhase NewPhase, int32 DurationSeconds)
