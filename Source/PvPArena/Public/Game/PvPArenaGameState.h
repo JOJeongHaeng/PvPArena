@@ -12,6 +12,14 @@ enum class EPvPArenaMatchPhase : uint8
     Result
 };
 
+UENUM(BlueprintType)
+enum class EPvPArenaMatchEndReason : uint8
+{
+    None,
+    KillLimit,
+    TimeUp
+};
+
 UCLASS()
 class PVPARENA_API APvPArenaGameState : public AGameStateBase
 {
@@ -24,8 +32,13 @@ public:
 
     void SetMatchPhase(EPvPArenaMatchPhase NewPhase);
     void SetRemainingSeconds(int32 NewRemainingSeconds);
+    void SetMatchEndReason(EPvPArenaMatchEndReason NewEndReason);
+    UFUNCTION(BlueprintPure, Category = "Match")
+    EPvPArenaMatchEndReason GetMatchEndReason() const;
     UFUNCTION(BlueprintCallable, Category = "Score")
     void AddTeamScore(int32 TeamId, int32 Delta);
+    UFUNCTION(BlueprintCallable, Category = "Score")
+    void ResetTeamScores();
 
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
     EPvPArenaMatchPhase MatchPhase;
@@ -38,4 +51,7 @@ public:
 
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Score")
     int32 TeamBScore;
+
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+    EPvPArenaMatchEndReason MatchEndReason;
 };

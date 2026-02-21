@@ -14,6 +14,7 @@ APvPArenaGameMode::APvPArenaGameMode()
     LobbyDurationSeconds = 30;
     CombatDurationSeconds = 360;
     ResultDurationSeconds = 20;
+    KillLimit = 30;
 }
 
 void APvPArenaGameMode::PostLogin(APlayerController* NewPlayer)
@@ -86,6 +87,16 @@ void APvPArenaGameMode::StartPhase(EPvPArenaMatchPhase NewPhase, int32 DurationS
         return;
     }
 
+    if (NewPhase == EPvPArenaMatchPhase::Lobby)
+    {
+        PvPGameState->SetMatchEndReason(EPvPArenaMatchEndReason::None);
+        PvPGameState->ResetTeamScores();
+    }
+    else if (NewPhase == EPvPArenaMatchPhase::Combat)
+    {
+        PvPGameState->SetMatchEndReason(EPvPArenaMatchEndReason::None);
+    }
+
     PvPGameState->SetMatchPhase(NewPhase);
     PvPGameState->SetRemainingSeconds(DurationSeconds);
 
@@ -104,6 +115,11 @@ void APvPArenaGameMode::HandlePhaseTick()
 
     const int32 NextRemaining = PvPGameState->RemainingSeconds - 1;
     PvPGameState->SetRemainingSeconds(NextRemaining);
+
+    if (PvPGameState->MatchPhase == EPvPArenaMatchPhase::Combat && EvaluateEndConditions())
+    {
+        return;
+    }
 
     if (PvPGameState->RemainingSeconds > 0)
     {
@@ -124,4 +140,29 @@ void APvPArenaGameMode::HandlePhaseTick()
     default:
         break;
     }
+}
+
+bool APvPArenaGameMode::EvaluateEndConditions()
+{
+    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    if (!PvPGameState || PvPGameState->MatchPhase != EPvPArenaMatchPhase::Combat)
+    {
+        return false;
+    }
+
+    if (PvPGameState->TeamAScore >= KillLimit || PvPGameState->TeamBScore >= KillLimit)
+    {
+        PvPGameState->SetMatchEndReason(EPvPArenaMatchEndReason::KillLimit);
+        StartPhase(EPvPArenaMatchPhase::Result, ResultDurationSeconds);
+        return true;
+    }
+
+    if (PvPGameState->RemainingSeconds <= 0)
+    {
+        PvPGameState->SetMatchEndReason(EPvPArenaMatchEndReason::TimeUp);
+        StartPhase(EPvPArenaMatchPhase::Result, ResultDurationSeconds);
+        return true;
+    }
+
+    return false;
 }

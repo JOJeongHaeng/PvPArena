@@ -18,6 +18,8 @@ public:
     virtual void PostLogin(APlayerController* NewPlayer) override;
 
     bool TryAssignTeam(APvPArenaPlayerState* InPlayerState, int32 DesiredTeamId);
+    UFUNCTION(BlueprintCallable, Category = "Match")
+    bool EvaluateEndConditions();
 
 protected:
     virtual void BeginPlay() override;
@@ -36,6 +38,9 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
     int32 ResultDurationSeconds;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Match")
+    int32 KillLimit;
 
     FTimerHandle PhaseTimerHandle;
 };

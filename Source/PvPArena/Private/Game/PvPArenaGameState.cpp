@@ -8,6 +8,7 @@ APvPArenaGameState::APvPArenaGameState()
     RemainingSeconds = 30;
     TeamAScore = 0;
     TeamBScore = 0;
+    MatchEndReason = EPvPArenaMatchEndReason::None;
 }
 
 void APvPArenaGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -18,6 +19,7 @@ void APvPArenaGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
     DOREPLIFETIME(APvPArenaGameState, RemainingSeconds);
     DOREPLIFETIME(APvPArenaGameState, TeamAScore);
     DOREPLIFETIME(APvPArenaGameState, TeamBScore);
+    DOREPLIFETIME(APvPArenaGameState, MatchEndReason);
 }
 
 void APvPArenaGameState::SetMatchPhase(EPvPArenaMatchPhase NewPhase)
@@ -30,6 +32,16 @@ void APvPArenaGameState::SetRemainingSeconds(int32 NewRemainingSeconds)
     RemainingSeconds = FMath::Max(0, NewRemainingSeconds);
 }
 
+void APvPArenaGameState::SetMatchEndReason(EPvPArenaMatchEndReason NewEndReason)
+{
+    MatchEndReason = NewEndReason;
+}
+
+EPvPArenaMatchEndReason APvPArenaGameState::GetMatchEndReason() const
+{
+    return MatchEndReason;
+}
+
 void APvPArenaGameState::AddTeamScore(int32 TeamId, int32 Delta)
 {
     if (TeamId == 0)
@@ -40,4 +52,10 @@ void APvPArenaGameState::AddTeamScore(int32 TeamId, int32 Delta)
     {
         TeamBScore += Delta;
     }
+}
+
+void APvPArenaGameState::ResetTeamScores()
+{
+    TeamAScore = 0;
+    TeamBScore = 0;
 }
