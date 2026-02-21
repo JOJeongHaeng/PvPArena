@@ -4,6 +4,8 @@
 #include "GameFramework/Character.h"
 #include "PvPArenaCharacter.generated.h"
 
+class UPvPArenaWeaponComponent;
+
 UCLASS()
 class PVPARENA_API APvPArenaCharacter : public ACharacter
 {
@@ -34,6 +36,9 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Respawn")
     float RespawnDelaySeconds;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    TObjectPtr<UPvPArenaWeaponComponent> WeaponComponent;
 
 private:
     void EnterDeadState();

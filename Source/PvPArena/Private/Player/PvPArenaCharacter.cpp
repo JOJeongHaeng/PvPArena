@@ -1,5 +1,6 @@
 #include "Player/PvPArenaCharacter.h"
 
+#include "Combat/PvPArenaWeaponComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/PvPArenaPlayerState.h"
 
@@ -10,6 +11,8 @@ APvPArenaCharacter::APvPArenaCharacter()
     bIsDead = false;
     RespawnDelaySeconds = 5.0f;
     DeathServerTimeSeconds = -1.0f;
+
+    WeaponComponent = CreateDefaultSubobject<UPvPArenaWeaponComponent>(TEXT("WeaponComponent"));
 }
 
 void APvPArenaCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
