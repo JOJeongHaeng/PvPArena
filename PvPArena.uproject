@@ -3,6 +3,13 @@
 	"EngineAssociation": "{5721640D-467B-9080-7158-D48A3BB2681B}",
 	"Category": "",
 	"Description": "",
+	"Modules": [
+		{
+			"Name": "PvPArena",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "ModelingToolsEditorMode",
