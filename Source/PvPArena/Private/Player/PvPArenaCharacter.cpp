@@ -1,6 +1,8 @@
 #include "Player/PvPArenaCharacter.h"
 
 #include "Combat/PvPCombatComponent.h"
+#include "Game/PvPArenaGameMode.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
@@ -20,8 +22,6 @@ void APvPArenaCharacter::OnRep_IsDead()
 
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)
 {
-    (void)InstigatorController;
-
     if (bIsDead || Damage <= 0.0f)
     {
         return;
@@ -31,6 +31,16 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
     if (CurrentHealth <= 0.0f)
     {
         bIsDead = true;
+
+        if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+        {
+            MoveComp->DisableMovement();
+        }
+
+        if (APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr)
+        {
+            PvPGameMode->HandlePlayerEliminated(Controller, InstigatorController);
+        }
     }
 }
 

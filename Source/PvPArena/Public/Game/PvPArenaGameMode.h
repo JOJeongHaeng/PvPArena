@@ -6,6 +6,8 @@
 #include "PvPArenaGameMode.generated.h"
 
 class APvPArenaPlayerState;
+class APvPArenaCharacter;
+class AController;
 
 UCLASS()
 class PVPARENA_API APvPArenaGameMode : public AGameModeBase
@@ -22,6 +24,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Match")
     EPvPARoundState ResolveRoundTimeout(int32 PlayerOneScore, int32 PlayerTwoScore);
+
+    UFUNCTION(BlueprintCallable, Category = "Match")
+    void HandlePlayerEliminated(AController* VictimController, AController* KillerController);
 
 protected:
     virtual void BeginPlay() override;

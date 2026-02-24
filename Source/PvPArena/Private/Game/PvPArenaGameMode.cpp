@@ -1,6 +1,9 @@
 #include "Game/PvPArenaGameMode.h"
 
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "Game/PvPArenaPlayerState.h"
+#include "TimerManager.h"
 
 APvPArenaGameMode::APvPArenaGameMode()
 {
@@ -58,4 +61,37 @@ EPvPARoundState APvPArenaGameMode::ResolveRoundTimeout(int32 PlayerOneScore, int
 
     bHasWinner = true;
     return EPvPARoundState::RoundEnd;
+}
+
+void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AController* KillerController)
+{
+    APvPArenaPlayerState* VictimState = VictimController ? Cast<APvPArenaPlayerState>(VictimController->PlayerState) : nullptr;
+    APvPArenaPlayerState* KillerState = KillerController ? Cast<APvPArenaPlayerState>(KillerController->PlayerState) : nullptr;
+
+    RegisterKill(KillerState, VictimState);
+
+    if (!VictimController || bHasWinner)
+    {
+        return;
+    }
+
+    if (APawn* VictimPawn = VictimController->GetPawn())
+    {
+        VictimPawn->Destroy();
+    }
+
+    TWeakObjectPtr<AController> VictimControllerWeak = VictimController;
+    FTimerDelegate RespawnDelegate;
+    RespawnDelegate.BindLambda([this, VictimControllerWeak]()
+    {
+        if (!VictimControllerWeak.IsValid())
+        {
+            return;
+        }
+
+        RestartPlayer(VictimControllerWeak.Get());
+    });
+
+    FTimerHandle RespawnTimerHandle;
+    GetWorldTimerManager().SetTimer(RespawnTimerHandle, RespawnDelegate, static_cast<float>(RespawnDelaySeconds), false);
 }
