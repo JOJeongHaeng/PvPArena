@@ -32,6 +32,9 @@ protected:
     virtual void BeginPlay() override;
 
 private:
+    void StartRoundTimer();
+    void OnRoundSecondElapsed();
+
     UPROPERTY(EditDefaultsOnly, Category = "Match")
     int32 ScoreLimit = 5;
 
@@ -42,4 +45,5 @@ private:
     int32 RespawnDelaySeconds = 3;
 
     bool bHasWinner = false;
+    FTimerHandle RoundTimerHandle;
 };

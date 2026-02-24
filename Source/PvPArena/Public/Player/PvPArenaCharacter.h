@@ -22,10 +22,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
 
-    UFUNCTION(Server, Reliable)
+    UFUNCTION(BlueprintCallable, Server, Reliable, Category = "Combat")
     void ServerTryMeleeAttack();
 
-    UFUNCTION(Server, Reliable)
+    UFUNCTION(BlueprintCallable, Server, Reliable, Category = "Combat")
     void ServerTryRangedAttack();
 
 protected:
