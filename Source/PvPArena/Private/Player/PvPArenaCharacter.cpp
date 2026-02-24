@@ -1,14 +1,35 @@
 #include "Player/PvPArenaCharacter.h"
 
 #include "Combat/PvPCombatComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
 #include "Game/PvPArenaGameMode.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
 {
     bReplicates = true;
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
+}
+
+void APvPArenaCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+    TryApplyInputMappingContext();
+}
+
+void APvPArenaCharacter::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+    TryApplyInputMappingContext();
+}
+
+void APvPArenaCharacter::OnRep_Controller()
+{
+    Super::OnRep_Controller();
+    TryApplyInputMappingContext();
 }
 
 void APvPArenaCharacter::OnRep_CurrentHealth()
@@ -18,6 +39,34 @@ void APvPArenaCharacter::OnRep_CurrentHealth()
 
 void APvPArenaCharacter::OnRep_IsDead()
 {
+}
+
+void APvPArenaCharacter::TryApplyInputMappingContext()
+{
+    if (!DefaultInputMappingContext || !IsLocallyControlled())
+    {
+        return;
+    }
+
+    APlayerController* PlayerController = Cast<APlayerController>(Controller);
+    if (!PlayerController)
+    {
+        return;
+    }
+
+    ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
+    if (!LocalPlayer)
+    {
+        return;
+    }
+
+    UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer);
+    if (!InputSubsystem)
+    {
+        return;
+    }
+
+    InputSubsystem->AddMappingContext(DefaultInputMappingContext, 0);
 }
 
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)

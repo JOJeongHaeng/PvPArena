@@ -5,6 +5,7 @@
 #include "PvPArenaCharacter.generated.h"
 
 class AController;
+class UInputMappingContext;
 class UPvPCombatComponent;
 
 UCLASS()
@@ -29,6 +30,9 @@ public:
     void ServerTryRangedAttack();
 
 protected:
+    virtual void BeginPlay() override;
+    virtual void PossessedBy(AController* NewController) override;
+    virtual void OnRep_Controller() override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     UFUNCTION()
@@ -38,6 +42,8 @@ protected:
     void OnRep_IsDead();
 
 private:
+    void TryApplyInputMappingContext();
+
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MaxHealth = 100.0f;
 
@@ -49,4 +55,7 @@ private:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UPvPCombatComponent> CombatComponent;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputMappingContext> DefaultInputMappingContext;
 };
