@@ -57,6 +57,7 @@ void APvPArenaCharacter::ServerTryMeleeAttack_Implementation()
         return;
     }
 
+    CombatComponent->TryServerMeleeAttack(this);
     CombatComponent->MarkMeleeUsed(Now);
 }
 
@@ -73,6 +74,7 @@ void APvPArenaCharacter::ServerTryRangedAttack_Implementation()
         return;
     }
 
+    CombatComponent->TryServerRangedAttack(this);
     CombatComponent->MarkRangedUsed(Now);
 }
 
