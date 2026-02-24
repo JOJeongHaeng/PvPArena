@@ -5,6 +5,7 @@
 #include "PvPArenaCharacter.generated.h"
 
 class AController;
+class UPvPCombatComponent;
 
 UCLASS()
 class PVPARENA_API APvPArenaCharacter : public ACharacter
@@ -20,6 +21,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
+
+    UFUNCTION(Server, Reliable)
+    void ServerTryMeleeAttack();
+
+    UFUNCTION(Server, Reliable)
+    void ServerTryRangedAttack();
 
 protected:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -39,4 +46,7 @@ private:
 
     UPROPERTY(ReplicatedUsing = OnRep_IsDead, VisibleAnywhere, Category = "Combat")
     bool bIsDead = false;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UPvPCombatComponent> CombatComponent;
 };

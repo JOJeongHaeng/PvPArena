@@ -1,10 +1,12 @@
 #include "Player/PvPArenaCharacter.h"
 
+#include "Combat/PvPCombatComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
 {
     bReplicates = true;
+    CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
 }
 
 void APvPArenaCharacter::OnRep_CurrentHealth()
@@ -30,6 +32,38 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
     {
         bIsDead = true;
     }
+}
+
+void APvPArenaCharacter::ServerTryMeleeAttack_Implementation()
+{
+    if (!CombatComponent || bIsDead)
+    {
+        return;
+    }
+
+    const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    if (!CombatComponent->CanUseMelee(Now))
+    {
+        return;
+    }
+
+    CombatComponent->MarkMeleeUsed(Now);
+}
+
+void APvPArenaCharacter::ServerTryRangedAttack_Implementation()
+{
+    if (!CombatComponent || bIsDead)
+    {
+        return;
+    }
+
+    const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    if (!CombatComponent->CanUseRanged(Now))
+    {
+        return;
+    }
+
+    CombatComponent->MarkRangedUsed(Now);
 }
 
 void APvPArenaCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
