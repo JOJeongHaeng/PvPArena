@@ -12,12 +12,15 @@ public class PvPArena : ModuleRules
             "CoreUObject",
             "Engine",
             "InputCore",
-            "EnhancedInput"
+            "EnhancedInput",
+            "UMG"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "NetCore"
+            "NetCore",
+            "Slate",
+            "SlateCore"
         });
     }
 }

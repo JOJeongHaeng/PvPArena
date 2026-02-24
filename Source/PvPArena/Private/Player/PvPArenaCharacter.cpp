@@ -1,5 +1,6 @@
 #include "Player/PvPArenaCharacter.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Combat/PvPCombatComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -7,29 +8,34 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "UI/PvPArenaHUDWidget.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
 {
     bReplicates = true;
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
+    HUDWidgetClass = UPvPArenaHUDWidget::StaticClass();
 }
 
 void APvPArenaCharacter::BeginPlay()
 {
     Super::BeginPlay();
     TryApplyInputMappingContext();
+    TryCreateHUDWidget();
 }
 
 void APvPArenaCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
     TryApplyInputMappingContext();
+    TryCreateHUDWidget();
 }
 
 void APvPArenaCharacter::OnRep_Controller()
 {
     Super::OnRep_Controller();
     TryApplyInputMappingContext();
+    TryCreateHUDWidget();
 }
 
 void APvPArenaCharacter::OnRep_CurrentHealth()
@@ -67,6 +73,29 @@ void APvPArenaCharacter::TryApplyInputMappingContext()
     }
 
     InputSubsystem->AddMappingContext(DefaultInputMappingContext, 0);
+}
+
+void APvPArenaCharacter::TryCreateHUDWidget()
+{
+    if (!HUDWidgetClass || ActiveHUDWidget || !IsLocallyControlled())
+    {
+        return;
+    }
+
+    APlayerController* PlayerController = Cast<APlayerController>(Controller);
+    if (!PlayerController || !PlayerController->IsLocalController())
+    {
+        return;
+    }
+
+    UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(PlayerController, HUDWidgetClass);
+    if (!CreatedWidget)
+    {
+        return;
+    }
+
+    CreatedWidget->AddToViewport();
+    ActiveHUDWidget = CreatedWidget;
 }
 
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)
