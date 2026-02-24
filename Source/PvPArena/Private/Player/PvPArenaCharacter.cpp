@@ -21,21 +21,18 @@ void APvPArenaCharacter::BeginPlay()
 {
     Super::BeginPlay();
     TryApplyInputMappingContext();
-    TryCreateHUDWidget();
 }
 
 void APvPArenaCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
     TryApplyInputMappingContext();
-    TryCreateHUDWidget();
 }
 
 void APvPArenaCharacter::OnRep_Controller()
 {
     Super::OnRep_Controller();
     TryApplyInputMappingContext();
-    TryCreateHUDWidget();
 }
 
 void APvPArenaCharacter::OnRep_CurrentHealth()

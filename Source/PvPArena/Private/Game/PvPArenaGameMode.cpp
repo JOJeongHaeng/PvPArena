@@ -4,6 +4,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/Pawn.h"
+#include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "TimerManager.h"
 
@@ -11,6 +12,7 @@ APvPArenaGameMode::APvPArenaGameMode()
 {
     GameStateClass = APvPArenaGameState::StaticClass();
     PlayerStateClass = APvPArenaPlayerState::StaticClass();
+    PlayerControllerClass = APvPArenaPlayerController::StaticClass();
     HUDClass = AHUD::StaticClass();
 }
 
