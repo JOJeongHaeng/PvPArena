@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
 #include "UI/PvPArenaHUDWidget.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
@@ -41,6 +42,10 @@ void APvPArenaCharacter::OnRep_CurrentHealth()
 }
 
 void APvPArenaCharacter::OnRep_IsDead()
+{
+}
+
+void APvPArenaCharacter::OnRep_IsInvulnerable()
 {
 }
 
@@ -125,7 +130,7 @@ void APvPArenaCharacter::RetryCreateHUDWidget()
 
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)
 {
-    if (bIsDead || Damage <= 0.0f)
+    if (bIsDead || bIsInvulnerable || Damage <= 0.0f)
     {
         return;
     }
@@ -145,6 +150,35 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
             PvPGameMode->HandlePlayerEliminated(Controller, InstigatorController);
         }
     }
+}
+
+void APvPArenaCharacter::SetInvulnerableForSeconds(float DurationSeconds)
+{
+    if (DurationSeconds <= 0.0f)
+    {
+        bIsInvulnerable = false;
+        if (GetWorld())
+        {
+            GetWorldTimerManager().ClearTimer(InvulnerabilityTimerHandle);
+        }
+        return;
+    }
+
+    bIsInvulnerable = true;
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(InvulnerabilityTimerHandle);
+    GetWorldTimerManager().SetTimer(
+        InvulnerabilityTimerHandle,
+        [this]()
+        {
+            bIsInvulnerable = false;
+        },
+        DurationSeconds,
+        false);
 }
 
 void APvPArenaCharacter::ServerTryMeleeAttack_Implementation()
@@ -187,4 +221,5 @@ void APvPArenaCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
     DOREPLIFETIME(APvPArenaCharacter, CurrentHealth);
     DOREPLIFETIME(APvPArenaCharacter, bIsDead);
+    DOREPLIFETIME(APvPArenaCharacter, bIsInvulnerable);
 }

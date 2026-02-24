@@ -20,9 +20,13 @@ public:
     float GetCurrentHealth() const { return CurrentHealth; }
     float GetMaxHealth() const { return MaxHealth; }
     bool IsDead() const { return bIsDead; }
+    bool IsInvulnerable() const { return bIsInvulnerable; }
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void SetInvulnerableForSeconds(float DurationSeconds);
 
     UFUNCTION(BlueprintCallable, Server, Reliable, Category = "Combat")
     void ServerTryMeleeAttack();
@@ -42,6 +46,9 @@ protected:
     UFUNCTION()
     void OnRep_IsDead();
 
+    UFUNCTION()
+    void OnRep_IsInvulnerable();
+
 private:
     void TryApplyInputMappingContext();
     void TryCreateHUDWidget();
@@ -56,6 +63,9 @@ private:
     UPROPERTY(ReplicatedUsing = OnRep_IsDead, VisibleAnywhere, Category = "Combat")
     bool bIsDead = false;
 
+    UPROPERTY(ReplicatedUsing = OnRep_IsInvulnerable, VisibleAnywhere, Category = "Combat")
+    bool bIsInvulnerable = false;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UPvPCombatComponent> CombatComponent;
 
@@ -69,4 +79,5 @@ private:
     TObjectPtr<UUserWidget> ActiveHUDWidget;
 
     FTimerHandle HUDRetryTimerHandle;
+    FTimerHandle InvulnerabilityTimerHandle;
 };

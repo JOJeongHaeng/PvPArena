@@ -4,6 +4,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/Pawn.h"
+#include "Player/PvPArenaCharacter.h"
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "TimerManager.h"
@@ -148,6 +149,11 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
         }
 
         RestartPlayer(VictimControllerWeak.Get());
+
+        if (APvPArenaCharacter* RespawnedCharacter = Cast<APvPArenaCharacter>(VictimControllerWeak->GetPawn()))
+        {
+            RespawnedCharacter->SetInvulnerableForSeconds(1.5f);
+        }
     });
 
     FTimerHandle RespawnTimerHandle;
