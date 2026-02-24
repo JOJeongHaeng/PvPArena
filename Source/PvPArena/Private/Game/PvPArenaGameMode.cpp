@@ -1,6 +1,5 @@
 #include "Game/PvPArenaGameMode.h"
 
-#include "Game/PvPArenaGameState.h"
 #include "Game/PvPArenaPlayerState.h"
 
 APvPArenaGameMode::APvPArenaGameMode()
@@ -47,4 +46,16 @@ void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlay
     }
 
     (void)RespawnDelaySeconds;
+}
+
+EPvPARoundState APvPArenaGameMode::ResolveRoundTimeout(int32 PlayerOneScore, int32 PlayerTwoScore)
+{
+    if (PlayerOneScore == PlayerTwoScore)
+    {
+        bHasWinner = false;
+        return EPvPARoundState::SuddenDeath;
+    }
+
+    bHasWinner = true;
+    return EPvPARoundState::RoundEnd;
 }

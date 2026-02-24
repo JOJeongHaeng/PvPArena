@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Game/PvPArenaGameState.h"
 #include "GameFramework/GameModeBase.h"
 #include "PvPArenaGameMode.generated.h"
 
@@ -18,6 +19,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Match")
     void RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlayerState* Victim);
+
+    UFUNCTION(BlueprintCallable, Category = "Match")
+    EPvPARoundState ResolveRoundTimeout(int32 PlayerOneScore, int32 PlayerTwoScore);
 
 protected:
     virtual void BeginPlay() override;

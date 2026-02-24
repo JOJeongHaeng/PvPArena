@@ -17,5 +17,16 @@ bool FRoundWinConditionTest::RunTest(const FString& Parameters)
     }
 
     TestFalse(TEXT("No winner at start"), GameMode->HasWinner());
+    TestEqual(
+        TEXT("Tie on timeout should enter sudden death"),
+        GameMode->ResolveRoundTimeout(3, 3),
+        EPvPARoundState::SuddenDeath);
+    TestFalse(TEXT("Sudden death state should not mark winner"), GameMode->HasWinner());
+
+    TestEqual(
+        TEXT("Non-tie timeout should end round"),
+        GameMode->ResolveRoundTimeout(4, 2),
+        EPvPARoundState::RoundEnd);
+    TestTrue(TEXT("Non-tie timeout should mark winner"), GameMode->HasWinner());
     return true;
 }
