@@ -45,6 +45,12 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float RangedRange = 2500.0f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    bool bDrawAttackDebug = true;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    float DebugDrawTime = 1.0f;
+
     float NextAllowedMeleeTime = 0.0f;
     float NextAllowedRangedTime = 0.0f;
 };

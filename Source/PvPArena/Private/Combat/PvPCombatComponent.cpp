@@ -1,6 +1,7 @@
 #include "Combat/PvPCombatComponent.h"
 
 #include "Player/PvPArenaCharacter.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 
@@ -35,15 +36,34 @@ bool UPvPCombatComponent::TryServerMeleeAttack(APvPArenaCharacter* Attacker)
     const FVector End = Start + (Attacker->GetActorForwardVector() * MeleeRange);
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PvPArenaMeleeTrace), false, Attacker);
+    FCollisionObjectQueryParams ObjectQueryParams;
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
     FHitResult HitResult;
-    const bool bHit = Attacker->GetWorld()->SweepSingleByChannel(
+    const bool bHit = Attacker->GetWorld()->SweepSingleByObjectType(
         HitResult,
         Start,
         End,
         FQuat::Identity,
-        ECC_Pawn,
+        ObjectQueryParams,
         FCollisionShape::MakeSphere(MeleeRadius),
         QueryParams);
+
+    if (bDrawAttackDebug)
+    {
+        const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
+        DrawDebugCapsule(
+            Attacker->GetWorld(),
+            (Start + End) * 0.5f,
+            MeleeRange * 0.5f,
+            MeleeRadius,
+            FRotationMatrix::MakeFromZ((End - Start).GetSafeNormal()).ToQuat(),
+            DebugColor,
+            false,
+            DebugDrawTime,
+            0,
+            1.5f);
+        DrawDebugSphere(Attacker->GetWorld(), End, MeleeRadius, 16, DebugColor, false, DebugDrawTime, 0, 1.0f);
+    }
 
     APvPArenaCharacter* HitCharacter = bHit ? Cast<APvPArenaCharacter>(HitResult.GetActor()) : nullptr;
     if (!HitCharacter || HitCharacter == Attacker || HitCharacter->IsDead())
@@ -77,14 +97,24 @@ bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
     const FVector Start = ViewLocation;
     const FVector End = Start + (ViewRotation.Vector() * RangedRange);
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PvPArenaRangedTrace), false, Attacker);
+    FCollisionObjectQueryParams ObjectQueryParams;
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
 
     FHitResult HitResult;
-    const bool bHit = Attacker->GetWorld()->LineTraceSingleByChannel(
+    const bool bHit = Attacker->GetWorld()->LineTraceSingleByObjectType(
         HitResult,
         Start,
         End,
-        ECC_Pawn,
+        ObjectQueryParams,
         QueryParams);
+
+    if (bDrawAttackDebug)
+    {
+        const FVector DebugEnd = bHit ? HitResult.ImpactPoint : End;
+        const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
+        DrawDebugLine(Attacker->GetWorld(), Start, DebugEnd, DebugColor, false, DebugDrawTime, 0, 1.5f);
+        DrawDebugPoint(Attacker->GetWorld(), DebugEnd, 10.0f, DebugColor, false, DebugDrawTime, 0);
+    }
 
     APvPArenaCharacter* HitCharacter = bHit ? Cast<APvPArenaCharacter>(HitResult.GetActor()) : nullptr;
     if (!HitCharacter || HitCharacter == Attacker || HitCharacter->IsDead())
