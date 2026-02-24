@@ -77,7 +77,17 @@ void APvPArenaCharacter::TryApplyInputMappingContext()
 
 void APvPArenaCharacter::TryCreateHUDWidget()
 {
-    if (!HUDWidgetClass || ActiveHUDWidget || !IsLocallyControlled())
+    if (ActiveHUDWidget || !IsLocallyControlled())
+    {
+        return;
+    }
+
+    TSubclassOf<UUserWidget> WidgetClassToCreate = HUDWidgetClass;
+    if (!WidgetClassToCreate)
+    {
+        WidgetClassToCreate = UPvPArenaHUDWidget::StaticClass();
+    }
+    if (!WidgetClassToCreate)
     {
         return;
     }
@@ -85,17 +95,35 @@ void APvPArenaCharacter::TryCreateHUDWidget()
     APlayerController* PlayerController = Cast<APlayerController>(Controller);
     if (!PlayerController || !PlayerController->IsLocalController())
     {
+        RetryCreateHUDWidget();
         return;
     }
 
-    UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(PlayerController, HUDWidgetClass);
+    UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(PlayerController, WidgetClassToCreate);
     if (!CreatedWidget)
+    {
+        RetryCreateHUDWidget();
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(HUDRetryTimerHandle);
+    CreatedWidget->AddToViewport();
+    ActiveHUDWidget = CreatedWidget;
+}
+
+void APvPArenaCharacter::RetryCreateHUDWidget()
+{
+    if (!GetWorld() || HUDRetryTimerHandle.IsValid())
     {
         return;
     }
 
-    CreatedWidget->AddToViewport();
-    ActiveHUDWidget = CreatedWidget;
+    GetWorldTimerManager().SetTimer(
+        HUDRetryTimerHandle,
+        this,
+        &APvPArenaCharacter::TryCreateHUDWidget,
+        0.2f,
+        true);
 }
 
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)

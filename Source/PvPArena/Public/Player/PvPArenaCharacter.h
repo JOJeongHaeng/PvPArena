@@ -45,6 +45,7 @@ protected:
 private:
     void TryApplyInputMappingContext();
     void TryCreateHUDWidget();
+    void RetryCreateHUDWidget();
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MaxHealth = 100.0f;
@@ -66,4 +67,6 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UUserWidget> ActiveHUDWidget;
+
+    FTimerHandle HUDRetryTimerHandle;
 };
