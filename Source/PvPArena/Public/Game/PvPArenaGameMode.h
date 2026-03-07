@@ -25,6 +25,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Match")
     EPvPARoundState ResolveRoundTimeout(int32 PlayerOneScore, int32 PlayerTwoScore);
 
+    UFUNCTION(BlueprintPure, Category = "Match")
+    bool ShouldEndRoundOnKill(EPvPARoundState CurrentRoundState, int32 KillerKills) const;
+
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandlePlayerEliminated(AController* VictimController, AController* KillerController);
 
@@ -32,6 +35,10 @@ protected:
     virtual void BeginPlay() override;
 
 private:
+    void BeginRoundEndPhase();
+    void OnRoundResetSecondElapsed();
+    void HandleRoundReset();
+    void ResetAllPlayersForNextRound();
     void StartRoundTimer();
     void OnRoundSecondElapsed();
 
@@ -44,6 +51,10 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Match")
     int32 RespawnDelaySeconds = 3;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Match")
+    int32 RoundEndDelaySeconds = 5;
+
     bool bHasWinner = false;
     FTimerHandle RoundTimerHandle;
+    FTimerHandle RoundResetTimerHandle;
 };

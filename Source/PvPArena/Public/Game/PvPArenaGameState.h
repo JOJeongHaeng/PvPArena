@@ -19,10 +19,12 @@ class PVPARENA_API APvPArenaGameState : public AGameStateBase
 
 public:
     int32 GetRemainingRoundTimeSeconds() const { return RemainingRoundTimeSeconds; }
+    int32 GetRemainingRoundEndTimeSeconds() const { return RemainingRoundEndTimeSeconds; }
     int32 GetScoreLimit() const { return ScoreLimit; }
     EPvPARoundState GetRoundState() const { return RoundState; }
 
     void SetRemainingRoundTimeSeconds(int32 NewTime);
+    void SetRemainingRoundEndTimeSeconds(int32 NewTime);
     void SetScoreLimit(int32 NewLimit);
     void SetRoundState(EPvPARoundState NewState);
 
@@ -32,6 +34,9 @@ protected:
 private:
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
     int32 RemainingRoundTimeSeconds = 180;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
+    int32 RemainingRoundEndTimeSeconds = 0;
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
     int32 ScoreLimit = 5;

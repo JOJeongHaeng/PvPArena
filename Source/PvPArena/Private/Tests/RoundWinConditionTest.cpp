@@ -28,5 +28,15 @@ bool FRoundWinConditionTest::RunTest(const FString& Parameters)
         GameMode->ResolveRoundTimeout(4, 2),
         EPvPARoundState::RoundEnd);
     TestTrue(TEXT("Non-tie timeout should mark winner"), GameMode->HasWinner());
+
+    TestTrue(
+        TEXT("Sudden death should end round on next kill"),
+        GameMode->ShouldEndRoundOnKill(EPvPARoundState::SuddenDeath, 0));
+    TestFalse(
+        TEXT("Playing round should not end below score limit"),
+        GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 4));
+    TestTrue(
+        TEXT("Playing round should end at score limit"),
+        GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 5));
     return true;
 }

@@ -15,6 +15,7 @@ public:
 
     void AddKill();
     void AddDeath();
+    void ResetRoundStats();
 
 protected:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

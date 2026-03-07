@@ -1,5 +1,6 @@
 #include "Game/PvPArenaGameMode.h"
 
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/HUD.h"
@@ -22,10 +23,14 @@ void APvPArenaGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
+    bHasWinner = false;
+    GetWorldTimerManager().ClearTimer(RoundResetTimerHandle);
+
     if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
     {
         PvPGameState->SetScoreLimit(ScoreLimit);
         PvPGameState->SetRemainingRoundTimeSeconds(RoundDurationSeconds);
+        PvPGameState->SetRemainingRoundEndTimeSeconds(0);
         PvPGameState->SetRoundState(EPvPARoundState::Playing);
     }
 
@@ -47,15 +52,15 @@ void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlay
     if (Killer)
     {
         Killer->AddKill();
-        if (Killer->GetKills() >= ScoreLimit)
-        {
-            bHasWinner = true;
-            GetWorldTimerManager().ClearTimer(RoundTimerHandle);
-            if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
-            {
-                PvPGameState->SetRoundState(EPvPARoundState::RoundEnd);
-            }
-        }
+    }
+
+    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    const EPvPARoundState CurrentRoundState = PvPGameState ? PvPGameState->GetRoundState() : EPvPARoundState::Playing;
+    const int32 KillerKills = Killer ? Killer->GetKills() : 0;
+    if (Killer && ShouldEndRoundOnKill(CurrentRoundState, KillerKills))
+    {
+        bHasWinner = true;
+        BeginRoundEndPhase();
     }
 
     (void)RespawnDelaySeconds;
@@ -71,6 +76,112 @@ EPvPARoundState APvPArenaGameMode::ResolveRoundTimeout(int32 PlayerOneScore, int
 
     bHasWinner = true;
     return EPvPARoundState::RoundEnd;
+}
+
+bool APvPArenaGameMode::ShouldEndRoundOnKill(EPvPARoundState CurrentRoundState, int32 KillerKills) const
+{
+    if (CurrentRoundState == EPvPARoundState::SuddenDeath)
+    {
+        return true;
+    }
+
+    return KillerKills >= ScoreLimit;
+}
+
+void APvPArenaGameMode::BeginRoundEndPhase()
+{
+    GetWorldTimerManager().ClearTimer(RoundTimerHandle);
+    GetWorldTimerManager().ClearTimer(RoundResetTimerHandle);
+
+    if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
+    {
+        PvPGameState->SetRoundState(EPvPARoundState::RoundEnd);
+        PvPGameState->SetRemainingRoundTimeSeconds(0);
+        PvPGameState->SetRemainingRoundEndTimeSeconds(RoundEndDelaySeconds);
+    }
+
+    GetWorldTimerManager().SetTimer(
+        RoundResetTimerHandle,
+        this,
+        &APvPArenaGameMode::OnRoundResetSecondElapsed,
+        1.0f,
+        true);
+}
+
+void APvPArenaGameMode::OnRoundResetSecondElapsed()
+{
+    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    if (!PvPGameState)
+    {
+        GetWorldTimerManager().ClearTimer(RoundResetTimerHandle);
+        return;
+    }
+
+    const int32 NewRoundEndTime = PvPGameState->GetRemainingRoundEndTimeSeconds() - 1;
+    PvPGameState->SetRemainingRoundEndTimeSeconds(NewRoundEndTime);
+    if (NewRoundEndTime > 0)
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(RoundResetTimerHandle);
+    HandleRoundReset();
+}
+
+void APvPArenaGameMode::HandleRoundReset()
+{
+    bHasWinner = false;
+
+    if (AGameStateBase* BaseGameState = GameState)
+    {
+        for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+        {
+            if (APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState))
+            {
+                PvPPlayerState->ResetRoundStats();
+            }
+        }
+    }
+
+    ResetAllPlayersForNextRound();
+
+    if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
+    {
+        PvPGameState->SetRoundState(EPvPARoundState::Playing);
+        PvPGameState->SetRemainingRoundTimeSeconds(RoundDurationSeconds);
+        PvPGameState->SetRemainingRoundEndTimeSeconds(0);
+    }
+
+    StartRoundTimer();
+}
+
+void APvPArenaGameMode::ResetAllPlayersForNextRound()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        AController* Controller = It->Get();
+        if (!Controller)
+        {
+            continue;
+        }
+
+        if (APawn* ExistingPawn = Controller->GetPawn())
+        {
+            ExistingPawn->Destroy();
+        }
+
+        RestartPlayer(Controller);
+
+        if (APvPArenaCharacter* RespawnedCharacter = Cast<APvPArenaCharacter>(Controller->GetPawn()))
+        {
+            RespawnedCharacter->SetInvulnerableForSeconds(1.5f);
+        }
+    }
 }
 
 void APvPArenaGameMode::StartRoundTimer()
@@ -119,6 +230,12 @@ void APvPArenaGameMode::OnRoundSecondElapsed()
 
     const EPvPARoundState TimeoutState = ResolveRoundTimeout(ScoreA, ScoreB);
     PvPGameState->SetRoundState(TimeoutState);
+    if (TimeoutState == EPvPARoundState::RoundEnd)
+    {
+        BeginRoundEndPhase();
+        return;
+    }
+
     GetWorldTimerManager().ClearTimer(RoundTimerHandle);
 }
 
