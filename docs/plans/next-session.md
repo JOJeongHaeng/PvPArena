@@ -5,7 +5,7 @@
 - Branch: `main`
 
 ## Latest Commits (most relevant)
-- `(pending)` feat: split round and match stats with improved hud readability
+- `9f78978` feat: split round and match stats with improved hud readability
 - `fd5830f` feat: add round-end countdown, auto-reset, and hud result text
 - `1e82b24` chore: save config and content updates for pvp map and input assets
 - `8c19472` feat: add respawn invulnerability window with damage gating
