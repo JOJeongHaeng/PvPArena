@@ -9,14 +9,13 @@
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "TimerManager.h"
-#include "UI/PvPArenaHUD.h"
 
 APvPArenaGameMode::APvPArenaGameMode()
 {
     GameStateClass = APvPArenaGameState::StaticClass();
     PlayerStateClass = APvPArenaPlayerState::StaticClass();
     PlayerControllerClass = APvPArenaPlayerController::StaticClass();
-    HUDClass = APvPArenaHUD::StaticClass();
+    HUDClass = AHUD::StaticClass();
 }
 
 void APvPArenaGameMode::BeginPlay()
