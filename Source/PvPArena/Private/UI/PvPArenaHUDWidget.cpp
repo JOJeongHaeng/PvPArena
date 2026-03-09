@@ -4,10 +4,13 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Engine/World.h"
 #include "Game/PvPArenaGameState.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Player/PvPArenaCharacter.h"
+#include "TimerManager.h"
 #include "Blueprint/WidgetTree.h"
 
 void UPvPArenaHUDWidget::NativeConstruct()
@@ -15,12 +18,20 @@ void UPvPArenaHUDWidget::NativeConstruct()
     Super::NativeConstruct();
     BuildWidgetTree();
     RefreshWidgetData();
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(RefreshTimerHandle, this, &UPvPArenaHUDWidget::RefreshWidgetData, 0.15f, true);
+    }
 }
 
-void UPvPArenaHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+void UPvPArenaHUDWidget::NativeDestruct()
 {
-    Super::NativeTick(MyGeometry, InDeltaTime);
-    RefreshWidgetData();
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(RefreshTimerHandle);
+    }
+
+    Super::NativeDestruct();
 }
 
 void UPvPArenaHUDWidget::BuildWidgetTree()
@@ -35,11 +46,14 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     HealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthBar"));
     HealthText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HealthText"));
-    ScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ScoreText"));
+    RoundScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundScoreText"));
+    MatchScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchScoreText"));
     TimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TimerText"));
     RoundStateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundStateText"));
+    ResultText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResultText"));
+    NextRoundText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextRoundText"));
 
-    if (!RootCanvas || !HealthBar || !HealthText || !ScoreText || !TimerText || !RoundStateText)
+    if (!RootCanvas || !HealthBar || !HealthText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText)
     {
         return;
     }
@@ -49,9 +63,12 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     UCanvasPanelSlot* HealthBarSlot = RootCanvas->AddChildToCanvas(HealthBar);
     UCanvasPanelSlot* HealthTextSlot = RootCanvas->AddChildToCanvas(HealthText);
-    UCanvasPanelSlot* ScoreTextSlot = RootCanvas->AddChildToCanvas(ScoreText);
+    UCanvasPanelSlot* RoundScoreTextSlot = RootCanvas->AddChildToCanvas(RoundScoreText);
+    UCanvasPanelSlot* MatchScoreTextSlot = RootCanvas->AddChildToCanvas(MatchScoreText);
     UCanvasPanelSlot* TimerTextSlot = RootCanvas->AddChildToCanvas(TimerText);
     UCanvasPanelSlot* RoundStateTextSlot = RootCanvas->AddChildToCanvas(RoundStateText);
+    UCanvasPanelSlot* ResultTextSlot = RootCanvas->AddChildToCanvas(ResultText);
+    UCanvasPanelSlot* NextRoundTextSlot = RootCanvas->AddChildToCanvas(NextRoundText);
 
     if (HealthBarSlot)
     {
@@ -66,22 +83,40 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         HealthTextSlot->SetPosition(FVector2D(40.0f, 62.0f));
     }
 
-    if (ScoreTextSlot)
+    if (RoundScoreTextSlot)
     {
-        ScoreTextSlot->SetAutoSize(true);
-        ScoreTextSlot->SetPosition(FVector2D(40.0f, 86.0f));
+        RoundScoreTextSlot->SetAutoSize(true);
+        RoundScoreTextSlot->SetPosition(FVector2D(40.0f, 86.0f));
+    }
+
+    if (MatchScoreTextSlot)
+    {
+        MatchScoreTextSlot->SetAutoSize(true);
+        MatchScoreTextSlot->SetPosition(FVector2D(40.0f, 110.0f));
     }
 
     if (TimerTextSlot)
     {
         TimerTextSlot->SetAutoSize(true);
-        TimerTextSlot->SetPosition(FVector2D(40.0f, 110.0f));
+        TimerTextSlot->SetPosition(FVector2D(40.0f, 134.0f));
     }
 
     if (RoundStateTextSlot)
     {
         RoundStateTextSlot->SetAutoSize(true);
-        RoundStateTextSlot->SetPosition(FVector2D(40.0f, 134.0f));
+        RoundStateTextSlot->SetPosition(FVector2D(40.0f, 158.0f));
+    }
+
+    if (ResultTextSlot)
+    {
+        ResultTextSlot->SetAutoSize(true);
+        ResultTextSlot->SetPosition(FVector2D(40.0f, 182.0f));
+    }
+
+    if (NextRoundTextSlot)
+    {
+        NextRoundTextSlot->SetAutoSize(true);
+        NextRoundTextSlot->SetPosition(FVector2D(40.0f, 206.0f));
     }
 }
 
@@ -110,9 +145,16 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
     if (const APvPArenaPlayerState* PvPPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>())
     {
-        if (ScoreText)
+        if (RoundScoreText)
         {
-            ScoreText->SetText(FText::FromString(FString::Printf(TEXT("K / D: %d / %d"), PvPPlayerState->GetKills(), PvPPlayerState->GetDeaths())));
+            RoundScoreText->SetText(FText::FromString(
+                FString::Printf(TEXT("Round K / D: %d / %d"), PvPPlayerState->GetRoundKills(), PvPPlayerState->GetRoundDeaths())));
+        }
+
+        if (MatchScoreText)
+        {
+            MatchScoreText->SetText(FText::FromString(
+                FString::Printf(TEXT("Match K / D: %d / %d"), PvPPlayerState->GetMatchKills(), PvPPlayerState->GetMatchDeaths())));
         }
     }
 
@@ -127,7 +169,79 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         {
             RoundStateText->SetText(FText::FromString(FString::Printf(TEXT("Round: %s"), *RoundStateToString(static_cast<uint8>(PvPGameState->GetRoundState())))));
         }
+
+        if (ResultText)
+        {
+            if (PvPGameState->GetRoundState() == EPvPARoundState::RoundEnd)
+            {
+                ResultText->SetText(FText::FromString(FString::Printf(TEXT("Result: %s"), *GetRoundResultText(PlayerController, PvPGameState))));
+            }
+            else
+            {
+                ResultText->SetText(FText::GetEmpty());
+            }
+        }
+
+        if (NextRoundText)
+        {
+            if (PvPGameState->GetRoundState() == EPvPARoundState::RoundEnd)
+            {
+                NextRoundText->SetText(FText::FromString(
+                    FString::Printf(TEXT("Next Round In: %d"), PvPGameState->GetRemainingRoundEndTimeSeconds())));
+            }
+            else
+            {
+                NextRoundText->SetText(FText::GetEmpty());
+            }
+        }
     }
+}
+
+FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
+{
+    if (!PlayerController || !GameState)
+    {
+        return TEXT("Unknown");
+    }
+
+    const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
+    if (!LocalPlayerState)
+    {
+        return TEXT("Unknown");
+    }
+
+    const int32 LocalKills = LocalPlayerState->GetRoundKills();
+    int32 HighestOpponentKills = TNumericLimits<int32>::Min();
+    bool bFoundOpponent = false;
+
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (!PvPState || PvPState == LocalPlayerState)
+        {
+            continue;
+        }
+
+        HighestOpponentKills = FMath::Max(HighestOpponentKills, PvPState->GetRoundKills());
+        bFoundOpponent = true;
+    }
+
+    if (!bFoundOpponent)
+    {
+        return TEXT("Pending");
+    }
+
+    if (LocalKills > HighestOpponentKills)
+    {
+        return TEXT("Win");
+    }
+
+    if (LocalKills < HighestOpponentKills)
+    {
+        return TEXT("Lose");
+    }
+
+    return TEXT("Draw");
 }
 
 FString UPvPArenaHUDWidget::RoundStateToString(uint8 RoundStateValue)
