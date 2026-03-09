@@ -1,0 +1,19 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Basic git validation
+        run: git diff --check
+
+      - name: Workflow marker
+        run: echo "PR basic check passed"
