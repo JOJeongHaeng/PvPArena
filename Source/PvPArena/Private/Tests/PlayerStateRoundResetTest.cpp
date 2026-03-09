@@ -18,11 +18,15 @@ bool FPlayerStateRoundResetTest::RunTest(const FString& Parameters)
 
     PlayerState->AddKill();
     PlayerState->AddDeath();
-    TestEqual(TEXT("Kills should increment"), PlayerState->GetKills(), 1);
-    TestEqual(TEXT("Deaths should increment"), PlayerState->GetDeaths(), 1);
+    TestEqual(TEXT("Round kills should increment"), PlayerState->GetRoundKills(), 1);
+    TestEqual(TEXT("Round deaths should increment"), PlayerState->GetRoundDeaths(), 1);
+    TestEqual(TEXT("Match kills should increment"), PlayerState->GetMatchKills(), 1);
+    TestEqual(TEXT("Match deaths should increment"), PlayerState->GetMatchDeaths(), 1);
 
     PlayerState->ResetRoundStats();
-    TestEqual(TEXT("Kills should reset"), PlayerState->GetKills(), 0);
-    TestEqual(TEXT("Deaths should reset"), PlayerState->GetDeaths(), 0);
+    TestEqual(TEXT("Round kills should reset"), PlayerState->GetRoundKills(), 0);
+    TestEqual(TEXT("Round deaths should reset"), PlayerState->GetRoundDeaths(), 0);
+    TestEqual(TEXT("Match kills should persist across round reset"), PlayerState->GetMatchKills(), 1);
+    TestEqual(TEXT("Match deaths should persist across round reset"), PlayerState->GetMatchDeaths(), 1);
     return true;
 }

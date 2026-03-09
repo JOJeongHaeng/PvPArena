@@ -35,12 +35,22 @@ void APvPArenaHUD::DrawHUD()
     if (const APvPArenaPlayerState* PlayerState = PC->GetPlayerState<APvPArenaPlayerState>())
     {
         DrawText(
-            FString::Printf(TEXT("K / D: %d / %d"), PlayerState->GetKills(), PlayerState->GetDeaths()),
+            FString::Printf(TEXT("Round K / D: %d / %d"), PlayerState->GetRoundKills(), PlayerState->GetRoundDeaths()),
             FLinearColor::Yellow,
             40.0f,
             Y,
             nullptr,
             1.1f,
+            false);
+        Y += 28.0f;
+
+        DrawText(
+            FString::Printf(TEXT("Match K / D: %d / %d"), PlayerState->GetMatchKills(), PlayerState->GetMatchDeaths()),
+            FLinearColor(1.0f, 0.85f, 0.2f, 1.0f),
+            40.0f,
+            Y,
+            nullptr,
+            1.0f,
             false);
         Y += 28.0f;
     }
@@ -69,13 +79,14 @@ void APvPArenaHUD::DrawHUD()
 
         if (GameState->GetRoundState() == EPvPARoundState::RoundEnd)
         {
+            const FString RoundResultText = GetRoundResultText(PC, GameState);
             DrawText(
-                FString::Printf(TEXT("Result: %s"), *GetRoundResultText(PC, GameState)),
-                FLinearColor::Yellow,
+                FString::Printf(TEXT("Result: %s"), *RoundResultText),
+                GetRoundResultColor(RoundResultText),
                 40.0f,
                 Y,
                 nullptr,
-                1.1f,
+                1.25f,
                 false);
             Y += 28.0f;
 
@@ -91,6 +102,26 @@ void APvPArenaHUD::DrawHUD()
     }
 }
 
+FLinearColor APvPArenaHUD::GetRoundResultColor(const FString& RoundResultText) const
+{
+    if (RoundResultText == TEXT("Win"))
+    {
+        return FLinearColor(0.25f, 1.0f, 0.25f, 1.0f);
+    }
+
+    if (RoundResultText == TEXT("Lose"))
+    {
+        return FLinearColor(1.0f, 0.35f, 0.3f, 1.0f);
+    }
+
+    if (RoundResultText == TEXT("Draw"))
+    {
+        return FLinearColor(1.0f, 0.9f, 0.45f, 1.0f);
+    }
+
+    return FLinearColor::White;
+}
+
 FString APvPArenaHUD::GetRoundResultText(APlayerController* PC, const APvPArenaGameState* GameState) const
 {
     if (!PC || !GameState)
@@ -104,7 +135,7 @@ FString APvPArenaHUD::GetRoundResultText(APlayerController* PC, const APvPArenaG
         return TEXT("Unknown");
     }
 
-    const int32 LocalKills = LocalPlayerState->GetKills();
+    const int32 LocalKills = LocalPlayerState->GetRoundKills();
     int32 HighestOpponentKills = TNumericLimits<int32>::Min();
     bool bFoundOpponent = false;
 
@@ -116,7 +147,7 @@ FString APvPArenaHUD::GetRoundResultText(APlayerController* PC, const APvPArenaG
             continue;
         }
 
-        HighestOpponentKills = FMath::Max(HighestOpponentKills, PvPState->GetKills());
+        HighestOpponentKills = FMath::Max(HighestOpponentKills, PvPState->GetRoundKills());
         bFoundOpponent = true;
     }
 

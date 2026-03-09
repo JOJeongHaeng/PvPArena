@@ -10,8 +10,12 @@ class PVPARENA_API APvPArenaPlayerState : public APlayerState
     GENERATED_BODY()
 
 public:
-    int32 GetKills() const { return Kills; }
-    int32 GetDeaths() const { return Deaths; }
+    int32 GetRoundKills() const { return RoundKills; }
+    int32 GetRoundDeaths() const { return RoundDeaths; }
+    int32 GetMatchKills() const { return MatchKills; }
+    int32 GetMatchDeaths() const { return MatchDeaths; }
+    int32 GetKills() const { return GetRoundKills(); }
+    int32 GetDeaths() const { return GetRoundDeaths(); }
 
     void AddKill();
     void AddDeath();
@@ -22,8 +26,14 @@ protected:
 
 private:
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Score")
-    int32 Kills = 0;
+    int32 RoundKills = 0;
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Score")
-    int32 Deaths = 0;
+    int32 RoundDeaths = 0;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Score")
+    int32 MatchKills = 0;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Score")
+    int32 MatchDeaths = 0;
 };

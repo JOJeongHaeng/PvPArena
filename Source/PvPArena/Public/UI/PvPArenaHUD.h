@@ -13,6 +13,7 @@ public:
     virtual void DrawHUD() override;
 
 private:
+    FLinearColor GetRoundResultColor(const FString& RoundResultText) const;
     FString GetRoundResultText(class APlayerController* PC, const class APvPArenaGameState* GameState) const;
     FString RoundStateToText(uint8 RoundStateValue) const;
 };

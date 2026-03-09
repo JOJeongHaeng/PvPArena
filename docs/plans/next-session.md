@@ -5,6 +5,7 @@
 - Branch: `main`
 
 ## Latest Commits (most relevant)
+- `(pending)` feat: split round and match stats with improved hud readability
 - `fd5830f` feat: add round-end countdown, auto-reset, and hud result text
 - `1e82b24` chore: save config and content updates for pvp map and input assets
 - `8c19472` feat: add respawn invulnerability window with damage gating
@@ -26,6 +27,9 @@
   - `Round` state
   - `Result: Win/Lose/Draw` during round end
   - `Next Round In: N` countdown
+- Player stats split completed:
+  - `Round K/D` resets per round
+  - `Match K/D` persists across round reset
 
 ## Important Notes
 - Text HUD path (`APvPArenaHUD`) is the active stable path.
@@ -33,15 +37,11 @@
 - Related implementation/progress detail: `docs/plans/2026-03-07-session-progress.md`.
 
 ## Next Task
-1. HUD polish
-- Improve readability/layout/colors for round-end result and countdown text.
-
-2. Round stats policy
-- Decide whether `Kills/Deaths` should reset each round or persist for whole match.
-- If persistent match score is required, split to `RoundKills` vs `MatchKills`.
-
-3. UMG migration (incremental)
+1. UMG migration (incremental)
 - Mirror current text HUD data in UMG first (no gameplay logic move), then switch display path.
+
+2. Match-level win policy
+- Decide if match should end on `MatchKills` target (best-of / first-to-N) in addition to per-round win.
 
 ## Suggested Start Prompt for Next Codex Session
 "이전 세션 이어서 진행.

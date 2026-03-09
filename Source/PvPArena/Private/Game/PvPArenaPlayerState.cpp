@@ -4,24 +4,28 @@
 
 void APvPArenaPlayerState::AddKill()
 {
-    ++Kills;
+    ++RoundKills;
+    ++MatchKills;
 }
 
 void APvPArenaPlayerState::AddDeath()
 {
-    ++Deaths;
+    ++RoundDeaths;
+    ++MatchDeaths;
 }
 
 void APvPArenaPlayerState::ResetRoundStats()
 {
-    Kills = 0;
-    Deaths = 0;
+    RoundKills = 0;
+    RoundDeaths = 0;
 }
 
 void APvPArenaPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    DOREPLIFETIME(APvPArenaPlayerState, Kills);
-    DOREPLIFETIME(APvPArenaPlayerState, Deaths);
+    DOREPLIFETIME(APvPArenaPlayerState, RoundKills);
+    DOREPLIFETIME(APvPArenaPlayerState, RoundDeaths);
+    DOREPLIFETIME(APvPArenaPlayerState, MatchKills);
+    DOREPLIFETIME(APvPArenaPlayerState, MatchDeaths);
 }
