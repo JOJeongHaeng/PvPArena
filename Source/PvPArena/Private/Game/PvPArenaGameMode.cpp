@@ -250,11 +250,6 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
         return;
     }
 
-    if (APawn* VictimPawn = VictimController->GetPawn())
-    {
-        VictimPawn->Destroy();
-    }
-
     TWeakObjectPtr<AController> VictimControllerWeak = VictimController;
     FTimerDelegate RespawnDelegate;
     RespawnDelegate.BindLambda([this, VictimControllerWeak]()
@@ -262,6 +257,11 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
         if (!VictimControllerWeak.IsValid())
         {
             return;
+        }
+
+        if (APawn* ExistingPawn = VictimControllerWeak->GetPawn())
+        {
+            ExistingPawn->Destroy();
         }
 
         RestartPlayer(VictimControllerWeak.Get());

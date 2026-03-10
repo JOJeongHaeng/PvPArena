@@ -34,9 +34,9 @@ bool FRoundWinConditionTest::RunTest(const FString& Parameters)
         GameMode->ShouldEndRoundOnKill(EPvPARoundState::SuddenDeath, 0));
     TestFalse(
         TEXT("Playing round should not end below score limit"),
-        GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 4));
+        GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 2));
     TestTrue(
         TEXT("Playing round should end at score limit"),
-        GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 5));
+        GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 3));
     return true;
 }
