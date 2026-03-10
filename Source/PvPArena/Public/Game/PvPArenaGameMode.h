@@ -43,10 +43,10 @@ private:
     void OnRoundSecondElapsed();
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
-    int32 ScoreLimit = 5;
+    int32 ScoreLimit = 3;
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
-    int32 RoundDurationSeconds = 180;
+    int32 RoundDurationSeconds = 60;
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
     int32 RespawnDelaySeconds = 3;
