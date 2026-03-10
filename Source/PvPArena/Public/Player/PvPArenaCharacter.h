@@ -52,6 +52,7 @@ protected:
 
 private:
     void PlayDeathAnimation();
+    void SetDeathInputSuppressed(bool bSuppressInput);
     void TryApplyInputMappingContext();
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")

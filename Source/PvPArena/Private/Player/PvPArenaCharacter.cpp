@@ -27,18 +27,21 @@ APvPArenaCharacter::APvPArenaCharacter()
 void APvPArenaCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
 }
 
 void APvPArenaCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
+    SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
 }
 
 void APvPArenaCharacter::OnRep_Controller()
 {
     Super::OnRep_Controller();
+    SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
 }
 
@@ -49,10 +52,14 @@ void APvPArenaCharacter::OnRep_CurrentHealth()
 
 void APvPArenaCharacter::OnRep_IsDead()
 {
-    if (bIsDead)
+    SetDeathInputSuppressed(bIsDead);
+
+    if (!bIsDead)
     {
-        PlayDeathAnimation();
+        return;
     }
+
+    PlayDeathAnimation();
 }
 
 void APvPArenaCharacter::OnRep_IsInvulnerable()
@@ -97,6 +104,27 @@ void APvPArenaCharacter::PlayDeathAnimation()
     GetMesh()->PlayAnimation(DeathAnimation, false);
 }
 
+void APvPArenaCharacter::SetDeathInputSuppressed(bool bSuppressInput)
+{
+    APlayerController* PlayerController = Cast<APlayerController>(Controller);
+    if (!PlayerController)
+    {
+        return;
+    }
+
+    if (bSuppressInput)
+    {
+        DisableInput(PlayerController);
+    }
+    else
+    {
+        EnableInput(PlayerController);
+    }
+
+    PlayerController->SetIgnoreMoveInput(bSuppressInput);
+    PlayerController->SetIgnoreLookInput(bSuppressInput);
+}
+
 float APvPArenaCharacter::GetDeathAnimationDuration() const
 {
     return DeathAnimation ? DeathAnimation->GetPlayLength() : 0.0f;
@@ -113,6 +141,7 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
     if (CurrentHealth <= 0.0f)
     {
         bIsDead = true;
+        SetDeathInputSuppressed(true);
         PlayDeathAnimation();
         ForceNetUpdate();
 
