@@ -250,6 +250,31 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
         return;
     }
 
+    if (APvPArenaCharacter* VictimCharacter = Cast<APvPArenaCharacter>(VictimController->GetPawn()))
+    {
+        const float DeathAnimationDuration = VictimCharacter->GetDeathAnimationDuration();
+        if (DeathAnimationDuration > 0.0f)
+        {
+            FTimerHandle DeathCleanupTimerHandle;
+            TWeakObjectPtr<APvPArenaCharacter> VictimCharacterWeak = VictimCharacter;
+            GetWorldTimerManager().SetTimer(
+                DeathCleanupTimerHandle,
+                [VictimCharacterWeak]()
+                {
+                    if (VictimCharacterWeak.IsValid())
+                    {
+                        VictimCharacterWeak->Destroy();
+                    }
+                },
+                DeathAnimationDuration,
+                false);
+        }
+        else
+        {
+            VictimCharacter->Destroy();
+        }
+    }
+
     TWeakObjectPtr<AController> VictimControllerWeak = VictimController;
     FTimerDelegate RespawnDelegate;
     RespawnDelegate.BindLambda([this, VictimControllerWeak]()

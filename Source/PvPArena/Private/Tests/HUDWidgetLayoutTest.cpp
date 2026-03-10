@@ -4,7 +4,6 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "UI/PvPArenaHUDWidget.h"
-#include "UObject/UnrealType.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHUDWidgetLayoutTest,
@@ -42,8 +41,10 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("StatusBox should contain the six always-on HUD rows"), StatusBox ? StatusBox->GetChildrenCount() : 0, 6);
     TestEqual(TEXT("AnnouncementBox should contain the two round-end HUD rows"), AnnouncementBox ? AnnouncementBox->GetChildrenCount() : 0, 2);
 
+    UTextBlock* HealthText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("HealthText")));
+
     TestNotNull(TEXT("HealthBar should exist"), WidgetTree->FindWidget(TEXT("HealthBar")));
-    TestNotNull(TEXT("HealthText should exist"), WidgetTree->FindWidget(TEXT("HealthText")));
+    TestNotNull(TEXT("HealthText should exist"), HealthText);
     TestNotNull(TEXT("RoundScoreText should exist"), WidgetTree->FindWidget(TEXT("RoundScoreText")));
     TestNotNull(TEXT("MatchScoreText should exist"), WidgetTree->FindWidget(TEXT("MatchScoreText")));
     TestNotNull(TEXT("TimerText should exist"), WidgetTree->FindWidget(TEXT("TimerText")));

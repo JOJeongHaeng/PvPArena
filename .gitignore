@@ -17,6 +17,8 @@ Saved/
 # IDE
 .idea/
 .vscode/
+.vsconfig
+*.sln
 
 # Logs and temp
 *.log
@@ -31,3 +33,17 @@ Saved/
 # Python cache (if tools/scripts added)
 __pycache__/
 *.pyc
+
+# Local source asset exports/import helpers
+Source/FBX/
+Source/Maya/
+Source/Motionbuilder/
+Source/SKMannequin_A_Pose/
+Source/SKMannequin_T_Pose/
+Source/SK_Mannequin_A_Pose_README.txt
+Source/SK_Mannequin_T_Pose_README.txt
+Source/UE4_MocapOnline_Tech_Notes.txt
+
+# Editor-generated external asset state from template content
+Content/__ExternalActors__/VehicleTemplate/
+Content/__ExternalObjects__/VehicleTemplate/
