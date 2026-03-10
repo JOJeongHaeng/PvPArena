@@ -1,6 +1,5 @@
 #include "Player/PvPArenaCharacter.h"
 
-#include "Blueprint/UserWidget.h"
 #include "Combat/PvPCombatComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -9,13 +8,11 @@
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
-#include "UI/PvPArenaHUDWidget.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
 {
     bReplicates = true;
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
-    HUDWidgetClass = UPvPArenaHUDWidget::StaticClass();
 }
 
 void APvPArenaCharacter::BeginPlay()
@@ -77,57 +74,6 @@ void APvPArenaCharacter::TryApplyInputMappingContext()
     InputSubsystem->AddMappingContext(DefaultInputMappingContext, 0);
 }
 
-void APvPArenaCharacter::TryCreateHUDWidget()
-{
-    if (ActiveHUDWidget || !IsLocallyControlled())
-    {
-        return;
-    }
-
-    TSubclassOf<UUserWidget> WidgetClassToCreate = HUDWidgetClass;
-    if (!WidgetClassToCreate)
-    {
-        WidgetClassToCreate = UPvPArenaHUDWidget::StaticClass();
-    }
-    if (!WidgetClassToCreate)
-    {
-        return;
-    }
-
-    APlayerController* PlayerController = Cast<APlayerController>(Controller);
-    if (!PlayerController || !PlayerController->IsLocalController())
-    {
-        RetryCreateHUDWidget();
-        return;
-    }
-
-    UUserWidget* CreatedWidget = CreateWidget<UUserWidget>(PlayerController, WidgetClassToCreate);
-    if (!CreatedWidget)
-    {
-        RetryCreateHUDWidget();
-        return;
-    }
-
-    GetWorldTimerManager().ClearTimer(HUDRetryTimerHandle);
-    CreatedWidget->AddToViewport();
-    ActiveHUDWidget = CreatedWidget;
-}
-
-void APvPArenaCharacter::RetryCreateHUDWidget()
-{
-    if (!GetWorld() || HUDRetryTimerHandle.IsValid())
-    {
-        return;
-    }
-
-    GetWorldTimerManager().SetTimer(
-        HUDRetryTimerHandle,
-        this,
-        &APvPArenaCharacter::TryCreateHUDWidget,
-        0.2f,
-        true);
-}
-
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)
 {
     if (bIsDead || bIsInvulnerable || Damage <= 0.0f)
@@ -139,6 +85,7 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
     if (CurrentHealth <= 0.0f)
     {
         bIsDead = true;
+        ForceNetUpdate();
 
         if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
         {

@@ -7,7 +7,6 @@
 class AController;
 class UInputMappingContext;
 class UPvPCombatComponent;
-class UUserWidget;
 
 UCLASS()
 class PVPARENA_API APvPArenaCharacter : public ACharacter
@@ -51,8 +50,6 @@ protected:
 
 private:
     void TryApplyInputMappingContext();
-    void TryCreateHUDWidget();
-    void RetryCreateHUDWidget();
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MaxHealth = 100.0f;
@@ -72,12 +69,5 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultInputMappingContext;
 
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> HUDWidgetClass;
-
-    UPROPERTY(Transient)
-    TObjectPtr<UUserWidget> ActiveHUDWidget;
-
-    FTimerHandle HUDRetryTimerHandle;
     FTimerHandle InvulnerabilityTimerHandle;
 };

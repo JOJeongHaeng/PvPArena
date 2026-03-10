@@ -4,9 +4,10 @@
 #include "Blueprint/UserWidget.h"
 #include "PvPArenaHUDWidget.generated.h"
 
-class UCanvasPanel;
 class UProgressBar;
 class UTextBlock;
+class UOverlay;
+class UVerticalBox;
 
 UCLASS()
 class PVPARENA_API UPvPArenaHUDWidget : public UUserWidget
@@ -14,6 +15,7 @@ class PVPARENA_API UPvPArenaHUDWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
 
@@ -24,7 +26,13 @@ private:
     static FString RoundStateToString(uint8 RoundStateValue);
 
     UPROPERTY(Transient)
-    TObjectPtr<UCanvasPanel> RootCanvas;
+    TObjectPtr<UOverlay> RootOverlay;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> StatusBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> AnnouncementBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UProgressBar> HealthBar;

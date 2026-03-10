@@ -12,6 +12,7 @@ class PVPARENA_API APvPArenaPlayerController : public APlayerController
     GENERATED_BODY()
 
 public:
+    APvPArenaPlayerController();
     virtual void BeginPlay() override;
     virtual void OnPossess(APawn* InPawn) override;
 
