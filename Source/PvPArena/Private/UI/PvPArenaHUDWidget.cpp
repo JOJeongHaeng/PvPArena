@@ -161,6 +161,21 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     NextRoundText->SetVisibility(ESlateVisibility::Collapsed);
 }
 
+void UPvPArenaHUDWidget::BuildHealthDisplayState(const APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel)
+{
+    if (!Character)
+    {
+        OutHealthPercent = 0.0f;
+        OutHealthLabel = TEXT("HP: --");
+        return;
+    }
+
+    const float MaxHp = FMath::Max(1.0f, Character->GetMaxHealth());
+    const float CurrentHp = Character->GetCurrentHealth();
+    OutHealthPercent = CurrentHp / MaxHp;
+    OutHealthLabel = FString::Printf(TEXT("HP: %.0f / %.0f"), CurrentHp, MaxHp);
+}
+
 void UPvPArenaHUDWidget::RefreshWidgetData()
 {
     APlayerController* PlayerController = GetOwningPlayer();
@@ -169,19 +184,18 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         return;
     }
 
-    if (const APvPArenaCharacter* Character = Cast<APvPArenaCharacter>(PlayerController->GetPawn()))
-    {
-        const float MaxHp = FMath::Max(1.0f, Character->GetMaxHealth());
-        const float CurrentHp = Character->GetCurrentHealth();
-        if (HealthBar)
-        {
-            HealthBar->SetPercent(CurrentHp / MaxHp);
-        }
+    float HealthPercent = 0.0f;
+    FString HealthLabel;
+    BuildHealthDisplayState(Cast<APvPArenaCharacter>(PlayerController->GetPawn()), HealthPercent, HealthLabel);
 
-        if (HealthText)
-        {
-            HealthText->SetText(FText::FromString(FString::Printf(TEXT("HP: %.0f / %.0f"), CurrentHp, MaxHp)));
-        }
+    if (HealthBar)
+    {
+        HealthBar->SetPercent(HealthPercent);
+    }
+
+    if (HealthText)
+    {
+        HealthText->SetText(FText::FromString(HealthLabel));
     }
 
     if (const APvPArenaPlayerState* PvPPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>())

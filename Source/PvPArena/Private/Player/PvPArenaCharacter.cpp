@@ -1,5 +1,6 @@
 #include "Player/PvPArenaCharacter.h"
 
+#include "Animation/AnimationAsset.h"
 #include "Combat/PvPCombatComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -8,11 +9,19 @@
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
 {
     bReplicates = true;
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
+
+    static ConstructorHelpers::FObjectFinder<UAnimationAsset> DeathAnimationFinder(
+        TEXT("/Game/MCO_Mocap_Basics/Animation/Mobility_Pro/Root_Motion/MOB1_Stand_Relaxed_Death_B.MOB1_Stand_Relaxed_Death_B"));
+    if (DeathAnimationFinder.Succeeded())
+    {
+        DeathAnimation = DeathAnimationFinder.Object;
+    }
 }
 
 void APvPArenaCharacter::BeginPlay()
@@ -40,6 +49,10 @@ void APvPArenaCharacter::OnRep_CurrentHealth()
 
 void APvPArenaCharacter::OnRep_IsDead()
 {
+    if (bIsDead)
+    {
+        PlayDeathAnimation();
+    }
 }
 
 void APvPArenaCharacter::OnRep_IsInvulnerable()
@@ -74,6 +87,21 @@ void APvPArenaCharacter::TryApplyInputMappingContext()
     InputSubsystem->AddMappingContext(DefaultInputMappingContext, 0);
 }
 
+void APvPArenaCharacter::PlayDeathAnimation()
+{
+    if (!DeathAnimation || !GetMesh())
+    {
+        return;
+    }
+
+    GetMesh()->PlayAnimation(DeathAnimation, false);
+}
+
+float APvPArenaCharacter::GetDeathAnimationDuration() const
+{
+    return DeathAnimation ? DeathAnimation->GetPlayLength() : 0.0f;
+}
+
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)
 {
     if (bIsDead || bIsInvulnerable || Damage <= 0.0f)
@@ -85,6 +113,7 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
     if (CurrentHealth <= 0.0f)
     {
         bIsDead = true;
+        PlayDeathAnimation();
         ForceNetUpdate();
 
         if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())

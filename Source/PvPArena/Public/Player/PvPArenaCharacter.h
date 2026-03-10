@@ -5,6 +5,7 @@
 #include "PvPArenaCharacter.generated.h"
 
 class AController;
+class UAnimationAsset;
 class UInputMappingContext;
 class UPvPCombatComponent;
 
@@ -20,6 +21,7 @@ public:
     float GetMaxHealth() const { return MaxHealth; }
     bool IsDead() const { return bIsDead; }
     bool IsInvulnerable() const { return bIsInvulnerable; }
+    float GetDeathAnimationDuration() const;
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
@@ -49,6 +51,7 @@ protected:
     void OnRep_IsInvulnerable();
 
 private:
+    void PlayDeathAnimation();
     void TryApplyInputMappingContext();
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
@@ -68,6 +71,9 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultInputMappingContext;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Animation")
+    TObjectPtr<UAnimationAsset> DeathAnimation;
 
     FTimerHandle InvulnerabilityTimerHandle;
 };
