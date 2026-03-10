@@ -5,6 +5,11 @@
 #include "TimerManager.h"
 #include "UI/PvPArenaHUDWidget.h"
 
+APvPArenaPlayerController::APvPArenaPlayerController()
+{
+    HUDWidgetClass = UPvPArenaHUDWidget::StaticClass();
+}
+
 void APvPArenaPlayerController::BeginPlay()
 {
     Super::BeginPlay();
@@ -25,7 +30,7 @@ void APvPArenaPlayerController::TryCreateHUDWidget()
     }
 
     TSubclassOf<UUserWidget> WidgetClassToCreate = HUDWidgetClass;
-    if (!WidgetClassToCreate)
+    if (!WidgetClassToCreate || !WidgetClassToCreate->IsChildOf(UPvPArenaHUDWidget::StaticClass()))
     {
         WidgetClassToCreate = UPvPArenaHUDWidget::StaticClass();
     }
@@ -43,7 +48,7 @@ void APvPArenaPlayerController::TryCreateHUDWidget()
     }
 
     GetWorldTimerManager().ClearTimer(HUDRetryTimerHandle);
-    CreatedWidget->AddToViewport(0);
+    CreatedWidget->AddToViewport(100);
     ActiveHUDWidget = CreatedWidget;
 }
 
