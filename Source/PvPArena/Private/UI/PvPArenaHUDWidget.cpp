@@ -1,9 +1,11 @@
 #include "UI/PvPArenaHUDWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -63,8 +65,11 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         WidgetTree->RootWidget = RootOverlay;
     }
 
+    StatusPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusPanel"));
+    AnnouncementPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("AnnouncementPanel"));
     StatusBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusBox"));
     AnnouncementBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("AnnouncementBox"));
+    HealthBarSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HealthBarSizeBox"));
     HealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthBar"));
     HealthText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HealthText"));
     RoundScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundScoreText"));
@@ -74,13 +79,21 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     ResultText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResultText"));
     NextRoundText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextRoundText"));
 
-    if (!RootOverlay || !StatusBox || !AnnouncementBox || !HealthBar || !HealthText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText)
+    if (!RootOverlay || !StatusPanel || !AnnouncementPanel || !StatusBox || !AnnouncementBox || !HealthBarSizeBox || !HealthBar || !HealthText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText)
     {
         return;
     }
 
-    UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusBox);
-    UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementBox);
+    StatusPanel->SetContent(StatusBox);
+    StatusPanel->SetPadding(FMargin(18.0f, 16.0f, 18.0f, 16.0f));
+    StatusPanel->SetBrushColor(FLinearColor(0.03f, 0.05f, 0.08f, 0.78f));
+
+    AnnouncementPanel->SetContent(AnnouncementBox);
+    AnnouncementPanel->SetPadding(FMargin(28.0f, 20.0f, 28.0f, 20.0f));
+    AnnouncementPanel->SetBrushColor(FLinearColor(0.02f, 0.03f, 0.06f, 0.82f));
+
+    UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
+    UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementPanel);
 
     if (StatusBoxSlot)
     {
@@ -96,9 +109,13 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         AnnouncementBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 80.0f));
     }
 
+    HealthBarSizeBox->SetWidthOverride(280.0f);
+    HealthBarSizeBox->SetHeightOverride(22.0f);
+    HealthBarSizeBox->SetContent(HealthBar);
+
     HealthBar->SetPercent(1.0f);
     HealthBar->SetFillColorAndOpacity(FLinearColor(0.9f, 0.2f, 0.2f, 1.0f));
-    UVerticalBoxSlot* HealthBarSlot = StatusBox->AddChildToVerticalBox(HealthBar);
+    UVerticalBoxSlot* HealthBarSlot = StatusBox->AddChildToVerticalBox(HealthBarSizeBox);
     UVerticalBoxSlot* HealthTextSlot = StatusBox->AddChildToVerticalBox(HealthText);
     UVerticalBoxSlot* RoundScoreTextSlot = StatusBox->AddChildToVerticalBox(RoundScoreText);
     UVerticalBoxSlot* MatchScoreTextSlot = StatusBox->AddChildToVerticalBox(MatchScoreText);
@@ -109,46 +126,57 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     if (HealthBarSlot)
     {
-        HealthBarSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+        HealthBarSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
     }
 
     if (HealthTextSlot)
     {
-        HealthTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+        HealthTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
     }
     HealthText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    HealthText->SetFont(FSlateFontInfo(HealthText->GetFont().FontObject, 20, HealthText->GetFont().TypefaceFontName));
+    HealthText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (RoundScoreTextSlot)
     {
-        RoundScoreTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+        RoundScoreTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
     }
     RoundScoreText->SetColorAndOpacity(FSlateColor(FLinearColor::Yellow));
+    RoundScoreText->SetFont(FSlateFontInfo(RoundScoreText->GetFont().FontObject, 18, RoundScoreText->GetFont().TypefaceFontName));
+    RoundScoreText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (MatchScoreTextSlot)
     {
-        MatchScoreTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+        MatchScoreTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
     }
     MatchScoreText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.85f, 0.2f, 1.0f)));
+    MatchScoreText->SetFont(FSlateFontInfo(MatchScoreText->GetFont().FontObject, 18, MatchScoreText->GetFont().TypefaceFontName));
+    MatchScoreText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (TimerTextSlot)
     {
-        TimerTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+        TimerTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
     }
-    TimerText->SetColorAndOpacity(FSlateColor(FLinearColor::Green));
+    TimerText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 1.0f, 0.55f, 1.0f)));
+    TimerText->SetFont(FSlateFontInfo(TimerText->GetFont().FontObject, 18, TimerText->GetFont().TypefaceFontName));
+    TimerText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (RoundStateTextSlot)
     {
-        RoundStateTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+        RoundStateTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f));
     }
-    RoundStateText->SetColorAndOpacity(FSlateColor(FLinearColor(0.0f, 1.0f, 1.0f, 1.0f)));
+    RoundStateText->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.9f, 1.0f, 1.0f)));
+    RoundStateText->SetFont(FSlateFontInfo(RoundStateText->GetFont().FontObject, 18, RoundStateText->GetFont().TypefaceFontName));
+    RoundStateText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (ResultTextSlot)
     {
-        ResultTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+        ResultTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
     }
     ResultText->SetJustification(ETextJustify::Center);
     ResultText->SetColorAndOpacity(FSlateColor(FLinearColor::Yellow));
-    ResultText->SetFont(FSlateFontInfo(ResultText->GetFont().FontObject, 36, ResultText->GetFont().TypefaceFontName));
+    ResultText->SetFont(FSlateFontInfo(ResultText->GetFont().FontObject, 42, ResultText->GetFont().TypefaceFontName));
+    ResultText->SetShadowOffset(FVector2D(2.0f, 2.0f));
     ResultText->SetVisibility(ESlateVisibility::Collapsed);
 
     if (NextRoundTextSlot)
@@ -157,7 +185,8 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     NextRoundText->SetJustification(ETextJustify::Center);
     NextRoundText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.6f, 0.0f, 1.0f)));
-    NextRoundText->SetFont(FSlateFontInfo(NextRoundText->GetFont().FontObject, 24, NextRoundText->GetFont().TypefaceFontName));
+    NextRoundText->SetFont(FSlateFontInfo(NextRoundText->GetFont().FontObject, 28, NextRoundText->GetFont().TypefaceFontName));
+    NextRoundText->SetShadowOffset(FVector2D(1.0f, 1.0f));
     NextRoundText->SetVisibility(ESlateVisibility::Collapsed);
 }
 
