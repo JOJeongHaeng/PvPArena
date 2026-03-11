@@ -5,9 +5,11 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerStart.h"
 #include "Player/PvPArenaCharacter.h"
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
+#include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
 APvPArenaGameMode::APvPArenaGameMode()
@@ -34,6 +36,22 @@ void APvPArenaGameMode::BeginPlay()
     }
 
     StartRoundTimer();
+}
+
+AActor* APvPArenaGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+    TArray<AActor*> CandidateStarts;
+    UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), CandidateStarts);
+
+    if (AActor* ChosenStart = ChooseRespawnStartFromCandidates(CandidateStarts, LastChosenPlayerStart.Get()))
+    {
+        LastChosenPlayerStart = ChosenStart;
+        return ChosenStart;
+    }
+
+    AActor* FallbackStart = Super::ChoosePlayerStart_Implementation(Player);
+    LastChosenPlayerStart = FallbackStart;
+    return FallbackStart;
 }
 
 void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlayerState* Victim)
@@ -90,6 +108,23 @@ bool APvPArenaGameMode::ShouldEndRoundOnKill(EPvPARoundState CurrentRoundState, 
 bool APvPArenaGameMode::ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const
 {
     return bHasVictimController && !bHasWinner;
+}
+
+AActor* APvPArenaGameMode::ChooseRespawnStartFromCandidates(const TArray<AActor*>& CandidateStarts, const AActor* PreviousStart) const
+{
+    if (CandidateStarts.IsEmpty())
+    {
+        return nullptr;
+    }
+
+    TArray<AActor*> EligibleStarts = CandidateStarts;
+    if (EligibleStarts.Num() > 1 && PreviousStart)
+    {
+        EligibleStarts.RemoveSingleSwap(const_cast<AActor*>(PreviousStart));
+    }
+
+    const TArray<AActor*>& StartsToUse = EligibleStarts.IsEmpty() ? CandidateStarts : EligibleStarts;
+    return StartsToUse[FMath::RandHelper(StartsToUse.Num())];
 }
 
 void APvPArenaGameMode::BeginRoundEndPhase()

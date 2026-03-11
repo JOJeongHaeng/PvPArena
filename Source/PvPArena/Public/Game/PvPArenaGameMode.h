@@ -46,8 +46,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandlePlayerEliminated(AController* VictimController, AController* KillerController);
 
+    AActor* ChooseRespawnStartFromCandidates(const TArray<AActor*>& CandidateStarts, const AActor* PreviousStart) const;
+
 protected:
     virtual void BeginPlay() override;
+    virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
 private:
     void BeginRoundEndPhase();
@@ -74,6 +77,7 @@ private:
     float RespawnInvulnerabilitySeconds = 1.25f;
 
     bool bHasWinner = false;
+    TWeakObjectPtr<AActor> LastChosenPlayerStart;
     FTimerHandle RoundTimerHandle;
     FTimerHandle RoundResetTimerHandle;
 };
