@@ -31,6 +31,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Match")
     bool ShouldEndRoundOnKill(EPvPARoundState CurrentRoundState, int32 KillerKills) const;
 
+    UFUNCTION(BlueprintPure, Category = "Match")
+    bool ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const;
+
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandlePlayerEliminated(AController* VictimController, AController* KillerController);
 
