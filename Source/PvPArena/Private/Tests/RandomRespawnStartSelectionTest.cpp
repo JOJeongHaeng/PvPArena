@@ -12,6 +12,11 @@ public:
     {
         return ShouldSpawnAtStartSpot(Player);
     }
+
+    AActor* ChooseRoundStartForPlayer(const TArray<AActor*>& CandidateStarts, AController* Player, const TSet<TObjectKey<AActor>>& UsedStarts)
+    {
+        return ChooseRoundStartFromCandidates(CandidateStarts, Player, UsedStarts);
+    }
 };
 }
 
@@ -75,6 +80,19 @@ bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
     TestFalse(
         TEXT("Respawn flow should not reuse the controller's cached StartSpot"),
         GameMode->ShouldReuseCachedStartSpot(PlayerOne));
+
+    TSet<TObjectKey<AActor>> UsedRoundStartSpots;
+    const AActor* RoundStartForPlayerOne = GameMode->ChooseRoundStartForPlayer(MultipleCandidates, PlayerOne, UsedRoundStartSpots);
+    if (RoundStartForPlayerOne)
+    {
+        UsedRoundStartSpots.Add(RoundStartForPlayerOne);
+    }
+
+    const AActor* RoundStartForPlayerTwo = GameMode->ChooseRoundStartForPlayer(MultipleCandidates, PlayerTwo, UsedRoundStartSpots);
+    TestNotEqual(
+        TEXT("Round reset should give different starts to each player when alternatives exist"),
+        RoundStartForPlayerTwo,
+        RoundStartForPlayerOne);
 
     return true;
 }

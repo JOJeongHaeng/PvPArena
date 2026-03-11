@@ -49,6 +49,7 @@ public:
 
     AActor* ChooseRespawnStartFromCandidates(const TArray<AActor*>& CandidateStarts, const AActor* PreviousStart) const;
     AActor* ChooseRespawnStartForPlayer(const TArray<AActor*>& CandidateStarts, AController* Player);
+    AActor* ChooseRoundStartFromCandidates(const TArray<AActor*>& CandidateStarts, AController* Player, const TSet<TObjectKey<AActor>>& UsedStarts) const;
 
 protected:
     virtual void BeginPlay() override;
