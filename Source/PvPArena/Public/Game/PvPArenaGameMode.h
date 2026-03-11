@@ -53,6 +53,7 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+    virtual bool ShouldSpawnAtStartSpot(AController* Player) override;
 
 private:
     void BeginRoundEndPhase();

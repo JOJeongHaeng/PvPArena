@@ -3,6 +3,18 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
 
+namespace
+{
+class FTestPvPArenaGameMode : public APvPArenaGameMode
+{
+public:
+    bool ShouldReuseCachedStartSpot(AController* Player)
+    {
+        return ShouldSpawnAtStartSpot(Player);
+    }
+};
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FRandomRespawnStartSelectionTest,
     "PvPArena.Match.RandomRespawnStartSelection",
@@ -10,7 +22,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
 {
-    APvPArenaGameMode* GameMode = NewObject<APvPArenaGameMode>();
+    FTestPvPArenaGameMode* GameMode = NewObject<FTestPvPArenaGameMode>();
     TestNotNull(TEXT("GameMode should be created"), GameMode);
 
     if (!GameMode)
@@ -58,6 +70,11 @@ bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
         TEXT("Player two should avoid reusing its own previous start when another start exists"),
         PlayerTwoRoundTwoStart,
         PlayerTwoRoundOneStart);
+
+    PlayerOne->StartSpot = StartA;
+    TestFalse(
+        TEXT("Respawn flow should not reuse the controller's cached StartSpot"),
+        GameMode->ShouldReuseCachedStartSpot(PlayerOne));
 
     return true;
 }
