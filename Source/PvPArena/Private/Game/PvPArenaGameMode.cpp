@@ -178,7 +178,7 @@ void APvPArenaGameMode::ResetAllPlayersForNextRound()
 
         if (APvPArenaCharacter* RespawnedCharacter = Cast<APvPArenaCharacter>(Controller->GetPawn()))
         {
-            RespawnedCharacter->SetInvulnerableForSeconds(1.5f);
+            RespawnedCharacter->SetInvulnerableForSeconds(RespawnInvulnerabilitySeconds);
         }
     }
 }
@@ -293,7 +293,7 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
 
         if (APvPArenaCharacter* RespawnedCharacter = Cast<APvPArenaCharacter>(VictimControllerWeak->GetPawn()))
         {
-            RespawnedCharacter->SetInvulnerableForSeconds(1.5f);
+            RespawnedCharacter->SetInvulnerableForSeconds(RespawnInvulnerabilitySeconds);
         }
     });
 

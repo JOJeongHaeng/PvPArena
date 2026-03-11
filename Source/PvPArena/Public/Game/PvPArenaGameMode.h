@@ -18,6 +18,9 @@ public:
     APvPArenaGameMode();
 
     bool HasWinner() const { return bHasWinner; }
+    int32 GetRespawnDelaySeconds() const { return RespawnDelaySeconds; }
+    int32 GetRoundEndDelaySeconds() const { return RoundEndDelaySeconds; }
+    float GetRespawnInvulnerabilitySeconds() const { return RespawnInvulnerabilitySeconds; }
 
     UFUNCTION(BlueprintCallable, Category = "Match")
     void RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlayerState* Victim);
@@ -49,10 +52,13 @@ private:
     int32 RoundDurationSeconds = 60;
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
-    int32 RespawnDelaySeconds = 3;
+    int32 RespawnDelaySeconds = 2;
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
-    int32 RoundEndDelaySeconds = 5;
+    int32 RoundEndDelaySeconds = 3;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Match")
+    float RespawnInvulnerabilitySeconds = 1.25f;
 
     bool bHasWinner = false;
     FTimerHandle RoundTimerHandle;
