@@ -87,6 +87,11 @@ bool APvPArenaGameMode::ShouldEndRoundOnKill(EPvPARoundState CurrentRoundState, 
     return KillerKills >= ScoreLimit;
 }
 
+bool APvPArenaGameMode::ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const
+{
+    return bHasVictimController && !bHasWinner;
+}
+
 void APvPArenaGameMode::BeginRoundEndPhase()
 {
     GetWorldTimerManager().ClearTimer(RoundTimerHandle);
@@ -245,7 +250,7 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
 
     RegisterKill(KillerState, VictimState);
 
-    if (!VictimController || bHasWinner)
+    if (!ShouldScheduleRespawnAfterElimination(VictimController != nullptr))
     {
         return;
     }
