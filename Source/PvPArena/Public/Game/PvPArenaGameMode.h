@@ -17,7 +17,16 @@ class PVPARENA_API APvPArenaGameMode : public AGameModeBase
 public:
     APvPArenaGameMode();
 
+    static constexpr int32 IterationScoreLimitDefault = 3;
+    static constexpr int32 IterationRoundDurationSecondsDefault = 60;
+    static constexpr int32 PlannedFinalScoreLimitDefault = 5;
+    static constexpr int32 PlannedFinalRoundDurationSecondsDefault = 180;
+
     bool HasWinner() const { return bHasWinner; }
+    int32 GetIterationScoreLimitDefault() const { return IterationScoreLimitDefault; }
+    int32 GetIterationRoundDurationSecondsDefault() const { return IterationRoundDurationSecondsDefault; }
+    int32 GetPlannedFinalScoreLimitDefault() const { return PlannedFinalScoreLimitDefault; }
+    int32 GetPlannedFinalRoundDurationSecondsDefault() const { return PlannedFinalRoundDurationSecondsDefault; }
     int32 GetRespawnDelaySeconds() const { return RespawnDelaySeconds; }
     int32 GetRoundEndDelaySeconds() const { return RoundEndDelaySeconds; }
     float GetRespawnInvulnerabilitySeconds() const { return RespawnInvulnerabilitySeconds; }
@@ -48,11 +57,12 @@ private:
     void StartRoundTimer();
     void OnRoundSecondElapsed();
 
+    // Keep short iteration defaults active until the final completion pass restores 5 / 180.
     UPROPERTY(EditDefaultsOnly, Category = "Match")
-    int32 ScoreLimit = 3;
+    int32 ScoreLimit = IterationScoreLimitDefault;
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
-    int32 RoundDurationSeconds = 60;
+    int32 RoundDurationSeconds = IterationRoundDurationSecondsDefault;
 
     UPROPERTY(EditDefaultsOnly, Category = "Match")
     int32 RespawnDelaySeconds = 2;
