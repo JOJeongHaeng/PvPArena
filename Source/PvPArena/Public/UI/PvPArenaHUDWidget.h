@@ -7,6 +7,8 @@
 class UProgressBar;
 class UTextBlock;
 class UOverlay;
+class UBorder;
+class USizeBox;
 class UVerticalBox;
 
 UCLASS()
@@ -30,10 +32,19 @@ private:
     TObjectPtr<UOverlay> RootOverlay;
 
     UPROPERTY(Transient)
+    TObjectPtr<UBorder> StatusPanel;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UBorder> AnnouncementPanel;
+
+    UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> StatusBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> AnnouncementBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USizeBox> HealthBarSizeBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UProgressBar> HealthBar;
