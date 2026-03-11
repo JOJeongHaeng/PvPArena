@@ -43,15 +43,12 @@ AActor* APvPArenaGameMode::ChoosePlayerStart_Implementation(AController* Player)
     TArray<AActor*> CandidateStarts;
     UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), CandidateStarts);
 
-    if (AActor* ChosenStart = ChooseRespawnStartFromCandidates(CandidateStarts, LastChosenPlayerStart.Get()))
+    if (AActor* ChosenStart = ChooseRespawnStartForPlayer(CandidateStarts, Player))
     {
-        LastChosenPlayerStart = ChosenStart;
         return ChosenStart;
     }
 
-    AActor* FallbackStart = Super::ChoosePlayerStart_Implementation(Player);
-    LastChosenPlayerStart = FallbackStart;
-    return FallbackStart;
+    return Super::ChoosePlayerStart_Implementation(Player);
 }
 
 void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlayerState* Victim)
@@ -125,6 +122,20 @@ AActor* APvPArenaGameMode::ChooseRespawnStartFromCandidates(const TArray<AActor*
 
     const TArray<AActor*>& StartsToUse = EligibleStarts.IsEmpty() ? CandidateStarts : EligibleStarts;
     return StartsToUse[FMath::RandHelper(StartsToUse.Num())];
+}
+
+AActor* APvPArenaGameMode::ChooseRespawnStartForPlayer(const TArray<AActor*>& CandidateStarts, AController* Player)
+{
+    const TObjectKey<AController> PlayerKey(Player);
+    const TWeakObjectPtr<AActor>* PreviousStart = LastChosenPlayerStartsByController.Find(PlayerKey);
+    AActor* ChosenStart = ChooseRespawnStartFromCandidates(CandidateStarts, PreviousStart ? PreviousStart->Get() : nullptr);
+
+    if (ChosenStart && Player)
+    {
+        LastChosenPlayerStartsByController.Add(PlayerKey, ChosenStart);
+    }
+
+    return ChosenStart;
 }
 
 void APvPArenaGameMode::BeginRoundEndPhase()

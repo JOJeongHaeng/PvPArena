@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Game/PvPArenaGameState.h"
 #include "GameFramework/GameModeBase.h"
+#include "UObject/ObjectKey.h"
 #include "PvPArenaGameMode.generated.h"
 
 class APvPArenaPlayerState;
@@ -47,6 +48,7 @@ public:
     void HandlePlayerEliminated(AController* VictimController, AController* KillerController);
 
     AActor* ChooseRespawnStartFromCandidates(const TArray<AActor*>& CandidateStarts, const AActor* PreviousStart) const;
+    AActor* ChooseRespawnStartForPlayer(const TArray<AActor*>& CandidateStarts, AController* Player);
 
 protected:
     virtual void BeginPlay() override;
@@ -77,7 +79,7 @@ private:
     float RespawnInvulnerabilitySeconds = 1.25f;
 
     bool bHasWinner = false;
-    TWeakObjectPtr<AActor> LastChosenPlayerStart;
+    TMap<TObjectKey<AController>, TWeakObjectPtr<AActor>> LastChosenPlayerStartsByController;
     FTimerHandle RoundTimerHandle;
     FTimerHandle RoundResetTimerHandle;
 };
