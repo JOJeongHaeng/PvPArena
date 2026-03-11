@@ -143,6 +143,32 @@ AActor* APvPArenaGameMode::ChooseRespawnStartForPlayer(const TArray<AActor*>& Ca
     return ChosenStart;
 }
 
+AActor* APvPArenaGameMode::ChooseRoundStartFromCandidates(const TArray<AActor*>& CandidateStarts, AController* Player, const TSet<TObjectKey<AActor>>& UsedStarts) const
+{
+    if (CandidateStarts.IsEmpty())
+    {
+        return nullptr;
+    }
+
+    TArray<AActor*> EligibleStarts;
+    EligibleStarts.Reserve(CandidateStarts.Num());
+
+    for (AActor* CandidateStart : CandidateStarts)
+    {
+        if (!CandidateStart || UsedStarts.Contains(CandidateStart))
+        {
+            continue;
+        }
+
+        EligibleStarts.Add(CandidateStart);
+    }
+
+    const TArray<AActor*>& StartsToUse = EligibleStarts.IsEmpty() ? CandidateStarts : EligibleStarts;
+    const TObjectKey<AController> PlayerKey(Player);
+    const TWeakObjectPtr<AActor>* PreviousStart = LastChosenPlayerStartsByController.Find(PlayerKey);
+    return ChooseRespawnStartFromCandidates(StartsToUse, PreviousStart ? PreviousStart->Get() : nullptr);
+}
+
 void APvPArenaGameMode::BeginRoundEndPhase()
 {
     GetWorldTimerManager().ClearTimer(RoundTimerHandle);
@@ -217,6 +243,10 @@ void APvPArenaGameMode::ResetAllPlayersForNextRound()
         return;
     }
 
+    TSet<TObjectKey<AActor>> UsedRoundStartSpots;
+    TArray<AActor*> CandidateStarts;
+    UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), CandidateStarts);
+
     for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
     {
         AController* Controller = It->Get();
@@ -230,7 +260,15 @@ void APvPArenaGameMode::ResetAllPlayersForNextRound()
             ExistingPawn->Destroy();
         }
 
-        RestartPlayer(Controller);
+        if (AActor* RoundStart = ChooseRoundStartFromCandidates(CandidateStarts, Controller, UsedRoundStartSpots))
+        {
+            UsedRoundStartSpots.Add(RoundStart);
+            RestartPlayerAtPlayerStart(Controller, RoundStart);
+        }
+        else
+        {
+            RestartPlayer(Controller);
+        }
 
         if (APvPArenaCharacter* RespawnedCharacter = Cast<APvPArenaCharacter>(Controller->GetPawn()))
         {

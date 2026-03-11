@@ -36,6 +36,7 @@
 - Respawn start selection should now be treated as an explicit gameplay rule once this branch merges:
   - multiple `PlayerStart` actors should randomize respawn positions
   - immediate reuse of the last start should be avoided when alternatives exist
+  - round resets should distribute active players across distinct starts when alternatives exist
 - Iteration match defaults remain intentionally short:
   - `ScoreLimit = 3`
   - `RoundDurationSeconds = 60`
@@ -69,6 +70,7 @@
   - `RespawnInvulnerabilitySeconds = 1.25f`
   - `RoundEndDelaySeconds = 3`
 - With multiple `PlayerStart` actors placed in the map, confirm respawns vary and do not obviously repeat back-to-back.
+- Confirm new rounds also begin with players on different starts when multiple starts are available.
 
 3. MVP completion decisions
 - Keep the current code-driven UMG HUD unless a late-stage reason appears to migrate.
