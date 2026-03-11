@@ -51,6 +51,11 @@ AActor* APvPArenaGameMode::ChoosePlayerStart_Implementation(AController* Player)
     return Super::ChoosePlayerStart_Implementation(Player);
 }
 
+bool APvPArenaGameMode::ShouldSpawnAtStartSpot(AController* Player)
+{
+    return false;
+}
+
 void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlayerState* Victim)
 {
     if (bHasWinner)
