@@ -91,6 +91,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     AnnouncementPanel->SetContent(AnnouncementBox);
     AnnouncementPanel->SetPadding(FMargin(28.0f, 20.0f, 28.0f, 20.0f));
     AnnouncementPanel->SetBrushColor(FLinearColor(0.02f, 0.03f, 0.06f, 0.82f));
+    AnnouncementPanel->SetVisibility(ESlateVisibility::Collapsed);
 
     UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
     UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementPanel);
@@ -244,6 +245,13 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
     if (const APvPArenaGameState* PvPGameState = GetWorld() ? GetWorld()->GetGameState<APvPArenaGameState>() : nullptr)
     {
+        const bool bIsRoundEnd = PvPGameState->GetRoundState() == EPvPARoundState::RoundEnd;
+
+        if (AnnouncementPanel)
+        {
+            AnnouncementPanel->SetVisibility(bIsRoundEnd ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
         if (TimerText)
         {
             TimerText->SetText(FText::FromString(FString::Printf(TEXT("Time: %d"), PvPGameState->GetRemainingRoundTimeSeconds())));
@@ -256,7 +264,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
         if (ResultText)
         {
-            if (PvPGameState->GetRoundState() == EPvPARoundState::RoundEnd)
+            if (bIsRoundEnd)
             {
                 ResultText->SetVisibility(ESlateVisibility::Visible);
                 ResultText->SetText(FText::FromString(GetRoundResultText(PlayerController, PvPGameState)));
@@ -270,7 +278,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
         if (NextRoundText)
         {
-            if (PvPGameState->GetRoundState() == EPvPARoundState::RoundEnd)
+            if (bIsRoundEnd)
             {
                 NextRoundText->SetVisibility(ESlateVisibility::Visible);
                 NextRoundText->SetText(FText::FromString(
