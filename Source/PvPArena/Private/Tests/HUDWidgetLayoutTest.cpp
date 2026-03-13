@@ -81,6 +81,9 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
 
     TestNotNull(TEXT("ResultText should exist"), ResultText);
     TestNotNull(TEXT("NextRoundText should exist"), NextRoundText);
+    TestEqual(TEXT("AnnouncementPanel should stay hidden until round end"),
+        AnnouncementPanel ? AnnouncementPanel->GetVisibility() : ESlateVisibility::Visible,
+        ESlateVisibility::Collapsed);
     TestEqual(TEXT("ResultText should stay hidden until round end"),
         ResultText ? ResultText->GetVisibility() : ESlateVisibility::Visible,
         ESlateVisibility::Collapsed);
