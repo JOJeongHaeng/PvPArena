@@ -23,6 +23,7 @@ Saved/
 # Logs and temp
 *.log
 *.tmp
+.worktrees/
 
 # Build artifacts
 *.obj
