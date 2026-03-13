@@ -17,7 +17,7 @@ APvPArenaCharacter::APvPArenaCharacter()
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
 
     static ConstructorHelpers::FObjectFinder<UAnimationAsset> DeathAnimationFinder(
-        TEXT("/Game/MCO_Mocap_Basics/Animation/Mobility_Pro/Root_Motion/MOB1_Stand_Relaxed_Death_B.MOB1_Stand_Relaxed_Death_B"));
+        TEXT("/Game/PvPArena/Animations/Stand_Relaxed_Death.Stand_Relaxed_Death"));
     if (DeathAnimationFinder.Succeeded())
     {
         DeathAnimation = DeathAnimationFinder.Object;

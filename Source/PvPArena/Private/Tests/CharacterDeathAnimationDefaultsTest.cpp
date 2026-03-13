@@ -9,6 +9,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FCharacterDeathAnimationDefaultsTest::RunTest(const FString& Parameters)
 {
+    const FString ExpectedDeathAnimationPath = TEXT("/Game/PvPArena/Animations/Stand_Relaxed_Death.Stand_Relaxed_Death");
     const APvPArenaCharacter* Character = GetDefault<APvPArenaCharacter>();
     TestNotNull(TEXT("Character CDO should exist"), Character);
 
@@ -20,5 +21,9 @@ bool FCharacterDeathAnimationDefaultsTest::RunTest(const FString& Parameters)
         : nullptr;
 
     TestNotNull(TEXT("Character should default to a death animation asset"), DeathAnimation);
+    TestEqual(
+        TEXT("Character should use the project-owned death animation asset"),
+        DeathAnimation ? DeathAnimation->GetPathName() : FString(),
+        ExpectedDeathAnimationPath);
     return true;
 }
