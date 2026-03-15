@@ -3,7 +3,7 @@
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FCombatCooldownTest,
-    "PvPArena.Combat.Cooldown",
+    "PvPArena.Combat.CooldownValidation",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FCombatCooldownTest::RunTest(const FString& Parameters)
