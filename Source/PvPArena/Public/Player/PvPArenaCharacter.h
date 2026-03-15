@@ -6,6 +6,7 @@
 
 class AController;
 class UAnimationAsset;
+class UAnimMontage;
 class UInputMappingContext;
 class UPvPCombatComponent;
 
@@ -22,12 +23,25 @@ public:
     bool IsDead() const { return bIsDead; }
     bool IsInvulnerable() const { return bIsInvulnerable; }
     float GetDeathAnimationDuration() const;
+    bool IsMeleeAttackInProgress() const { return bMeleeAttackInProgress; }
+    bool HasTriggeredMeleeAttackHit() const { return bMeleeAttackHitTriggered; }
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void SetInvulnerableForSeconds(float DurationSeconds);
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    bool BeginMeleeAttack(float NowSeconds);
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    bool HandleMeleeAttackHitNotify();
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void FinishMeleeAttack();
+
+    void ShowMeleeDebug(FVector Start, FVector End, bool bHit);
 
     UFUNCTION(BlueprintCallable, Server, Reliable, Category = "Combat")
     void ServerTryMeleeAttack();
@@ -51,9 +65,22 @@ protected:
     void OnRep_IsInvulnerable();
 
 private:
+    bool TriggerMeleeAttackHit();
     void PlayDeathAnimation();
+    bool PlayMeleeAttackMontage();
+    void HandleMeleeAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+    void SetMeleeMovementSuppressed(bool bSuppressed);
     void SetDeathInputSuppressed(bool bSuppressInput);
     void TryApplyInputMappingContext();
+
+    UFUNCTION(Server, Reliable)
+    void ServerHandleMeleeAttackHitNotify();
+
+    UFUNCTION(NetMulticast, Unreliable)
+    void MulticastPlayMeleeAttackMontage();
+
+    UFUNCTION(NetMulticast, Unreliable)
+    void MulticastDrawMeleeDebug(FVector Start, FVector End, bool bHit);
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MaxHealth = 100.0f;
@@ -75,6 +102,21 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     TObjectPtr<UAnimationAsset> DeathAnimation;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Animation")
+    TObjectPtr<UAnimMontage> MeleeAttackMontage;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (ClampMin = "0.1"))
+    float MeleeAttackPlayRate = 2.0f;
+
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    bool bMeleeAttackInProgress = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    bool bMeleeAttackHitTriggered = false;
+
+    uint8 CachedMovementMode = MOVE_Walking;
+    bool bMeleeMovementSuppressed = false;
 
     FTimerHandle InvulnerabilityTimerHandle;
 };

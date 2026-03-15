@@ -50,19 +50,7 @@ bool UPvPCombatComponent::TryServerMeleeAttack(APvPArenaCharacter* Attacker)
 
     if (bDrawAttackDebug)
     {
-        const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
-        DrawDebugCapsule(
-            Attacker->GetWorld(),
-            (Start + End) * 0.5f,
-            MeleeRange * 0.5f,
-            MeleeRadius,
-            FRotationMatrix::MakeFromZ((End - Start).GetSafeNormal()).ToQuat(),
-            DebugColor,
-            false,
-            DebugDrawTime,
-            0,
-            1.5f);
-        DrawDebugSphere(Attacker->GetWorld(), End, MeleeRadius, 16, DebugColor, false, DebugDrawTime, 0, 1.0f);
+        Attacker->ShowMeleeDebug(Start, End, bHit);
     }
 
     APvPArenaCharacter* HitCharacter = bHit ? Cast<APvPArenaCharacter>(HitResult.GetActor()) : nullptr;

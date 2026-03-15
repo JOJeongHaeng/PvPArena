@@ -37,7 +37,7 @@ private:
     float RangedDamage = 20.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
-    float MeleeRange = 180.0f;
+    float MeleeRange = 140.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MeleeRadius = 70.0f;
