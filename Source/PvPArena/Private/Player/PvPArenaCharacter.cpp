@@ -8,8 +8,12 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Game/PvPArenaGameMode.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
@@ -17,6 +21,7 @@
 APvPArenaCharacter::APvPArenaCharacter()
 {
     bReplicates = true;
+    PrimaryActorTick.bCanEverTick = true;
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
 
     static ConstructorHelpers::FObjectFinder<UAnimationAsset> DeathAnimationFinder(
@@ -32,6 +37,28 @@ APvPArenaCharacter::APvPArenaCharacter()
     {
         MeleeAttackMontage = MeleeAttackMontageFinder.Object;
     }
+
+    static ConstructorHelpers::FObjectFinder<UAnimMontage> RangedAttackMontageFinder(
+        TEXT("/Game/PvPArena/Animations/MTG_RangedAttack_RightClick.MTG_RangedAttack_RightClick"));
+    if (RangedAttackMontageFinder.Succeeded())
+    {
+        RangedAttackMontage = RangedAttackMontageFinder.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> MeleeAttackEffectFinder(
+        TEXT("/Game/PvPArena/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Magma_Shot_Owner_Cast_Spell.NS_Magma_Shot_Owner_Cast_Spell"));
+    if (MeleeAttackEffectFinder.Succeeded())
+    {
+        MeleeAttackEffect = MeleeAttackEffectFinder.Object;
+    }
+}
+
+void APvPArenaCharacter::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    RefreshRangedAttackAimFromCrosshair();
+    UpdateRangedAttackFacing(DeltaSeconds);
+    UpdateRangedAimCameraOffset(DeltaSeconds);
 }
 
 void APvPArenaCharacter::BeginPlay()
@@ -142,7 +169,7 @@ float APvPArenaCharacter::GetDeathAnimationDuration() const
 
 bool APvPArenaCharacter::BeginMeleeAttack(float NowSeconds)
 {
-    if (!CombatComponent || bIsDead || bMeleeAttackInProgress || !CombatComponent->CanUseMelee(NowSeconds))
+    if (!CombatComponent || bIsDead || bMeleeAttackInProgress || bRangedAttackInProgress || !CombatComponent->CanUseMelee(NowSeconds))
     {
         return false;
     }
@@ -150,7 +177,7 @@ bool APvPArenaCharacter::BeginMeleeAttack(float NowSeconds)
     CombatComponent->MarkMeleeUsed(NowSeconds);
     bMeleeAttackInProgress = true;
     bMeleeAttackHitTriggered = false;
-    SetMeleeMovementSuppressed(true);
+    SetAttackMovementSuppressed(true);
     return true;
 }
 
@@ -185,7 +212,354 @@ void APvPArenaCharacter::FinishMeleeAttack()
 {
     bMeleeAttackInProgress = false;
     bMeleeAttackHitTriggered = false;
-    SetMeleeMovementSuppressed(false);
+    if (!bRangedAttackInProgress)
+    {
+        SetAttackMovementSuppressed(false);
+    }
+}
+
+bool APvPArenaCharacter::BeginRangedAttack(float NowSeconds)
+{
+    if (!BeginRangedCharge(NowSeconds))
+    {
+        return false;
+    }
+
+    CommitRangedChargeRelease();
+    if (CombatComponent)
+    {
+        CombatComponent->MarkRangedUsed(NowSeconds);
+    }
+    return true;
+}
+
+bool APvPArenaCharacter::BeginRangedCharge(float NowSeconds)
+{
+    if (!CombatComponent || bIsDead || bMeleeAttackInProgress || bRangedAttackInProgress || !CombatComponent->CanUseRanged(NowSeconds))
+    {
+        return false;
+    }
+
+    bRangedAttackInProgress = true;
+    bRangedChargeInputHeld = true;
+    bRangedReleaseCommitted = false;
+    bRangedAttackHitTriggered = false;
+    RangedChargeStartTime = NowSeconds;
+    ClearCachedRangedAttackAim();
+    StartRangedAttackFacingLock(ResolveRangedAttackTargetYaw());
+    SetAttackMovementSuppressed(true);
+    return true;
+}
+
+bool APvPArenaCharacter::ReleaseRangedCharge(float NowSeconds)
+{
+    if (!bRangedAttackInProgress)
+    {
+        return false;
+    }
+
+    bRangedChargeInputHeld = false;
+    if ((NowSeconds - RangedChargeStartTime) < RangedChargeMinimumHoldSeconds)
+    {
+        CancelRangedCharge();
+        return false;
+    }
+
+    CaptureCurrentRangedAttackAim();
+    CommitRangedChargeRelease();
+    if (CombatComponent)
+    {
+        CombatComponent->MarkRangedUsed(NowSeconds);
+    }
+
+    return true;
+}
+
+bool APvPArenaCharacter::HandleRangedAttackHitNotify()
+{
+    if (!IsLocallyControlled() && !HasAuthority())
+    {
+        return true;
+    }
+
+    if (!HasAuthority())
+    {
+        ServerHandleRangedAttackHitNotify(CachedRangedAttackAimOrigin, CachedRangedAttackAimTarget);
+        return true;
+    }
+
+    return TriggerRangedAttackHit();
+}
+
+bool APvPArenaCharacter::TriggerRangedAttackHit()
+{
+    if (!bRangedAttackInProgress || bRangedAttackHitTriggered || !bRangedReleaseCommitted)
+    {
+        return false;
+    }
+
+    bRangedAttackHitTriggered = true;
+    return CombatComponent ? CombatComponent->TryServerRangedAttack(this) : false;
+}
+
+void APvPArenaCharacter::CommitRangedChargeRelease()
+{
+    bRangedReleaseCommitted = true;
+    JumpToRangedMontageSection(RangedAttackReleaseSectionName);
+}
+
+void APvPArenaCharacter::CancelRangedCharge()
+{
+    bRangedReleaseCommitted = false;
+    JumpToRangedMontageSection(RangedAttackCancelSectionName);
+}
+
+bool APvPArenaCharacter::JumpToRangedMontageSection(FName SectionName)
+{
+    if (SectionName.IsNone() || !RangedAttackMontage || !GetMesh())
+    {
+        return false;
+    }
+
+    UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+    if (!AnimInstance || !AnimInstance->Montage_IsPlaying(RangedAttackMontage))
+    {
+        return false;
+    }
+
+    AnimInstance->Montage_JumpToSection(SectionName, RangedAttackMontage);
+    return true;
+}
+
+void APvPArenaCharacter::UpdateRangedAimCameraOffset(float DeltaSeconds)
+{
+    const float TargetBlendAlpha = bRangedChargeInputHeld ? 1.0f : 0.0f;
+    RangedAimCameraBlendAlpha = FMath::FInterpTo(
+        RangedAimCameraBlendAlpha,
+        TargetBlendAlpha,
+        DeltaSeconds,
+        RangedAimCameraInterpSpeed);
+
+    USpringArmComponent* SpringArm = ResolveRangedAimSpringArm();
+    if (!SpringArm)
+    {
+        return;
+    }
+
+    if (!bRangedAimCameraBaseSocketOffsetCached)
+    {
+        RangedAimCameraBaseSocketOffset = SpringArm->SocketOffset;
+        bRangedAimCameraBaseSocketOffsetCached = true;
+    }
+
+    FVector TargetSocketOffset = RangedAimCameraBaseSocketOffset;
+    TargetSocketOffset.Y += RangedAimCameraOffsetY * RangedAimCameraBlendAlpha;
+    SpringArm->SocketOffset = TargetSocketOffset;
+}
+
+USpringArmComponent* APvPArenaCharacter::ResolveRangedAimSpringArm()
+{
+    if (RangedAimSpringArm)
+    {
+        return RangedAimSpringArm;
+    }
+
+    RangedAimSpringArm = FindComponentByClass<USpringArmComponent>();
+    return RangedAimSpringArm;
+}
+
+void APvPArenaCharacter::FinishRangedAttack()
+{
+    bRangedAttackInProgress = false;
+    bRangedChargeInputHeld = false;
+    bRangedReleaseCommitted = false;
+    bRangedAttackHitTriggered = false;
+    RangedChargeStartTime = 0.0f;
+    bRangedAttackFacingLocked = false;
+    ClearCachedRangedAttackAim();
+    if (!bMeleeAttackInProgress)
+    {
+        SetAttackMovementSuppressed(false);
+    }
+}
+
+void APvPArenaCharacter::AdvanceAttackFacing(float DeltaSeconds)
+{
+    RefreshRangedAttackAimFromCrosshair();
+    UpdateRangedAttackFacing(DeltaSeconds);
+    UpdateRangedAimCameraOffset(DeltaSeconds);
+}
+
+bool APvPArenaCharacter::ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const
+{
+    FVector AimOrigin = FVector::ZeroVector;
+    return ResolveRangedCrosshairAim(AimOrigin, OutAimPoint);
+}
+
+bool APvPArenaCharacter::GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const
+{
+    if (!bHasCachedRangedAttackAim)
+    {
+        return false;
+    }
+
+    OutAimOrigin = CachedRangedAttackAimOrigin;
+    OutAimTarget = CachedRangedAttackAimTarget;
+    return true;
+}
+
+bool APvPArenaCharacter::ResolveRangedCrosshairAim(FVector& OutAimOrigin, FVector& OutAimPoint) const
+{
+    FVector ViewLocation = GetActorLocation();
+    FRotator ViewRotation = GetActorRotation();
+    FVector ViewDirection = ViewRotation.Vector();
+
+    if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
+    {
+        int32 ViewportSizeX = 0;
+        int32 ViewportSizeY = 0;
+        FVector ScreenRayOrigin = FVector::ZeroVector;
+        FVector ScreenRayDirection = FVector::ZeroVector;
+        PlayerController->GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+        if (ViewportSizeX > 0
+            && ViewportSizeY > 0
+            && PlayerController->DeprojectScreenPositionToWorld(
+                static_cast<float>(ViewportSizeX) * 0.5f,
+                static_cast<float>(ViewportSizeY) * 0.5f,
+                ScreenRayOrigin,
+                ScreenRayDirection))
+        {
+            ViewLocation = ScreenRayOrigin;
+            ViewDirection = ScreenRayDirection.GetSafeNormal();
+            ViewRotation = ViewDirection.Rotation();
+        }
+        else if (const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager)
+        {
+            ViewLocation = CameraManager->GetCameraLocation();
+            ViewRotation = CameraManager->GetCameraRotation();
+            ViewDirection = ViewRotation.Vector();
+        }
+        else
+        {
+            PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+            ViewDirection = ViewRotation.Vector();
+        }
+    }
+    else if (Controller)
+    {
+        Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+        ViewDirection = ViewRotation.Vector();
+    }
+
+    const float AimDistance = CombatComponent ? CombatComponent->GetRangedAimTraceDistance() : 2500.0f;
+    const FVector AimEnd = ViewLocation + (ViewDirection * AimDistance);
+    OutAimOrigin = ViewLocation;
+    if (!GetWorld())
+    {
+        OutAimPoint = AimEnd;
+        return true;
+    }
+
+    FCollisionQueryParams AimQueryParams(SCENE_QUERY_STAT(PvPArenaCharacterRangedAimTrace), false, this);
+    AimQueryParams.AddIgnoredActor(this);
+
+    FHitResult AimHitResult;
+    GetWorld()->LineTraceSingleByChannel(
+        AimHitResult,
+        ViewLocation,
+        AimEnd,
+        ECC_Visibility,
+        AimQueryParams);
+
+    OutAimPoint = AimHitResult.bBlockingHit ? AimHitResult.ImpactPoint : AimEnd;
+    return true;
+}
+
+void APvPArenaCharacter::CacheRangedAttackAim(const FVector& AimOrigin, const FVector& AimTarget)
+{
+    bHasCachedRangedAttackAim = true;
+    CachedRangedAttackAimOrigin = AimOrigin;
+    CachedRangedAttackAimTarget = AimTarget;
+}
+
+void APvPArenaCharacter::ClearCachedRangedAttackAim()
+{
+    bHasCachedRangedAttackAim = false;
+    CachedRangedAttackAimOrigin = FVector::ZeroVector;
+    CachedRangedAttackAimTarget = FVector::ZeroVector;
+}
+
+bool APvPArenaCharacter::CaptureCurrentRangedAttackAim()
+{
+    FVector AimOrigin = FVector::ZeroVector;
+    FVector AimTarget = FVector::ZeroVector;
+    if (!ResolveRangedCrosshairAim(AimOrigin, AimTarget))
+    {
+        return false;
+    }
+
+    CacheRangedAttackAim(AimOrigin, AimTarget);
+    return true;
+}
+
+void APvPArenaCharacter::RefreshRangedAttackAimFromCrosshair()
+{
+    if (!bRangedAttackInProgress || !bRangedChargeInputHeld)
+    {
+        return;
+    }
+
+    if (GetWorld() && !IsLocallyControlled())
+    {
+        return;
+    }
+
+    FVector AimPoint = FVector::ZeroVector;
+    if (!ResolveRangedCrosshairAimPoint(AimPoint))
+    {
+        return;
+    }
+
+    const FVector AimDirection = AimPoint - GetActorLocation();
+    if (AimDirection.IsNearlyZero())
+    {
+        return;
+    }
+
+    RangedAttackTargetYaw = FRotator::NormalizeAxis(AimDirection.Rotation().Yaw);
+}
+
+float APvPArenaCharacter::ResolveRangedAttackTargetYaw() const
+{
+    FVector AimPoint = FVector::ZeroVector;
+    if (ResolveRangedCrosshairAimPoint(AimPoint))
+    {
+        const FVector AimDirection = AimPoint - GetActorLocation();
+        if (!AimDirection.IsNearlyZero())
+        {
+            return FRotator::NormalizeAxis(AimDirection.Rotation().Yaw);
+        }
+    }
+
+    return Controller ? Controller->GetControlRotation().Yaw : GetActorRotation().Yaw;
+}
+
+void APvPArenaCharacter::StartRangedAttackFacingLock(float TargetYaw)
+{
+    bRangedAttackFacingLocked = true;
+    RangedAttackTargetYaw = FRotator::NormalizeAxis(TargetYaw);
+}
+
+void APvPArenaCharacter::UpdateRangedAttackFacing(float DeltaSeconds)
+{
+    if (!bRangedAttackInProgress || !bRangedAttackFacingLocked)
+    {
+        return;
+    }
+
+    const FRotator TargetRotation(0.0f, RangedAttackTargetYaw, 0.0f);
+    SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaSeconds, RangedAttackTurnInterpSpeed));
 }
 
 void APvPArenaCharacter::ShowMeleeDebug(FVector Start, FVector End, bool bHit)
@@ -277,7 +651,58 @@ bool APvPArenaCharacter::PlayMeleeAttackMontage()
     FOnMontageEnded MontageEndedDelegate;
     MontageEndedDelegate.BindUObject(this, &APvPArenaCharacter::HandleMeleeAttackMontageEnded);
     AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, MeleeAttackMontage);
+    PlayMeleeAttackEffect();
     return true;
+}
+
+bool APvPArenaCharacter::PlayRangedAttackMontage(FName StartSectionName)
+{
+    if (!RangedAttackMontage || !GetMesh())
+    {
+        return false;
+    }
+
+    UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+    if (!AnimInstance)
+    {
+        return false;
+    }
+
+    const float MontageDuration = PlayAnimMontage(RangedAttackMontage, RangedAttackPlayRate);
+    if (MontageDuration <= 0.0f)
+    {
+        return false;
+    }
+
+    FOnMontageEnded MontageEndedDelegate;
+    MontageEndedDelegate.BindUObject(this, &APvPArenaCharacter::HandleRangedAttackMontageEnded);
+    AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, RangedAttackMontage);
+    if (!StartSectionName.IsNone())
+    {
+        AnimInstance->Montage_JumpToSection(StartSectionName, RangedAttackMontage);
+    }
+    return true;
+}
+
+void APvPArenaCharacter::PlayMeleeAttackEffect()
+{
+    if (!MeleeAttackEffect || !GetMesh() || GetNetMode() == NM_DedicatedServer)
+    {
+        return;
+    }
+
+    const FName AttachSocketName = GetMesh()->DoesSocketExist(MeleeAttackEffectSocketName)
+        ? MeleeAttackEffectSocketName
+        : NAME_None;
+
+    UNiagaraFunctionLibrary::SpawnSystemAttached(
+        MeleeAttackEffect,
+        GetMesh(),
+        AttachSocketName,
+        FVector::ZeroVector,
+        FRotator::ZeroRotator,
+        EAttachLocation::KeepRelativeOffset,
+        true);
 }
 
 void APvPArenaCharacter::HandleMeleeAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -288,14 +713,22 @@ void APvPArenaCharacter::HandleMeleeAttackMontageEnded(UAnimMontage* Montage, bo
     }
 }
 
-void APvPArenaCharacter::SetMeleeMovementSuppressed(bool bSuppressed)
+void APvPArenaCharacter::HandleRangedAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-    if (bMeleeMovementSuppressed == bSuppressed)
+    if (Montage == RangedAttackMontage || Montage == nullptr || bInterrupted)
+    {
+        FinishRangedAttack();
+    }
+}
+
+void APvPArenaCharacter::SetAttackMovementSuppressed(bool bSuppressed)
+{
+    if (bAttackMovementSuppressed == bSuppressed)
     {
         return;
     }
 
-    bMeleeMovementSuppressed = bSuppressed;
+    bAttackMovementSuppressed = bSuppressed;
 
     if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
     {
@@ -351,8 +784,42 @@ void APvPArenaCharacter::MulticastPlayMeleeAttackMontage_Implementation()
 
     bMeleeAttackInProgress = true;
     bMeleeAttackHitTriggered = false;
-    SetMeleeMovementSuppressed(true);
+    SetAttackMovementSuppressed(true);
     PlayMeleeAttackMontage();
+}
+
+void APvPArenaCharacter::ServerHandleRangedAttackHitNotify_Implementation(FVector_NetQuantize AimOrigin, FVector_NetQuantize AimTarget)
+{
+    CacheRangedAttackAim(AimOrigin, AimTarget);
+    TriggerRangedAttackHit();
+}
+
+void APvPArenaCharacter::MulticastPlayRangedAttackMontage_Implementation(float TargetYaw)
+{
+    if (HasAuthority())
+    {
+        return;
+    }
+
+    bRangedAttackInProgress = true;
+    bRangedChargeInputHeld = true;
+    bRangedReleaseCommitted = false;
+    bRangedAttackHitTriggered = false;
+    StartRangedAttackFacingLock(TargetYaw);
+    SetAttackMovementSuppressed(true);
+    PlayRangedAttackMontage(RangedAttackStartSectionName);
+}
+
+void APvPArenaCharacter::MulticastResolveRangedCharge_Implementation(bool bCommitted)
+{
+    if (HasAuthority())
+    {
+        return;
+    }
+
+    bRangedChargeInputHeld = false;
+    bRangedReleaseCommitted = bCommitted;
+    JumpToRangedMontageSection(bCommitted ? RangedAttackReleaseSectionName : RangedAttackCancelSectionName);
 }
 
 void APvPArenaCharacter::MulticastDrawMeleeDebug_Implementation(FVector Start, FVector End, bool bHit)
@@ -382,19 +849,47 @@ void APvPArenaCharacter::MulticastDrawMeleeDebug_Implementation(FVector Start, F
 
 void APvPArenaCharacter::ServerTryRangedAttack_Implementation()
 {
-    if (!CombatComponent || bIsDead)
-    {
-        return;
-    }
-
     const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    if (!CombatComponent->CanUseRanged(Now))
+    if (!BeginRangedAttack(Now))
     {
         return;
     }
 
-    CombatComponent->TryServerRangedAttack(this);
-    CombatComponent->MarkRangedUsed(Now);
+    MulticastPlayRangedAttackMontage(RangedAttackTargetYaw);
+    MulticastResolveRangedCharge(true);
+
+    if (!PlayRangedAttackMontage(RangedAttackReleaseSectionName))
+    {
+        FinishRangedAttack();
+    }
+}
+
+void APvPArenaCharacter::ServerBeginRangedCharge_Implementation()
+{
+    const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    if (!BeginRangedCharge(Now))
+    {
+        return;
+    }
+
+    MulticastPlayRangedAttackMontage(RangedAttackTargetYaw);
+
+    if (!PlayRangedAttackMontage(RangedAttackStartSectionName))
+    {
+        FinishRangedAttack();
+    }
+}
+
+void APvPArenaCharacter::ServerReleaseRangedCharge_Implementation()
+{
+    const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    const bool bCommitted = ReleaseRangedCharge(Now);
+    if (!bRangedAttackInProgress)
+    {
+        return;
+    }
+
+    MulticastResolveRangedCharge(bCommitted);
 }
 
 void APvPArenaCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -13,6 +13,7 @@ public class PvPArena : ModuleRules
             "Engine",
             "InputCore",
             "EnhancedInput",
+            "Niagara",
             "UMG"
         });
 
