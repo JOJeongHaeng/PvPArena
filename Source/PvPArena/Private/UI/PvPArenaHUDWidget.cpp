@@ -89,9 +89,13 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     RoundStateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundStateText"));
     ResultText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResultText"));
     NextRoundText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextRoundText"));
-    RangedCrosshairText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RangedCrosshairText"));
+    RangedCrosshairOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("RangedCrosshairOverlay"));
+    RangedCrosshairHorizontalBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCrosshairHorizontalBox"));
+    RangedCrosshairVerticalBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCrosshairVerticalBox"));
+    RangedCrosshairHorizontalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairHorizontalLine"));
+    RangedCrosshairVerticalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairVerticalLine"));
 
-    if (!RootOverlay || !StatusPanel || !AnnouncementPanel || !StatusBox || !AnnouncementBox || !HealthBarSizeBox || !HealthBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !RangedCrosshairText)
+    if (!RootOverlay || !StatusPanel || !AnnouncementPanel || !StatusBox || !AnnouncementBox || !HealthBarSizeBox || !HealthBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
     {
         return;
     }
@@ -107,7 +111,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
     UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementPanel);
-    UOverlaySlot* RangedCrosshairSlot = RootOverlay->AddChildToOverlay(RangedCrosshairText);
+    UOverlaySlot* RangedCrosshairSlot = RootOverlay->AddChildToOverlay(RangedCrosshairOverlay);
 
     if (StatusBoxSlot)
     {
@@ -127,6 +131,29 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     {
         RangedCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
         RangedCrosshairSlot->SetVerticalAlignment(VAlign_Center);
+    }
+
+    RangedCrosshairHorizontalBox->SetWidthOverride(18.0f);
+    RangedCrosshairHorizontalBox->SetHeightOverride(2.0f);
+    RangedCrosshairHorizontalBox->SetContent(RangedCrosshairHorizontalLine);
+    RangedCrosshairVerticalBox->SetWidthOverride(2.0f);
+    RangedCrosshairVerticalBox->SetHeightOverride(18.0f);
+    RangedCrosshairVerticalBox->SetContent(RangedCrosshairVerticalLine);
+
+    UOverlaySlot* HorizontalCrosshairSlot = RangedCrosshairOverlay->AddChildToOverlay(RangedCrosshairHorizontalBox);
+    UOverlaySlot* VerticalCrosshairSlot = RangedCrosshairOverlay->AddChildToOverlay(RangedCrosshairVerticalBox);
+    if (HorizontalCrosshairSlot)
+    {
+        HorizontalCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
+        HorizontalCrosshairSlot->SetVerticalAlignment(VAlign_Center);
+        HorizontalCrosshairSlot->SetPadding(FMargin(-9.0f, 0.0f, -9.0f, 0.0f));
+    }
+
+    if (VerticalCrosshairSlot)
+    {
+        VerticalCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
+        VerticalCrosshairSlot->SetVerticalAlignment(VAlign_Center);
+        VerticalCrosshairSlot->SetPadding(FMargin(0.0f, -9.0f, 0.0f, -9.0f));
     }
 
     HealthBarSizeBox->SetWidthOverride(280.0f);
@@ -230,12 +257,9 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     NextRoundText->SetShadowOffset(FVector2D(1.0f, 1.0f));
     NextRoundText->SetVisibility(ESlateVisibility::Collapsed);
 
-    RangedCrosshairText->SetText(FText::FromString(TEXT("+")));
-    RangedCrosshairText->SetJustification(ETextJustify::Center);
-    RangedCrosshairText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f)));
-    RangedCrosshairText->SetFont(FSlateFontInfo(RangedCrosshairText->GetFont().FontObject, 32, RangedCrosshairText->GetFont().TypefaceFontName));
-    RangedCrosshairText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    RangedCrosshairText->SetVisibility(ESlateVisibility::Collapsed);
+    RangedCrosshairHorizontalLine->SetBrushColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f));
+    RangedCrosshairVerticalLine->SetBrushColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f));
+    RangedCrosshairOverlay->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UPvPArenaHUDWidget::BuildHealthDisplayState(const APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel)
@@ -388,14 +412,14 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
 void UPvPArenaHUDWidget::RefreshCrosshairVisibility()
 {
-    if (!RangedCrosshairText)
+    if (!RangedCrosshairOverlay)
     {
         return;
     }
 
     const APlayerController* PlayerController = GetOwningPlayer();
     const APvPArenaCharacter* Character = PlayerController ? Cast<APvPArenaCharacter>(PlayerController->GetPawn()) : nullptr;
-    RangedCrosshairText->SetVisibility(BuildRangedCrosshairVisibilityState(Character));
+    RangedCrosshairOverlay->SetVisibility(BuildRangedCrosshairVisibilityState(Character));
 }
 
 FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const

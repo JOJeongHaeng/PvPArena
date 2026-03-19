@@ -5,7 +5,6 @@
 #include "PvPProjectile.generated.h"
 
 class APvPArenaCharacter;
-class UNiagaraComponent;
 class UProjectileMovementComponent;
 class USphereComponent;
 
@@ -17,9 +16,10 @@ class PVPARENA_API APvPProjectile : public AActor
 public:
     APvPProjectile();
 
-    void InitializeProjectile(APvPArenaCharacter* InInstigatorCharacter, float InDamage);
+    void InitializeProjectile(APvPArenaCharacter* InInstigatorCharacter, float InDamage, const FVector& InLaunchDirection);
 
 protected:
+    virtual void Tick(float DeltaSeconds) override;
     virtual void BeginPlay() override;
 
 private:
@@ -37,17 +37,22 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "Projectile")
     TObjectPtr<UProjectileMovementComponent> ProjectileMovementComponent;
 
-    UPROPERTY(VisibleAnywhere, Category = "Projectile")
-    TObjectPtr<UNiagaraComponent> ProjectileEffectComponent;
-
     UPROPERTY()
     TObjectPtr<APvPArenaCharacter> InstigatorCharacter;
 
     UPROPERTY(EditDefaultsOnly, Category = "Projectile")
     float InitialLifeSeconds = 3.0f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-    FVector ProjectileEffectRelativeOffset = FVector(0.0f, 0.0f, 18.0f);
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    bool bDrawProjectileDebug = true;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    float ProjectileDebugDrawTime = 1.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    float ProjectileDebugLineThickness = 1.5f;
+
+    FVector PreviousDebugDrawLocation = FVector::ZeroVector;
+    FVector LaunchDirection = FVector::ForwardVector;
     float Damage = 0.0f;
 };

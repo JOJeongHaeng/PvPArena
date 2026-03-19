@@ -96,6 +96,12 @@ bool UPvPCombatComponent::TryServerMeleeAttack(APvPArenaCharacter* Attacker)
     return true;
 }
 
+FVector UPvPCombatComponent::BuildRangedProjectileSpawnLocation(const FVector& AimOrigin, const FVector& AimTarget, float ForwardOffset)
+{
+    const FVector AimDirection = (AimTarget - AimOrigin).GetSafeNormal();
+    return AimOrigin + (AimDirection * ForwardOffset);
+}
+
 bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
 {
     if (!Attacker || !Attacker->GetWorld() || !RangedProjectileClass)
@@ -103,41 +109,24 @@ bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
         return false;
     }
 
-    FVector ViewLocation;
-    FRotator ViewRotation;
-    if (AController* Controller = Attacker->GetController())
+    FVector AimOrigin = Attacker->GetActorLocation();
+    FVector AimTarget = FVector::ZeroVector;
+    FRotator ViewRotation = Attacker->GetActorRotation();
+    const bool bHasCachedAim = Attacker->GetCachedRangedAttackAim(AimOrigin, AimTarget);
+    if (!bHasCachedAim)
     {
-        Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
-        if (Attacker->IsRangedAttackInProgress())
+        if (AController* Controller = Attacker->GetController())
         {
-            ViewRotation.Yaw = Attacker->GetRangedAttackTargetYaw();
+            Controller->GetPlayerViewPoint(AimOrigin, ViewRotation);
+        }
+
+        if (!Attacker->ResolveRangedCrosshairAimPoint(AimTarget))
+        {
+            AimTarget = AimOrigin + (ViewRotation.Vector() * RangedRange);
         }
     }
-    else
-    {
-        ViewLocation = Attacker->GetActorLocation();
-        ViewRotation = Attacker->GetActorRotation();
-    }
-
-    const FVector AimStart = ViewLocation;
-    const FVector AimDirection = ViewRotation.Vector();
-    const FVector AimEnd = AimStart + (AimDirection * RangedRange);
-
-    FCollisionQueryParams AimQueryParams(SCENE_QUERY_STAT(PvPArenaRangedAimTrace), false, Attacker);
-    AimQueryParams.AddIgnoredActor(Attacker);
-
-    FHitResult AimHitResult;
-    Attacker->GetWorld()->LineTraceSingleByChannel(
-        AimHitResult,
-        AimStart,
-        AimEnd,
-        ECC_Visibility,
-        AimQueryParams);
-
-    const FVector AimTarget = AimHitResult.bBlockingHit ? AimHitResult.ImpactPoint : AimEnd;
-    const FVector SpawnLocation = Attacker->GetActorLocation()
-        + (Attacker->GetActorForwardVector() * RangedSpawnForwardOffset)
-        + (FVector::UpVector * RangedSpawnHeightOffset);
+    FVector SpawnLocation = BuildRangedProjectileSpawnLocation(AimOrigin, AimTarget, RangedSpawnForwardOffset);
+    SpawnLocation.Z += RangedSpawnHeightOffset;
     const FVector Direction = (AimTarget - SpawnLocation).GetSafeNormal();
     const FTransform SpawnTransform(Direction.Rotation(), SpawnLocation);
     FActorSpawnParameters SpawnParameters;
@@ -157,14 +146,14 @@ bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
         return false;
     }
 
-    Projectile->InitializeProjectile(Attacker, RangedDamage);
+    Projectile->InitializeProjectile(Attacker, RangedDamage, Direction);
     Projectile->FinishSpawning(SpawnTransform);
 
     if (bDrawAttackDebug)
     {
         DrawDebugLine(Attacker->GetWorld(), SpawnLocation, AimTarget, FColor::Cyan, false, DebugDrawTime, 0, 1.5f);
         DrawDebugPoint(Attacker->GetWorld(), SpawnLocation, 10.0f, FColor::Cyan, false, DebugDrawTime, 0);
-        DrawDebugPoint(Attacker->GetWorld(), AimTarget, 12.0f, AimHitResult.bBlockingHit ? FColor::Red : FColor::Green, false, DebugDrawTime, 0);
+        DrawDebugPoint(Attacker->GetWorld(), AimTarget, 12.0f, FColor::Red, false, DebugDrawTime, 0);
     }
 
     return true;

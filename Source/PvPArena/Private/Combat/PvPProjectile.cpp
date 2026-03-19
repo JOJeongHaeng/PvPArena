@@ -1,15 +1,13 @@
 #include "Combat/PvPProjectile.h"
 
 #include "Components/SphereComponent.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-#include "NiagaraComponent.h"
-#include "NiagaraSystem.h"
 #include "Player/PvPArenaCharacter.h"
-#include "UObject/ConstructorHelpers.h"
 
 APvPProjectile::APvPProjectile()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
     bReplicates = true;
 
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
@@ -24,32 +22,51 @@ APvPProjectile::APvPProjectile()
     CollisionComponent->SetNotifyRigidBodyCollision(true);
 
     ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
-    ProjectileMovementComponent->InitialSpeed = 2200.0f;
-    ProjectileMovementComponent->MaxSpeed = 2200.0f;
+    ProjectileMovementComponent->InitialSpeed = 1800.0f;
+    ProjectileMovementComponent->MaxSpeed = 1800.0f;
     ProjectileMovementComponent->ProjectileGravityScale = 0.0f;
     ProjectileMovementComponent->bRotationFollowsVelocity = true;
+    ProjectileMovementComponent->bInitialVelocityInLocalSpace = false;
     ProjectileMovementComponent->bShouldBounce = false;
 
-    ProjectileEffectComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("ProjectileEffectComponent"));
-    ProjectileEffectComponent->SetupAttachment(CollisionComponent);
-    ProjectileEffectComponent->SetAutoActivate(true);
-    ProjectileEffectComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    ProjectileEffectComponent->SetRelativeLocation(ProjectileEffectRelativeOffset);
-
-    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> ProjectileEffectFinder(
-        TEXT("/Game/PvPArena/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Magma_Shot.NS_Magma_Shot"));
-    if (ProjectileEffectFinder.Succeeded())
-    {
-        ProjectileEffectComponent->SetAsset(ProjectileEffectFinder.Object);
-    }
 }
 
-void APvPProjectile::InitializeProjectile(APvPArenaCharacter* InInstigatorCharacter, float InDamage)
+void APvPProjectile::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!bDrawProjectileDebug)
+    {
+        return;
+    }
+
+    if (PreviousDebugDrawLocation.IsNearlyZero())
+    {
+        PreviousDebugDrawLocation = GetActorLocation();
+        return;
+    }
+
+    DrawDebugLine(
+        GetWorld(),
+        PreviousDebugDrawLocation,
+        GetActorLocation(),
+        FColor::Orange,
+        false,
+        ProjectileDebugDrawTime,
+        0,
+        ProjectileDebugLineThickness);
+    PreviousDebugDrawLocation = GetActorLocation();
+}
+
+void APvPProjectile::InitializeProjectile(APvPArenaCharacter* InInstigatorCharacter, float InDamage, const FVector& InLaunchDirection)
 {
     InstigatorCharacter = InInstigatorCharacter;
     Damage = InDamage;
+    LaunchDirection = InLaunchDirection.GetSafeNormal();
     SetOwner(InInstigatorCharacter);
     SetInstigator(InInstigatorCharacter);
+    SetActorRotation(LaunchDirection.Rotation());
+    PreviousDebugDrawLocation = GetActorLocation();
 
     if (CollisionComponent && InInstigatorCharacter)
     {
@@ -62,10 +79,17 @@ void APvPProjectile::BeginPlay()
     Super::BeginPlay();
 
     SetLifeSpan(InitialLifeSeconds);
+    PreviousDebugDrawLocation = GetActorLocation();
 
     if (CollisionComponent)
     {
         CollisionComponent->OnComponentHit.AddDynamic(this, &APvPProjectile::HandleProjectileHit);
+    }
+
+    if (ProjectileMovementComponent)
+    {
+        ProjectileMovementComponent->Velocity = LaunchDirection * ProjectileMovementComponent->InitialSpeed;
+        ProjectileMovementComponent->UpdateComponentVelocity();
     }
 }
 

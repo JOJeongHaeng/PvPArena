@@ -2,6 +2,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
@@ -58,7 +59,11 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     UTextBlock* MatchScoreText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("MatchScoreText")));
     UTextBlock* TimerText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("TimerText")));
     UTextBlock* RoundStateText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("RoundStateText")));
-    UTextBlock* RangedCrosshairText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("RangedCrosshairText")));
+    UOverlay* RangedCrosshairOverlay = Cast<UOverlay>(WidgetTree->FindWidget(TEXT("RangedCrosshairOverlay")));
+    USizeBox* RangedCrosshairHorizontalBox = Cast<USizeBox>(WidgetTree->FindWidget(TEXT("RangedCrosshairHorizontalBox")));
+    USizeBox* RangedCrosshairVerticalBox = Cast<USizeBox>(WidgetTree->FindWidget(TEXT("RangedCrosshairVerticalBox")));
+    UBorder* RangedCrosshairHorizontalLine = Cast<UBorder>(WidgetTree->FindWidget(TEXT("RangedCrosshairHorizontalLine")));
+    UBorder* RangedCrosshairVerticalLine = Cast<UBorder>(WidgetTree->FindWidget(TEXT("RangedCrosshairVerticalLine")));
 
     TestNotNull(TEXT("HealthBarSizeBox should exist"), HealthBarSizeBox);
     TestNotNull(TEXT("HealthBar should exist"), HealthBar);
@@ -70,7 +75,11 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("MatchScoreText should exist"), MatchScoreText);
     TestNotNull(TEXT("TimerText should exist"), TimerText);
     TestNotNull(TEXT("RoundStateText should exist"), RoundStateText);
-    TestNotNull(TEXT("RangedCrosshairText should exist"), RangedCrosshairText);
+    TestNotNull(TEXT("RangedCrosshairOverlay should exist"), RangedCrosshairOverlay);
+    TestNotNull(TEXT("RangedCrosshairHorizontalBox should exist"), RangedCrosshairHorizontalBox);
+    TestNotNull(TEXT("RangedCrosshairVerticalBox should exist"), RangedCrosshairVerticalBox);
+    TestNotNull(TEXT("RangedCrosshairHorizontalLine should exist"), RangedCrosshairHorizontalLine);
+    TestNotNull(TEXT("RangedCrosshairVerticalLine should exist"), RangedCrosshairVerticalLine);
     UTextBlock* ResultText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("ResultText")));
     UTextBlock* NextRoundText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("NextRoundText")));
 
@@ -103,14 +112,23 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         NextRoundText ? NextRoundText->GetVisibility() : ESlateVisibility::Visible,
         ESlateVisibility::Collapsed);
     TestEqual(TEXT("Crosshair should stay hidden until ranged charge is held"),
-        RangedCrosshairText ? RangedCrosshairText->GetVisibility() : ESlateVisibility::Visible,
+        RangedCrosshairOverlay ? RangedCrosshairOverlay->GetVisibility() : ESlateVisibility::Visible,
         ESlateVisibility::Collapsed);
     TestTrue(TEXT("ResultText should use a larger font than default status rows"),
         ResultText && ResultText->GetFont().Size >= 30);
     TestTrue(TEXT("NextRoundText should use a larger font than default status rows"),
         NextRoundText && NextRoundText->GetFont().Size >= 22);
     TestTrue(TEXT("Crosshair should remain prominent at screen center"),
-        RangedCrosshairText && RangedCrosshairText->GetFont().Size >= 28);
+        RangedCrosshairOverlay && RangedCrosshairOverlay->GetChildrenCount() == 2);
+    TestTrue(TEXT("Crosshair horizontal line should be wider than it is tall"),
+        RangedCrosshairHorizontalBox && RangedCrosshairHorizontalBox->GetWidthOverride() > RangedCrosshairHorizontalBox->GetHeightOverride());
+    TestTrue(TEXT("Crosshair vertical line should be taller than it is wide"),
+        RangedCrosshairVerticalBox && RangedCrosshairVerticalBox->GetHeightOverride() > RangedCrosshairVerticalBox->GetWidthOverride());
+    UOverlaySlot* CrosshairRootSlot = RangedCrosshairOverlay ? Cast<UOverlaySlot>(RangedCrosshairOverlay->Slot) : nullptr;
+    TestTrue(TEXT("Crosshair root should stay centered in the HUD overlay"),
+        CrosshairRootSlot
+        && CrosshairRootSlot->GetHorizontalAlignment() == HAlign_Center
+        && CrosshairRootSlot->GetVerticalAlignment() == VAlign_Center);
     TestTrue(TEXT("ResultText should remain larger than the status text hierarchy"),
         ResultText && HealthText && ResultText->GetFont().Size > HealthText->GetFont().Size);
     TestTrue(TEXT("Status panel should use a visible dark backing"),

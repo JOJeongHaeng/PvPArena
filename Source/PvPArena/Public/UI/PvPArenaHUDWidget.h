@@ -87,7 +87,19 @@ private:
     TObjectPtr<UTextBlock> NextRoundText;
 
     UPROPERTY(Transient)
-    TObjectPtr<UTextBlock> RangedCrosshairText;
+    TObjectPtr<UOverlay> RangedCrosshairOverlay;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USizeBox> RangedCrosshairHorizontalBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USizeBox> RangedCrosshairVerticalBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UBorder> RangedCrosshairHorizontalLine;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UBorder> RangedCrosshairVerticalLine;
 
     FTimerHandle RefreshTimerHandle;
 };

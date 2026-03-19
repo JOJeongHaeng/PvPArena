@@ -3,7 +3,6 @@
 #include "Combat/PvPProjectile.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
-#include "NiagaraSystem.h"
 #include "UObject/UnrealType.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -13,8 +12,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FRangedProjectileDefaultsTest::RunTest(const FString& Parameters)
 {
-    const FString ExpectedProjectileEffectPath =
-        TEXT("/Game/PvPArena/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Magma_Shot.NS_Magma_Shot");
     const FBoolProperty* DebugEnabledProperty = FindFProperty<FBoolProperty>(APvPProjectile::StaticClass(), TEXT("bDrawProjectileDebug"));
     const FFloatProperty* DebugDurationProperty = FindFProperty<FFloatProperty>(APvPProjectile::StaticClass(), TEXT("ProjectileDebugDrawTime"));
     const FFloatProperty* DebugThicknessProperty = FindFProperty<FFloatProperty>(APvPProjectile::StaticClass(), TEXT("ProjectileDebugLineThickness"));
@@ -48,12 +45,7 @@ bool FRangedProjectileDefaultsTest::RunTest(const FString& Parameters)
     UProjectileMovementComponent* ProjectileMovement = Projectile ? Projectile->FindComponentByClass<UProjectileMovementComponent>() : nullptr;
     TestNotNull(TEXT("Projectile should have a projectile movement component"), ProjectileMovement);
 
-    UNiagaraComponent* ProjectileEffect = Projectile ? Projectile->FindComponentByClass<UNiagaraComponent>() : nullptr;
-    TestNotNull(TEXT("Projectile should have a Niagara effect component"), ProjectileEffect);
-    TestEqual(
-        TEXT("Projectile should default to the project-owned magma shot effect"),
-        ProjectileEffect && ProjectileEffect->GetAsset() ? ProjectileEffect->GetAsset()->GetPathName() : FString(),
-        ExpectedProjectileEffectPath);
+    TestNull(TEXT("Projectile should no longer create a Niagara effect component"), Projectile ? Projectile->FindComponentByClass<UNiagaraComponent>() : nullptr);
 
     TestTrue(TEXT("Projectile should ignore gravity for a straight magic bolt"), ProjectileMovement && ProjectileMovement->ProjectileGravityScale == 0.0f);
     TestEqual(TEXT("Projectile should slow down slightly for easier visual tracking"), ProjectileMovement ? ProjectileMovement->InitialSpeed : 0.0f, 1800.0f);

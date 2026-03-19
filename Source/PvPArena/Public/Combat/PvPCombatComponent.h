@@ -18,6 +18,7 @@ public:
     float GetMeleeDamage() const { return MeleeDamage; }
     float GetRangedDamage() const { return RangedDamage; }
     float GetRangedCooldownSeconds() const { return RangedCooldownSeconds; }
+    float GetRangedAimTraceDistance() const { return RangedRange; }
     float GetRemainingRangedCooldown(float NowSeconds) const;
     float GetRangedCooldownAlpha(float NowSeconds) const;
 
@@ -28,6 +29,7 @@ public:
     void MarkRangedUsed(float NowSeconds);
     bool TryServerMeleeAttack(APvPArenaCharacter* Attacker);
     bool TryServerRangedAttack(APvPArenaCharacter* Attacker);
+    static FVector BuildRangedProjectileSpawnLocation(const FVector& AimOrigin, const FVector& AimTarget, float ForwardOffset);
 
 private:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -57,7 +59,7 @@ private:
     float RangedSpawnForwardOffset = 90.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
-    float RangedSpawnHeightOffset = 60.0f;
+    float RangedSpawnHeightOffset = 0.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     TSubclassOf<APvPProjectile> RangedProjectileClass;

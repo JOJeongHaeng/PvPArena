@@ -8,6 +8,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Game/PvPArenaGameMode.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -55,6 +56,7 @@ APvPArenaCharacter::APvPArenaCharacter()
 void APvPArenaCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    RefreshRangedAttackAimFromCrosshair();
     UpdateRangedAttackFacing(DeltaSeconds);
     UpdateRangedAimCameraOffset(DeltaSeconds);
 }
@@ -243,6 +245,7 @@ bool APvPArenaCharacter::BeginRangedCharge(float NowSeconds)
     bRangedReleaseCommitted = false;
     bRangedAttackHitTriggered = false;
     RangedChargeStartTime = NowSeconds;
+    ClearCachedRangedAttackAim();
     StartRangedAttackFacingLock(ResolveRangedAttackTargetYaw());
     SetAttackMovementSuppressed(true);
     return true;
@@ -262,6 +265,7 @@ bool APvPArenaCharacter::ReleaseRangedCharge(float NowSeconds)
         return false;
     }
 
+    CaptureCurrentRangedAttackAim();
     CommitRangedChargeRelease();
     if (CombatComponent)
     {
@@ -280,7 +284,7 @@ bool APvPArenaCharacter::HandleRangedAttackHitNotify()
 
     if (!HasAuthority())
     {
-        ServerHandleRangedAttackHitNotify();
+        ServerHandleRangedAttackHitNotify(CachedRangedAttackAimOrigin, CachedRangedAttackAimTarget);
         return true;
     }
 
@@ -372,6 +376,7 @@ void APvPArenaCharacter::FinishRangedAttack()
     bRangedAttackHitTriggered = false;
     RangedChargeStartTime = 0.0f;
     bRangedAttackFacingLocked = false;
+    ClearCachedRangedAttackAim();
     if (!bMeleeAttackInProgress)
     {
         SetAttackMovementSuppressed(false);
@@ -380,12 +385,163 @@ void APvPArenaCharacter::FinishRangedAttack()
 
 void APvPArenaCharacter::AdvanceAttackFacing(float DeltaSeconds)
 {
+    RefreshRangedAttackAimFromCrosshair();
     UpdateRangedAttackFacing(DeltaSeconds);
     UpdateRangedAimCameraOffset(DeltaSeconds);
 }
 
+bool APvPArenaCharacter::ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const
+{
+    FVector AimOrigin = FVector::ZeroVector;
+    return ResolveRangedCrosshairAim(AimOrigin, OutAimPoint);
+}
+
+bool APvPArenaCharacter::GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const
+{
+    if (!bHasCachedRangedAttackAim)
+    {
+        return false;
+    }
+
+    OutAimOrigin = CachedRangedAttackAimOrigin;
+    OutAimTarget = CachedRangedAttackAimTarget;
+    return true;
+}
+
+bool APvPArenaCharacter::ResolveRangedCrosshairAim(FVector& OutAimOrigin, FVector& OutAimPoint) const
+{
+    FVector ViewLocation = GetActorLocation();
+    FRotator ViewRotation = GetActorRotation();
+    FVector ViewDirection = ViewRotation.Vector();
+
+    if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
+    {
+        int32 ViewportSizeX = 0;
+        int32 ViewportSizeY = 0;
+        FVector ScreenRayOrigin = FVector::ZeroVector;
+        FVector ScreenRayDirection = FVector::ZeroVector;
+        PlayerController->GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+        if (ViewportSizeX > 0
+            && ViewportSizeY > 0
+            && PlayerController->DeprojectScreenPositionToWorld(
+                static_cast<float>(ViewportSizeX) * 0.5f,
+                static_cast<float>(ViewportSizeY) * 0.5f,
+                ScreenRayOrigin,
+                ScreenRayDirection))
+        {
+            ViewLocation = ScreenRayOrigin;
+            ViewDirection = ScreenRayDirection.GetSafeNormal();
+            ViewRotation = ViewDirection.Rotation();
+        }
+        else if (const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager)
+        {
+            ViewLocation = CameraManager->GetCameraLocation();
+            ViewRotation = CameraManager->GetCameraRotation();
+            ViewDirection = ViewRotation.Vector();
+        }
+        else
+        {
+            PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+            ViewDirection = ViewRotation.Vector();
+        }
+    }
+    else if (Controller)
+    {
+        Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+        ViewDirection = ViewRotation.Vector();
+    }
+
+    const float AimDistance = CombatComponent ? CombatComponent->GetRangedAimTraceDistance() : 2500.0f;
+    const FVector AimEnd = ViewLocation + (ViewDirection * AimDistance);
+    OutAimOrigin = ViewLocation;
+    if (!GetWorld())
+    {
+        OutAimPoint = AimEnd;
+        return true;
+    }
+
+    FCollisionQueryParams AimQueryParams(SCENE_QUERY_STAT(PvPArenaCharacterRangedAimTrace), false, this);
+    AimQueryParams.AddIgnoredActor(this);
+
+    FHitResult AimHitResult;
+    GetWorld()->LineTraceSingleByChannel(
+        AimHitResult,
+        ViewLocation,
+        AimEnd,
+        ECC_Visibility,
+        AimQueryParams);
+
+    OutAimPoint = AimHitResult.bBlockingHit ? AimHitResult.ImpactPoint : AimEnd;
+    return true;
+}
+
+void APvPArenaCharacter::CacheRangedAttackAim(const FVector& AimOrigin, const FVector& AimTarget)
+{
+    bHasCachedRangedAttackAim = true;
+    CachedRangedAttackAimOrigin = AimOrigin;
+    CachedRangedAttackAimTarget = AimTarget;
+}
+
+void APvPArenaCharacter::ClearCachedRangedAttackAim()
+{
+    bHasCachedRangedAttackAim = false;
+    CachedRangedAttackAimOrigin = FVector::ZeroVector;
+    CachedRangedAttackAimTarget = FVector::ZeroVector;
+}
+
+bool APvPArenaCharacter::CaptureCurrentRangedAttackAim()
+{
+    FVector AimOrigin = FVector::ZeroVector;
+    FVector AimTarget = FVector::ZeroVector;
+    if (!ResolveRangedCrosshairAim(AimOrigin, AimTarget))
+    {
+        return false;
+    }
+
+    CacheRangedAttackAim(AimOrigin, AimTarget);
+    return true;
+}
+
+void APvPArenaCharacter::RefreshRangedAttackAimFromCrosshair()
+{
+    if (!bRangedAttackInProgress || !bRangedChargeInputHeld)
+    {
+        return;
+    }
+
+    if (GetWorld() && !IsLocallyControlled())
+    {
+        return;
+    }
+
+    FVector AimPoint = FVector::ZeroVector;
+    if (!ResolveRangedCrosshairAimPoint(AimPoint))
+    {
+        return;
+    }
+
+    const FVector AimDirection = AimPoint - GetActorLocation();
+    if (AimDirection.IsNearlyZero())
+    {
+        return;
+    }
+
+    RangedAttackTargetYaw = FRotator::NormalizeAxis(AimDirection.Rotation().Yaw);
+}
+
 float APvPArenaCharacter::ResolveRangedAttackTargetYaw() const
 {
+    FVector AimPoint = FVector::ZeroVector;
+    if (ResolveRangedCrosshairAimPoint(AimPoint))
+    {
+        const FVector AimDirection = AimPoint - GetActorLocation();
+        if (!AimDirection.IsNearlyZero())
+        {
+            return FRotator::NormalizeAxis(AimDirection.Rotation().Yaw);
+        }
+    }
+
     return Controller ? Controller->GetControlRotation().Yaw : GetActorRotation().Yaw;
 }
 
@@ -632,8 +788,9 @@ void APvPArenaCharacter::MulticastPlayMeleeAttackMontage_Implementation()
     PlayMeleeAttackMontage();
 }
 
-void APvPArenaCharacter::ServerHandleRangedAttackHitNotify_Implementation()
+void APvPArenaCharacter::ServerHandleRangedAttackHitNotify_Implementation(FVector_NetQuantize AimOrigin, FVector_NetQuantize AimTarget)
 {
+    CacheRangedAttackAim(AimOrigin, AimTarget);
     TriggerRangedAttackHit();
 }
 

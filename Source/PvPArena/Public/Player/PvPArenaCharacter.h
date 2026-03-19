@@ -35,6 +35,8 @@ public:
     bool IsRangedReleaseCommitted() const { return bRangedReleaseCommitted; }
     bool IsRangedChargeInputHeld() const { return bRangedChargeInputHeld; }
     float GetRangedAimCameraBlendAlpha() const { return RangedAimCameraBlendAlpha; }
+    bool ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const;
+    bool GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const;
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
@@ -107,6 +109,11 @@ private:
     bool JumpToRangedMontageSection(FName SectionName);
     void UpdateRangedAimCameraOffset(float DeltaSeconds);
     USpringArmComponent* ResolveRangedAimSpringArm();
+    void RefreshRangedAttackAimFromCrosshair();
+    bool ResolveRangedCrosshairAim(FVector& OutAimOrigin, FVector& OutAimPoint) const;
+    void CacheRangedAttackAim(const FVector& AimOrigin, const FVector& AimTarget);
+    void ClearCachedRangedAttackAim();
+    bool CaptureCurrentRangedAttackAim();
     float ResolveRangedAttackTargetYaw() const;
     void StartRangedAttackFacingLock(float TargetYaw);
     void UpdateRangedAttackFacing(float DeltaSeconds);
@@ -124,7 +131,7 @@ private:
     void ServerHandleMeleeAttackHitNotify();
 
     UFUNCTION(Server, Reliable)
-    void ServerHandleRangedAttackHitNotify();
+    void ServerHandleRangedAttackHitNotify(FVector_NetQuantize AimOrigin, FVector_NetQuantize AimTarget);
 
     UFUNCTION(NetMulticast, Unreliable)
     void MulticastPlayMeleeAttackMontage();
@@ -218,6 +225,15 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Combat")
     float RangedAttackTargetYaw = 0.0f;
+
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    bool bHasCachedRangedAttackAim = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    FVector CachedRangedAttackAimOrigin = FVector::ZeroVector;
+
+    UPROPERTY(VisibleAnywhere, Category = "Combat")
+    FVector CachedRangedAttackAimTarget = FVector::ZeroVector;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (ClampMin = "1.0"))
     float RangedAttackTurnInterpSpeed = 12.0f;
