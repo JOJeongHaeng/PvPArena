@@ -1,13 +1,37 @@
 #include "Combat/PvPCombatComponent.h"
 
+#include "Combat/PvPProjectile.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Player/PvPArenaCharacter.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
+#include "Net/UnrealNetwork.h"
+
+UPvPCombatComponent::UPvPCombatComponent()
+{
+    SetIsReplicatedByDefault(true);
+    RangedProjectileClass = APvPProjectile::StaticClass();
+}
 
 bool UPvPCombatComponent::CanUseMelee(float NowSeconds) const
 {
     return NowSeconds >= NextAllowedMeleeTime;
+}
+
+float UPvPCombatComponent::GetRemainingRangedCooldown(float NowSeconds) const
+{
+    return FMath::Max(0.0f, NextAllowedRangedTime - NowSeconds);
+}
+
+float UPvPCombatComponent::GetRangedCooldownAlpha(float NowSeconds) const
+{
+    if (RangedCooldownSeconds <= 0.0f)
+    {
+        return 1.0f;
+    }
+
+    return 1.0f - (GetRemainingRangedCooldown(NowSeconds) / RangedCooldownSeconds);
 }
 
 bool UPvPCombatComponent::CanUseRanged(float NowSeconds) const
@@ -32,7 +56,16 @@ bool UPvPCombatComponent::TryServerMeleeAttack(APvPArenaCharacter* Attacker)
         return false;
     }
 
-    const FVector Start = Attacker->GetActorLocation();
+    FVector Start = Attacker->GetActorLocation();
+    if (USkeletalMeshComponent* Mesh = Attacker->GetMesh())
+    {
+        const FName SocketName = Attacker->GetMeleeAttackSocketName();
+        if (Mesh->DoesSocketExist(SocketName))
+        {
+            Start = Mesh->GetSocketLocation(SocketName);
+        }
+    }
+
     const FVector End = Start + (Attacker->GetActorForwardVector() * MeleeRange);
 
     FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PvPArenaMeleeTrace), false, Attacker);
@@ -63,53 +96,72 @@ bool UPvPCombatComponent::TryServerMeleeAttack(APvPArenaCharacter* Attacker)
     return true;
 }
 
+FVector UPvPCombatComponent::BuildRangedProjectileSpawnLocation(const FVector& AimOrigin, const FVector& AimTarget, float ForwardOffset)
+{
+    const FVector AimDirection = (AimTarget - AimOrigin).GetSafeNormal();
+    return AimOrigin + (AimDirection * ForwardOffset);
+}
+
 bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
 {
-    if (!Attacker || !Attacker->GetWorld())
+    if (!Attacker || !Attacker->GetWorld() || !RangedProjectileClass)
     {
         return false;
     }
 
-    FVector ViewLocation;
-    FRotator ViewRotation;
-    if (AController* Controller = Attacker->GetController())
+    FVector AimOrigin = Attacker->GetActorLocation();
+    FVector AimTarget = FVector::ZeroVector;
+    FRotator ViewRotation = Attacker->GetActorRotation();
+    const bool bHasCachedAim = Attacker->GetCachedRangedAttackAim(AimOrigin, AimTarget);
+    if (!bHasCachedAim)
     {
-        Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+        if (AController* Controller = Attacker->GetController())
+        {
+            Controller->GetPlayerViewPoint(AimOrigin, ViewRotation);
+        }
+
+        if (!Attacker->ResolveRangedCrosshairAimPoint(AimTarget))
+        {
+            AimTarget = AimOrigin + (ViewRotation.Vector() * RangedRange);
+        }
     }
-    else
+    FVector SpawnLocation = BuildRangedProjectileSpawnLocation(AimOrigin, AimTarget, RangedSpawnForwardOffset);
+    SpawnLocation.Z += RangedSpawnHeightOffset;
+    const FVector Direction = (AimTarget - SpawnLocation).GetSafeNormal();
+    const FTransform SpawnTransform(Direction.Rotation(), SpawnLocation);
+    FActorSpawnParameters SpawnParameters;
+    SpawnParameters.Owner = Attacker;
+    SpawnParameters.Instigator = Attacker;
+    SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    APvPProjectile* Projectile = Attacker->GetWorld()->SpawnActorDeferred<APvPProjectile>(
+        RangedProjectileClass,
+        SpawnTransform,
+        Attacker,
+        Attacker,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+
+    if (!Projectile)
     {
-        ViewLocation = Attacker->GetActorLocation();
-        ViewRotation = Attacker->GetActorRotation();
+        return false;
     }
 
-    const FVector Start = ViewLocation;
-    const FVector End = Start + (ViewRotation.Vector() * RangedRange);
-    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PvPArenaRangedTrace), false, Attacker);
-    FCollisionObjectQueryParams ObjectQueryParams;
-    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
-
-    FHitResult HitResult;
-    const bool bHit = Attacker->GetWorld()->LineTraceSingleByObjectType(
-        HitResult,
-        Start,
-        End,
-        ObjectQueryParams,
-        QueryParams);
+    Projectile->InitializeProjectile(Attacker, RangedDamage, Direction);
+    Projectile->FinishSpawning(SpawnTransform);
 
     if (bDrawAttackDebug)
     {
-        const FVector DebugEnd = bHit ? HitResult.ImpactPoint : End;
-        const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
-        DrawDebugLine(Attacker->GetWorld(), Start, DebugEnd, DebugColor, false, DebugDrawTime, 0, 1.5f);
-        DrawDebugPoint(Attacker->GetWorld(), DebugEnd, 10.0f, DebugColor, false, DebugDrawTime, 0);
+        DrawDebugLine(Attacker->GetWorld(), SpawnLocation, AimTarget, FColor::Cyan, false, DebugDrawTime, 0, 1.5f);
+        DrawDebugPoint(Attacker->GetWorld(), SpawnLocation, 10.0f, FColor::Cyan, false, DebugDrawTime, 0);
+        DrawDebugPoint(Attacker->GetWorld(), AimTarget, 12.0f, FColor::Red, false, DebugDrawTime, 0);
     }
 
-    APvPArenaCharacter* HitCharacter = bHit ? Cast<APvPArenaCharacter>(HitResult.GetActor()) : nullptr;
-    if (!HitCharacter || HitCharacter == Attacker || HitCharacter->IsDead())
-    {
-        return false;
-    }
-
-    HitCharacter->ApplyServerDamage(RangedDamage, Attacker->GetController());
     return true;
+}
+
+void UPvPCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+    DOREPLIFETIME(UPvPCombatComponent, NextAllowedRangedTime);
 }
