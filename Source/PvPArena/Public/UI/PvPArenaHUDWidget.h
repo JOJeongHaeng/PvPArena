@@ -10,6 +10,9 @@ class UOverlay;
 class UBorder;
 class USizeBox;
 class UVerticalBox;
+enum class ESlateVisibility : uint8;
+struct FGeometry;
+class UPvPCombatComponent;
 
 UCLASS()
 class PVPARENA_API UPvPArenaHUDWidget : public UUserWidget
@@ -20,11 +23,15 @@ public:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     static void BuildHealthDisplayState(const class APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel);
+    static void BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel);
+    static ESlateVisibility BuildRangedCrosshairVisibilityState(const class APvPArenaCharacter* Character);
 
 private:
     void BuildWidgetTree();
     void RefreshWidgetData();
+    void RefreshCrosshairVisibility();
     FString GetRoundResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     static FString RoundStateToString(uint8 RoundStateValue);
 
@@ -50,7 +57,16 @@ private:
     TObjectPtr<UProgressBar> HealthBar;
 
     UPROPERTY(Transient)
+    TObjectPtr<USizeBox> RangedCooldownBarSizeBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UProgressBar> RangedCooldownBar;
+
+    UPROPERTY(Transient)
     TObjectPtr<UTextBlock> HealthText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> RangedCooldownText;
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> RoundScoreText;
@@ -69,6 +85,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> NextRoundText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> RangedCrosshairText;
 
     FTimerHandle RefreshTimerHandle;
 };

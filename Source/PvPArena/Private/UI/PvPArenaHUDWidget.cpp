@@ -14,6 +14,7 @@
 #include "Game/PvPArenaPlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
+#include "Combat/PvPCombatComponent.h"
 #include "Player/PvPArenaCharacter.h"
 #include "TimerManager.h"
 #include "Widgets/SWidget.h"
@@ -30,6 +31,7 @@ void UPvPArenaHUDWidget::NativeConstruct()
 
     BuildWidgetTree();
     RefreshWidgetData();
+    RefreshCrosshairVisibility();
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().SetTimer(RefreshTimerHandle, this, &UPvPArenaHUDWidget::RefreshWidgetData, 0.15f, true);
@@ -44,6 +46,12 @@ void UPvPArenaHUDWidget::NativeDestruct()
     }
 
     Super::NativeDestruct();
+}
+
+void UPvPArenaHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+    RefreshCrosshairVisibility();
 }
 
 void UPvPArenaHUDWidget::BuildWidgetTree()
@@ -71,15 +79,19 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     AnnouncementBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("AnnouncementBox"));
     HealthBarSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HealthBarSizeBox"));
     HealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthBar"));
+    RangedCooldownBarSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCooldownBarSizeBox"));
+    RangedCooldownBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("RangedCooldownBar"));
     HealthText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HealthText"));
+    RangedCooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RangedCooldownText"));
     RoundScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundScoreText"));
     MatchScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchScoreText"));
     TimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TimerText"));
     RoundStateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundStateText"));
     ResultText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResultText"));
     NextRoundText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextRoundText"));
+    RangedCrosshairText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RangedCrosshairText"));
 
-    if (!RootOverlay || !StatusPanel || !AnnouncementPanel || !StatusBox || !AnnouncementBox || !HealthBarSizeBox || !HealthBar || !HealthText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText)
+    if (!RootOverlay || !StatusPanel || !AnnouncementPanel || !StatusBox || !AnnouncementBox || !HealthBarSizeBox || !HealthBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !RangedCrosshairText)
     {
         return;
     }
@@ -95,6 +107,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
     UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementPanel);
+    UOverlaySlot* RangedCrosshairSlot = RootOverlay->AddChildToOverlay(RangedCrosshairText);
 
     if (StatusBoxSlot)
     {
@@ -110,14 +123,28 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         AnnouncementBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 80.0f));
     }
 
+    if (RangedCrosshairSlot)
+    {
+        RangedCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
+        RangedCrosshairSlot->SetVerticalAlignment(VAlign_Center);
+    }
+
     HealthBarSizeBox->SetWidthOverride(280.0f);
     HealthBarSizeBox->SetHeightOverride(22.0f);
     HealthBarSizeBox->SetContent(HealthBar);
 
+    RangedCooldownBarSizeBox->SetWidthOverride(280.0f);
+    RangedCooldownBarSizeBox->SetHeightOverride(16.0f);
+    RangedCooldownBarSizeBox->SetContent(RangedCooldownBar);
+
     HealthBar->SetPercent(1.0f);
     HealthBar->SetFillColorAndOpacity(FLinearColor(0.9f, 0.2f, 0.2f, 1.0f));
+    RangedCooldownBar->SetPercent(1.0f);
+    RangedCooldownBar->SetFillColorAndOpacity(FLinearColor(0.2f, 0.75f, 1.0f, 1.0f));
     UVerticalBoxSlot* HealthBarSlot = StatusBox->AddChildToVerticalBox(HealthBarSizeBox);
     UVerticalBoxSlot* HealthTextSlot = StatusBox->AddChildToVerticalBox(HealthText);
+    UVerticalBoxSlot* RangedCooldownBarSlot = StatusBox->AddChildToVerticalBox(RangedCooldownBarSizeBox);
+    UVerticalBoxSlot* RangedCooldownTextSlot = StatusBox->AddChildToVerticalBox(RangedCooldownText);
     UVerticalBoxSlot* RoundScoreTextSlot = StatusBox->AddChildToVerticalBox(RoundScoreText);
     UVerticalBoxSlot* MatchScoreTextSlot = StatusBox->AddChildToVerticalBox(MatchScoreText);
     UVerticalBoxSlot* TimerTextSlot = StatusBox->AddChildToVerticalBox(TimerText);
@@ -137,6 +164,19 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     HealthText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     HealthText->SetFont(FSlateFontInfo(HealthText->GetFont().FontObject, 20, HealthText->GetFont().TypefaceFontName));
     HealthText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+
+    if (RangedCooldownBarSlot)
+    {
+        RangedCooldownBarSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    }
+
+    if (RangedCooldownTextSlot)
+    {
+        RangedCooldownTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    }
+    RangedCooldownText->SetColorAndOpacity(FSlateColor(FLinearColor(0.55f, 0.9f, 1.0f, 1.0f)));
+    RangedCooldownText->SetFont(FSlateFontInfo(RangedCooldownText->GetFont().FontObject, 18, RangedCooldownText->GetFont().TypefaceFontName));
+    RangedCooldownText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (RoundScoreTextSlot)
     {
@@ -189,6 +229,13 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     NextRoundText->SetFont(FSlateFontInfo(NextRoundText->GetFont().FontObject, 28, NextRoundText->GetFont().TypefaceFontName));
     NextRoundText->SetShadowOffset(FVector2D(1.0f, 1.0f));
     NextRoundText->SetVisibility(ESlateVisibility::Collapsed);
+
+    RangedCrosshairText->SetText(FText::FromString(TEXT("+")));
+    RangedCrosshairText->SetJustification(ETextJustify::Center);
+    RangedCrosshairText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f)));
+    RangedCrosshairText->SetFont(FSlateFontInfo(RangedCrosshairText->GetFont().FontObject, 32, RangedCrosshairText->GetFont().TypefaceFontName));
+    RangedCrosshairText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+    RangedCrosshairText->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UPvPArenaHUDWidget::BuildHealthDisplayState(const APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel)
@@ -206,6 +253,29 @@ void UPvPArenaHUDWidget::BuildHealthDisplayState(const APvPArenaCharacter* Chara
     OutHealthLabel = FString::Printf(TEXT("HP: %.0f / %.0f"), CurrentHp, MaxHp);
 }
 
+void UPvPArenaHUDWidget::BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel)
+{
+    if (!CombatComponent)
+    {
+        OutCooldownPercent = 0.0f;
+        OutCooldownLabel = TEXT("Ranged: --");
+        return;
+    }
+
+    const float RemainingCooldown = CombatComponent->GetRemainingRangedCooldown(NowSeconds);
+    OutCooldownPercent = CombatComponent->GetRangedCooldownAlpha(NowSeconds);
+    OutCooldownLabel = RemainingCooldown > 0.0f
+        ? FString::Printf(TEXT("Ranged: %.1fs"), RemainingCooldown)
+        : FString(TEXT("Ranged: Ready"));
+}
+
+ESlateVisibility UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(const APvPArenaCharacter* Character)
+{
+    return Character && Character->IsRangedChargeInputHeld()
+        ? ESlateVisibility::Visible
+        : ESlateVisibility::Collapsed;
+}
+
 void UPvPArenaHUDWidget::RefreshWidgetData()
 {
     APlayerController* PlayerController = GetOwningPlayer();
@@ -216,7 +286,20 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
     float HealthPercent = 0.0f;
     FString HealthLabel;
-    BuildHealthDisplayState(Cast<APvPArenaCharacter>(PlayerController->GetPawn()), HealthPercent, HealthLabel);
+    const APvPArenaCharacter* Character = Cast<APvPArenaCharacter>(PlayerController->GetPawn());
+    BuildHealthDisplayState(Character, HealthPercent, HealthLabel);
+
+    float RangedCooldownPercent = 0.0f;
+    FString RangedCooldownLabel;
+    const APvPArenaGameState* PvPGameState = GetWorld() ? GetWorld()->GetGameState<APvPArenaGameState>() : nullptr;
+    const float CooldownNowSeconds = PvPGameState ? PvPGameState->GetServerWorldTimeSeconds() : (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f);
+    BuildRangedCooldownDisplayState(
+        Character ? Character->GetCombatComponent() : nullptr,
+        CooldownNowSeconds,
+        RangedCooldownPercent,
+        RangedCooldownLabel);
+
+    RefreshCrosshairVisibility();
 
     if (HealthBar)
     {
@@ -226,6 +309,16 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
     if (HealthText)
     {
         HealthText->SetText(FText::FromString(HealthLabel));
+    }
+
+    if (RangedCooldownBar)
+    {
+        RangedCooldownBar->SetPercent(RangedCooldownPercent);
+    }
+
+    if (RangedCooldownText)
+    {
+        RangedCooldownText->SetText(FText::FromString(RangedCooldownLabel));
     }
 
     if (const APvPArenaPlayerState* PvPPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>())
@@ -243,7 +336,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         }
     }
 
-    if (const APvPArenaGameState* PvPGameState = GetWorld() ? GetWorld()->GetGameState<APvPArenaGameState>() : nullptr)
+    if (PvPGameState)
     {
         const bool bIsRoundEnd = PvPGameState->GetRoundState() == EPvPARoundState::RoundEnd;
 
@@ -291,6 +384,18 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
             }
         }
     }
+}
+
+void UPvPArenaHUDWidget::RefreshCrosshairVisibility()
+{
+    if (!RangedCrosshairText)
+    {
+        return;
+    }
+
+    const APlayerController* PlayerController = GetOwningPlayer();
+    const APvPArenaCharacter* Character = PlayerController ? Cast<APvPArenaCharacter>(PlayerController->GetPawn()) : nullptr;
+    RangedCrosshairText->SetVisibility(BuildRangedCrosshairVisibilityState(Character));
 }
 
 FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
