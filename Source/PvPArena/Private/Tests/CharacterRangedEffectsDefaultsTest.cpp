@@ -11,7 +11,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FCharacterRangedEffectsDefaultsTest::RunTest(const FString& Parameters)
 {
     const FString ExpectedMeleeEffectPath =
-        TEXT("/Game/PvPArena/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Magma_Shot_Owner_Cast_Spell.NS_Magma_Shot_Owner_Cast_Spell");
+        TEXT("/Game/PvPArena/VFX/fire/VFX/NS_Magma_Shot_Owner_Cast_Spell.NS_Magma_Shot_Owner_Cast_Spell");
     const APvPArenaCharacter* Character = GetDefault<APvPArenaCharacter>();
     TestNotNull(TEXT("Character CDO should exist"), Character);
 

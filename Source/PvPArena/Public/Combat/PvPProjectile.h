@@ -5,7 +5,10 @@
 #include "PvPProjectile.generated.h"
 
 class APvPArenaCharacter;
+class UNiagaraComponent;
+class UNiagaraSystem;
 class UProjectileMovementComponent;
+class UStaticMeshComponent;
 class USphereComponent;
 
 UCLASS()
@@ -31,11 +34,20 @@ private:
         FVector NormalImpulse,
         const FHitResult& Hit);
 
+    UFUNCTION(NetMulticast, Reliable)
+    void MulticastPlayImpactEffect(FVector_NetQuantize ImpactLocation, FVector_NetQuantizeNormal ImpactNormal);
+
     UPROPERTY(VisibleAnywhere, Category = "Projectile")
     TObjectPtr<USphereComponent> CollisionComponent;
 
     UPROPERTY(VisibleAnywhere, Category = "Projectile")
     TObjectPtr<UProjectileMovementComponent> ProjectileMovementComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Projectile|Visual")
+    TObjectPtr<UStaticMeshComponent> VisualMeshComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Projectile|Visual")
+    TObjectPtr<UNiagaraComponent> ProjectileEffectComponent;
 
     UPROPERTY()
     TObjectPtr<APvPArenaCharacter> InstigatorCharacter;
@@ -43,8 +55,11 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Projectile")
     float InitialLifeSeconds = 3.0f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Projectile|Visual")
+    TObjectPtr<UNiagaraSystem> ImpactEffect;
+
     UPROPERTY(EditDefaultsOnly, Category = "Debug")
-    bool bDrawProjectileDebug = true;
+    bool bDrawProjectileDebug = false;
 
     UPROPERTY(EditDefaultsOnly, Category = "Debug")
     float ProjectileDebugDrawTime = 1.0f;

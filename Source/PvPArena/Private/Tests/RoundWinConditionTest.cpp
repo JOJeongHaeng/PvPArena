@@ -28,6 +28,11 @@ bool FRoundWinConditionTest::RunTest(const FString& Parameters)
         GameMode->ResolveRoundTimeout(4, 2),
         EPvPARoundState::RoundEnd);
     TestTrue(TEXT("Non-tie timeout should mark winner"), GameMode->HasWinner());
+    TestFalse(TEXT("Two round wins should not end the match yet"), GameMode->ShouldEndMatchOnRoundWin(2));
+    TestTrue(TEXT("Three round wins should end the match"), GameMode->ShouldEndMatchOnRoundWin(3));
+    TestFalse(TEXT("One player is not enough to leave lobby"), GameMode->IsReadyToStartMatch(1, 1));
+    TestFalse(TEXT("Two connected players still need both ready"), GameMode->IsReadyToStartMatch(2, 1));
+    TestTrue(TEXT("Two ready players should be enough to leave lobby"), GameMode->IsReadyToStartMatch(2, 2));
 
     TestTrue(
         TEXT("Sudden death should end round on next kill"),

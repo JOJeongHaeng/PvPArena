@@ -20,5 +20,7 @@ bool FScoreDefaultsTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Round deaths default"), PlayerState->GetRoundDeaths(), 0);
     TestEqual(TEXT("Match kills default"), PlayerState->GetMatchKills(), 0);
     TestEqual(TEXT("Match deaths default"), PlayerState->GetMatchDeaths(), 0);
+    TestEqual(TEXT("Round wins default"), PlayerState->GetRoundWins(), 0);
+    TestFalse(TEXT("Ready default"), PlayerState->IsReadyForLobbyStart());
     return true;
 }

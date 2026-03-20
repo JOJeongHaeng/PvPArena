@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Player/PvPArenaCharacter.h"
+#include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -17,6 +18,13 @@ namespace
 
 bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
 {
+    struct FServerHandleRangedAttackHitNotifyParams
+    {
+        bool bHasAim = false;
+        FVector_NetQuantize AimOrigin = FVector::ZeroVector;
+        FVector_NetQuantize AimTarget = FVector::ZeroVector;
+    };
+
     APvPArenaCharacter* Character = NewObject<APvPArenaCharacter>();
     TestNotNull(TEXT("Character should be created"), Character);
 
@@ -35,6 +43,7 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     const FFloatProperty* CameraBlendAlphaProperty = FindFProperty<FFloatProperty>(CharacterClass, TEXT("RangedAimCameraBlendAlpha"));
     const FFloatProperty* MinimumHoldSecondsProperty = FindFProperty<FFloatProperty>(CharacterClass, TEXT("RangedChargeMinimumHoldSeconds"));
     const FBoolProperty* CachedAimProperty = FindFProperty<FBoolProperty>(CharacterClass, TEXT("bHasCachedRangedAttackAim"));
+    const FStructProperty* CachedAimOriginProperty = FindFProperty<FStructProperty>(CharacterClass, TEXT("CachedRangedAttackAimOrigin"));
     const FStructProperty* CachedAimTargetProperty = FindFProperty<FStructProperty>(CharacterClass, TEXT("CachedRangedAttackAimTarget"));
     const FObjectPropertyBase* ControllerProperty = FindFProperty<FObjectPropertyBase>(APawn::StaticClass(), TEXT("Controller"));
     const FObjectPropertyBase* CameraManagerProperty = FindFProperty<FObjectPropertyBase>(APlayerController::StaticClass(), TEXT("PlayerCameraManager"));
@@ -47,11 +56,12 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("Character should track ranged aim camera blend alpha"), CameraBlendAlphaProperty);
     TestNotNull(TEXT("Character should expose ranged minimum hold seconds"), MinimumHoldSecondsProperty);
     TestNotNull(TEXT("Character should track whether a ranged aim snapshot is cached"), CachedAimProperty);
+    TestNotNull(TEXT("Character should cache the ranged aim origin used for projectile launch"), CachedAimOriginProperty);
     TestNotNull(TEXT("Character should cache the ranged aim target used for projectile launch"), CachedAimTargetProperty);
     TestNotNull(TEXT("Test should be able to assign a controller"), ControllerProperty);
     TestNotNull(TEXT("Test should be able to assign a player camera manager"), CameraManagerProperty);
 
-    if (!MovementSuppressedProperty || !FacingLockedProperty || !InputHeldProperty || !ReleaseCommittedProperty || !FacingTargetYawProperty || !ChargeStartTimeProperty || !CameraBlendAlphaProperty || !MinimumHoldSecondsProperty || !CachedAimProperty || !CachedAimTargetProperty || !ControllerProperty || !CameraManagerProperty)
+    if (!MovementSuppressedProperty || !FacingLockedProperty || !InputHeldProperty || !ReleaseCommittedProperty || !FacingTargetYawProperty || !ChargeStartTimeProperty || !CameraBlendAlphaProperty || !MinimumHoldSecondsProperty || !CachedAimProperty || !CachedAimOriginProperty || !CachedAimTargetProperty || !ControllerProperty || !CameraManagerProperty)
     {
         return false;
     }
@@ -93,6 +103,22 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     const FVector ExpectedAimPoint =
         CameraManager->GetCameraLocation() + (CameraManager->GetCameraRotation().Vector() * Character->GetCombatComponent()->GetRangedAimTraceDistance());
     TestEqual(TEXT("Crosshair aim should originate from the active player camera"), AimPoint, ExpectedAimPoint);
+    TestEqual(
+        TEXT("Owning client notify should forward the cached aim to the server"),
+        APvPArenaCharacter::ResolveRangedHitNotifyHandling(false, true, true),
+        ERangedHitNotifyHandling::SendToServer);
+    TestEqual(
+        TEXT("Server host notify should trigger immediately"),
+        APvPArenaCharacter::ResolveRangedHitNotifyHandling(true, true, true),
+        ERangedHitNotifyHandling::TriggerImmediately);
+    TestEqual(
+        TEXT("Server should wait for the owning remote player notify RPC before firing"),
+        APvPArenaCharacter::ResolveRangedHitNotifyHandling(true, false, true),
+        ERangedHitNotifyHandling::Ignore);
+    TestEqual(
+        TEXT("Non-owning simulated proxy notify should stay ignored"),
+        APvPArenaCharacter::ResolveRangedHitNotifyHandling(false, false, true),
+        ERangedHitNotifyHandling::Ignore);
 
     Character->SetActorRotation(FRotator::ZeroRotator);
     TestTrue(TEXT("First ranged charge start should succeed"), Character->BeginRangedCharge(0.0f));
@@ -124,10 +150,52 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Releasing after the threshold should commit the ranged charge"), Character->ReleaseRangedCharge(3.1f));
     TestTrue(TEXT("Late release should commit the ranged attack"), ReleaseCommittedProperty->GetPropertyValue_InContainer(Character));
     TestTrue(TEXT("Release should cache the current aim snapshot immediately"), CachedAimProperty->GetPropertyValue_InContainer(Character));
+    const FVector* ReleaseCachedAimOrigin = CachedAimOriginProperty->ContainerPtrToValuePtr<FVector>(Character);
     const FVector* ReleaseCachedAimTarget = CachedAimTargetProperty->ContainerPtrToValuePtr<FVector>(Character);
+    TestNotNull(TEXT("Release cached ranged aim origin should be readable"), ReleaseCachedAimOrigin);
     TestNotNull(TEXT("Release cached ranged aim target should be readable"), ReleaseCachedAimTarget);
+    const FVector CachedAimOriginAtRelease = ReleaseCachedAimOrigin ? *ReleaseCachedAimOrigin : FVector::ZeroVector;
     const FVector CachedAimAtRelease = ReleaseCachedAimTarget ? *ReleaseCachedAimTarget : FVector::ZeroVector;
 
+    UFunction* ServerHandleRangedAttackHitNotifyFunction = Character->FindFunction(TEXT("ServerHandleRangedAttackHitNotify"));
+    TestNotNull(TEXT("Server ranged hit notify RPC should exist"), ServerHandleRangedAttackHitNotifyFunction);
+    if (!ServerHandleRangedAttackHitNotifyFunction)
+    {
+        return false;
+    }
+
+    FServerHandleRangedAttackHitNotifyParams ServerNotifyParams;
+    Character->ProcessEvent(ServerHandleRangedAttackHitNotifyFunction, &ServerNotifyParams);
+    const FVector* CachedAimOriginAfterServerNotify = CachedAimOriginProperty->ContainerPtrToValuePtr<FVector>(Character);
+    const FVector* CachedAimTargetAfterServerNotify = CachedAimTargetProperty->ContainerPtrToValuePtr<FVector>(Character);
+    TestEqual(
+        TEXT("Server ranged hit notify without client aim should preserve the release-time aim origin"),
+        CachedAimOriginAfterServerNotify ? *CachedAimOriginAfterServerNotify : FVector::ZeroVector,
+        CachedAimOriginAtRelease);
+    TestEqual(
+        TEXT("Server ranged hit notify without client aim should preserve the release-time aim target"),
+        CachedAimTargetAfterServerNotify ? *CachedAimTargetAfterServerNotify : FVector::ZeroVector,
+        CachedAimAtRelease);
+
+    ServerNotifyParams.bHasAim = true;
+    ServerNotifyParams.AimOrigin = FVector(999.0f, 888.0f, 77.0f);
+    ServerNotifyParams.AimTarget = FVector(-555.0f, 444.0f, 33.0f);
+    Character->ProcessEvent(ServerHandleRangedAttackHitNotifyFunction, &ServerNotifyParams);
+    CachedAimOriginAfterServerNotify = CachedAimOriginProperty->ContainerPtrToValuePtr<FVector>(Character);
+    CachedAimTargetAfterServerNotify = CachedAimTargetProperty->ContainerPtrToValuePtr<FVector>(Character);
+    TestEqual(
+        TEXT("Server ranged hit notify with late client aim should preserve the release-time aim origin"),
+        CachedAimOriginAfterServerNotify ? *CachedAimOriginAfterServerNotify : FVector::ZeroVector,
+        CachedAimOriginAtRelease);
+    TestEqual(
+        TEXT("Server ranged hit notify with late client aim should preserve the release-time aim target"),
+        CachedAimTargetAfterServerNotify ? *CachedAimTargetAfterServerNotify : FVector::ZeroVector,
+        CachedAimAtRelease);
+    Character->FinishRangedAttack();
+    TestFalse(TEXT("Reset after direct server notify should clear ranged state"), Character->IsRangedAttackInProgress());
+
+    TestTrue(TEXT("A fresh ranged charge should start for local notify checks"), Character->BeginRangedCharge(10.0f));
+    TestTrue(TEXT("A fresh ranged release should commit for local notify checks"), Character->ReleaseRangedCharge(11.0f));
     Controller->SetControlRotation(FRotator(0.0f, 160.0f, 0.0f));
     CameraManager->SetActorRotation(FRotator(0.0f, 160.0f, 0.0f));
     Character->HandleRangedAttackHitNotify();

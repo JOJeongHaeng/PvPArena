@@ -29,7 +29,11 @@ public:
     void MarkRangedUsed(float NowSeconds);
     bool TryServerMeleeAttack(APvPArenaCharacter* Attacker);
     bool TryServerRangedAttack(APvPArenaCharacter* Attacker);
-    static FVector BuildRangedProjectileSpawnLocation(const FVector& AimOrigin, const FVector& AimTarget, float ForwardOffset);
+    static FVector BuildRangedProjectileSpawnLocation(
+        const FVector& AimOrigin,
+        const FVector& AimTarget,
+        const FVector& CharacterLocation,
+        float ForwardOffset);
 
 private:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -66,6 +70,9 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Debug")
     bool bDrawAttackDebug = true;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Debug")
+    bool bDrawRangedAttackDebug = false;
 
     UPROPERTY(EditDefaultsOnly, Category = "Debug")
     float DebugDrawTime = 1.0f;

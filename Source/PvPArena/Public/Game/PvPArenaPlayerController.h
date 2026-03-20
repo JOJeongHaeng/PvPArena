@@ -15,12 +15,17 @@ public:
     APvPArenaPlayerController();
     virtual void BeginPlay() override;
     virtual void OnPossess(APawn* InPawn) override;
+    UFUNCTION(BlueprintCallable, Category = "Lobby")
+    void ToggleLobbyReady();
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<UUserWidget> HUDWidgetClass;
 
 private:
+    UFUNCTION(Server, Reliable)
+    void ServerSetLobbyReady(bool bReadyForStart);
+
     void TryCreateHUDWidget();
     void RetryCreateHUDWidget();
 

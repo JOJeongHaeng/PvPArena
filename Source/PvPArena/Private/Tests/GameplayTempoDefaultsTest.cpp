@@ -1,5 +1,6 @@
 #include "Misc/AutomationTest.h"
 #include "Game/PvPArenaGameMode.h"
+#include "Player/PvPArenaCharacter.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FGameplayTempoDefaultsTest,
@@ -17,6 +18,8 @@ bool FGameplayTempoDefaultsTest::RunTest(const FString& Parameters)
     }
 
     TestEqual(TEXT("Iteration score limit should stay on the short test default"), GameMode->GetIterationScoreLimitDefault(), 3);
+    TestEqual(TEXT("Iteration round wins-to-win should be first to three"), GameMode->GetIterationRoundWinsToWinDefault(), 3);
+    TestEqual(TEXT("Lobby countdown should be three seconds"), GameMode->GetLobbyCountdownSeconds(), 3);
     TestEqual(TEXT("Iteration round duration should stay on the short test default"), GameMode->GetIterationRoundDurationSecondsDefault(), 60);
     TestEqual(TEXT("Final restore score limit target should remain documented"), GameMode->GetPlannedFinalScoreLimitDefault(), 5);
     TestEqual(TEXT("Final restore round duration target should remain documented"), GameMode->GetPlannedFinalRoundDurationSecondsDefault(), 180);
@@ -29,6 +32,17 @@ bool FGameplayTempoDefaultsTest::RunTest(const FString& Parameters)
     TestTrue(
         TEXT("Playing round should end at score limit"),
         GameMode->ShouldEndRoundOnKill(EPvPARoundState::Playing, 3));
+
+    APvPArenaCharacter* Character = NewObject<APvPArenaCharacter>();
+    TestNotNull(TEXT("Character should be created"), Character);
+    if (!Character)
+    {
+        return false;
+    }
+
+    TestEqual(TEXT("Sprint duration should be one point five seconds"), Character->GetSprintDurationSeconds(), 1.5f);
+    TestEqual(TEXT("Sprint speed multiplier should be one point five"), Character->GetSprintSpeedMultiplier(), 1.5f);
+    TestEqual(TEXT("Sprint recharge rate should be slightly slower than drain"), Character->GetSprintRechargeRate(), 0.75f);
 
     return true;
 }
