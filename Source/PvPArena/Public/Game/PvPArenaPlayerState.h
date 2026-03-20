@@ -14,12 +14,17 @@ public:
     int32 GetRoundDeaths() const { return RoundDeaths; }
     int32 GetMatchKills() const { return MatchKills; }
     int32 GetMatchDeaths() const { return MatchDeaths; }
+    int32 GetRoundWins() const { return RoundWins; }
+    bool IsReadyForLobbyStart() const { return bReadyForLobbyStart; }
     int32 GetKills() const { return GetRoundKills(); }
     int32 GetDeaths() const { return GetRoundDeaths(); }
 
     void AddKill();
     void AddDeath();
+    void AddRoundWin();
+    void SetReadyForLobbyStart(bool bNewReady);
     void ResetRoundStats();
+    void ResetMatchStats();
 
 protected:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -36,4 +41,10 @@ private:
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Score")
     int32 MatchDeaths = 0;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Score")
+    int32 RoundWins = 0;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
+    bool bReadyForLobbyStart = false;
 };

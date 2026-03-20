@@ -12,6 +12,13 @@ class UNiagaraSystem;
 class UPvPCombatComponent;
 class USpringArmComponent;
 
+enum class ERangedHitNotifyHandling : uint8
+{
+    Ignore,
+    SendToServer,
+    TriggerImmediately
+};
+
 UCLASS()
 class PVPARENA_API APvPArenaCharacter : public ACharacter
 {
@@ -22,8 +29,15 @@ public:
 
     float GetCurrentHealth() const { return CurrentHealth; }
     float GetMaxHealth() const { return MaxHealth; }
+    float GetSprintDurationSeconds() const { return SprintDurationSeconds; }
+    float GetSprintSpeedMultiplier() const { return SprintSpeedMultiplier; }
+    float GetSprintRechargeRate() const { return SprintRechargeRate; }
+    float GetCurrentSprintEnergySeconds() const { return CurrentSprintEnergySeconds; }
+    float GetSprintEnergyAlpha() const;
     bool IsDead() const { return bIsDead; }
     bool IsInvulnerable() const { return bIsInvulnerable; }
+    bool IsSprintInputHeld() const { return bSprintInputHeld; }
+    bool IsSprinting() const { return bSprintActive; }
     float GetDeathAnimationDuration() const;
     UPvPCombatComponent* GetCombatComponent() const { return CombatComponent; }
     bool IsMeleeAttackInProgress() const { return bMeleeAttackInProgress; }
@@ -37,6 +51,10 @@ public:
     float GetRangedAimCameraBlendAlpha() const { return RangedAimCameraBlendAlpha; }
     bool ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const;
     bool GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const;
+    static ERangedHitNotifyHandling ResolveRangedHitNotifyHandling(
+        bool bHasAuthority,
+        bool bIsLocallyControlled,
+        bool bControllerIsPlayer);
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ApplyServerDamage(float Damage, AController* InstigatorController);
@@ -71,6 +89,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void AdvanceAttackFacing(float DeltaSeconds);
 
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    void BeginSprintInput();
+
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    void EndSprintInput();
+
+    UFUNCTION(BlueprintCallable, Category = "Movement")
+    void UpdateSprintState(float DeltaSeconds);
+
     void ShowMeleeDebug(FVector Start, FVector End, bool bHit);
 
     UFUNCTION(BlueprintCallable, Server, Reliable, Category = "Combat")
@@ -91,6 +118,7 @@ protected:
     virtual void PossessedBy(AController* NewController) override;
     virtual void OnRep_Controller() override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
     UFUNCTION()
     void OnRep_CurrentHealth();
@@ -125,13 +153,18 @@ private:
     void HandleRangedAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
     void SetAttackMovementSuppressed(bool bSuppressed);
     void SetDeathInputSuppressed(bool bSuppressInput);
+    void RefreshSprintMovementSpeed();
+    bool CanSprint() const;
     void TryApplyInputMappingContext();
 
     UFUNCTION(Server, Reliable)
     void ServerHandleMeleeAttackHitNotify();
 
     UFUNCTION(Server, Reliable)
-    void ServerHandleRangedAttackHitNotify(FVector_NetQuantize AimOrigin, FVector_NetQuantize AimTarget);
+    void ServerHandleRangedAttackHitNotify(bool bHasAim, FVector_NetQuantize AimOrigin, FVector_NetQuantize AimTarget);
+
+    UFUNCTION(Server, Reliable)
+    void ServerSetSprintInputHeld(bool bNewSprintInputHeld);
 
     UFUNCTION(NetMulticast, Unreliable)
     void MulticastPlayMeleeAttackMontage();
@@ -187,6 +220,15 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (ClampMin = "0.1"))
     float RangedAttackPlayRate = 1.5f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.1"))
+    float SprintSpeedMultiplier = 1.5f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.1"))
+    float SprintDurationSeconds = 1.5f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.1"))
+    float SprintRechargeRate = 0.75f;
+
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     FName RangedAttackStartSectionName = TEXT("Start");
 
@@ -228,6 +270,21 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Combat")
     bool bHasCachedRangedAttackAim = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    bool bSprintInputHeld = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    bool bSprintActive = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    bool bSprintDepletedLocked = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float CurrentSprintEnergySeconds = 3.0f;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float BaseWalkSpeed = 0.0f;
 
     UPROPERTY(VisibleAnywhere, Category = "Combat")
     FVector CachedRangedAttackAimOrigin = FVector::ZeroVector;

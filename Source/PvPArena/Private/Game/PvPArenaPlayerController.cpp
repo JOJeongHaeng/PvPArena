@@ -2,6 +2,8 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
+#include "Game/PvPArenaGameMode.h"
+#include "Game/PvPArenaPlayerState.h"
 #include "TimerManager.h"
 #include "UI/PvPArenaHUDWidget.h"
 
@@ -20,6 +22,32 @@ void APvPArenaPlayerController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
     TryCreateHUDWidget();
+}
+
+void APvPArenaPlayerController::ToggleLobbyReady()
+{
+    const APvPArenaPlayerState* PvPPlayerState = GetPlayerState<APvPArenaPlayerState>();
+    const bool bNewReady = !(PvPPlayerState && PvPPlayerState->IsReadyForLobbyStart());
+
+    if (HasAuthority())
+    {
+        ServerSetLobbyReady_Implementation(bNewReady);
+        return;
+    }
+
+    ServerSetLobbyReady(bNewReady);
+}
+
+void APvPArenaPlayerController::ServerSetLobbyReady_Implementation(bool bReadyForStart)
+{
+    APvPArenaPlayerState* PvPPlayerState = GetPlayerState<APvPArenaPlayerState>();
+    APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
+    if (!PvPPlayerState || !PvPGameMode)
+    {
+        return;
+    }
+
+    PvPGameMode->HandleLobbyReadyStateChanged(PvPPlayerState, bReadyForStart);
 }
 
 void APvPArenaPlayerController::TryCreateHUDWidget()

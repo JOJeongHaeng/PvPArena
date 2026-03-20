@@ -29,10 +29,20 @@ bool FCombatCooldownTest::RunTest(const FString& Parameters)
         5.0f);
 
     const FFloatProperty* NextAllowedRangedTimeProperty = FindFProperty<FFloatProperty>(UPvPCombatComponent::StaticClass(), TEXT("NextAllowedRangedTime"));
+    const FBoolProperty* DrawAttackDebugProperty = FindFProperty<FBoolProperty>(UPvPCombatComponent::StaticClass(), TEXT("bDrawAttackDebug"));
+    const FBoolProperty* DrawRangedAttackDebugProperty = FindFProperty<FBoolProperty>(UPvPCombatComponent::StaticClass(), TEXT("bDrawRangedAttackDebug"));
     TestNotNull(TEXT("Ranged cooldown end time property should exist"), NextAllowedRangedTimeProperty);
+    TestNotNull(TEXT("Shared attack debug toggle should still exist for melee traces"), DrawAttackDebugProperty);
+    TestNotNull(TEXT("Ranged attack debug toggle should exist separately"), DrawRangedAttackDebugProperty);
     TestTrue(
         TEXT("Ranged cooldown end time should replicate so client HUD can count down"),
         NextAllowedRangedTimeProperty && NextAllowedRangedTimeProperty->HasAnyPropertyFlags(CPF_Net));
+    TestTrue(
+        TEXT("General attack debug should stay on so melee tuning remains available"),
+        DrawAttackDebugProperty && DrawAttackDebugProperty->GetPropertyValue_InContainer(Combat));
+    TestFalse(
+        TEXT("Ranged attack debug should default off so crosshair and projectile visuals stay readable"),
+        DrawRangedAttackDebugProperty ? DrawRangedAttackDebugProperty->GetPropertyValue_InContainer(Combat) : true);
 
     TestTrue(TEXT("First ranged attack is allowed"), Combat->CanUseRanged(0.0f));
     Combat->MarkRangedUsed(0.0f);

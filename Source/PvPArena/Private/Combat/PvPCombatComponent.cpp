@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "Net/UnrealNetwork.h"
+#include "PvPArena.h"
 
 UPvPCombatComponent::UPvPCombatComponent()
 {
@@ -96,16 +97,28 @@ bool UPvPCombatComponent::TryServerMeleeAttack(APvPArenaCharacter* Attacker)
     return true;
 }
 
-FVector UPvPCombatComponent::BuildRangedProjectileSpawnLocation(const FVector& AimOrigin, const FVector& AimTarget, float ForwardOffset)
+FVector UPvPCombatComponent::BuildRangedProjectileSpawnLocation(
+    const FVector& AimOrigin,
+    const FVector& AimTarget,
+    const FVector& CharacterLocation,
+    float ForwardOffset)
 {
     const FVector AimDirection = (AimTarget - AimOrigin).GetSafeNormal();
-    return AimOrigin + (AimDirection * ForwardOffset);
+    const float CharacterProjectionDistance = FMath::Max(0.0f, FVector::DotProduct(CharacterLocation - AimOrigin, AimDirection));
+    return AimOrigin + (AimDirection * (CharacterProjectionDistance + ForwardOffset));
 }
 
 bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
 {
     if (!Attacker || !Attacker->GetWorld() || !RangedProjectileClass)
     {
+        UE_LOG(
+            LogPvPArena,
+            Warning,
+            TEXT("TryServerRangedAttack blocked Attacker=%s World=%d ProjectileClass=%d"),
+            Attacker ? *Attacker->GetName() : TEXT("None"),
+            Attacker && Attacker->GetWorld() ? 1 : 0,
+            RangedProjectileClass ? 1 : 0);
         return false;
     }
 
@@ -125,7 +138,23 @@ bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
             AimTarget = AimOrigin + (ViewRotation.Vector() * RangedRange);
         }
     }
-    FVector SpawnLocation = BuildRangedProjectileSpawnLocation(AimOrigin, AimTarget, RangedSpawnForwardOffset);
+
+    UE_LOG(
+        LogPvPArena,
+        Log,
+        TEXT("TryServerRangedAttack Attacker=%s Role=%d CachedAim=%d AimOrigin=%s AimTarget=%s ActorLocation=%s"),
+        *Attacker->GetName(),
+        static_cast<int32>(Attacker->GetLocalRole()),
+        bHasCachedAim,
+        *AimOrigin.ToCompactString(),
+        *AimTarget.ToCompactString(),
+        *Attacker->GetActorLocation().ToCompactString());
+
+    FVector SpawnLocation = BuildRangedProjectileSpawnLocation(
+        AimOrigin,
+        AimTarget,
+        Attacker->GetActorLocation(),
+        RangedSpawnForwardOffset);
     SpawnLocation.Z += RangedSpawnHeightOffset;
     const FVector Direction = (AimTarget - SpawnLocation).GetSafeNormal();
     const FTransform SpawnTransform(Direction.Rotation(), SpawnLocation);
@@ -143,18 +172,34 @@ bool UPvPCombatComponent::TryServerRangedAttack(APvPArenaCharacter* Attacker)
 
     if (!Projectile)
     {
+        UE_LOG(
+            LogPvPArena,
+            Warning,
+            TEXT("TryServerRangedAttack spawn failed Attacker=%s SpawnLocation=%s Direction=%s"),
+            *Attacker->GetName(),
+            *SpawnLocation.ToCompactString(),
+            *Direction.ToCompactString());
         return false;
     }
 
     Projectile->InitializeProjectile(Attacker, RangedDamage, Direction);
     Projectile->FinishSpawning(SpawnTransform);
 
-    if (bDrawAttackDebug)
+    if (bDrawRangedAttackDebug)
     {
         DrawDebugLine(Attacker->GetWorld(), SpawnLocation, AimTarget, FColor::Cyan, false, DebugDrawTime, 0, 1.5f);
         DrawDebugPoint(Attacker->GetWorld(), SpawnLocation, 10.0f, FColor::Cyan, false, DebugDrawTime, 0);
         DrawDebugPoint(Attacker->GetWorld(), AimTarget, 12.0f, FColor::Red, false, DebugDrawTime, 0);
     }
+
+    UE_LOG(
+        LogPvPArena,
+        Log,
+        TEXT("TryServerRangedAttack spawned Attacker=%s Projectile=%s SpawnLocation=%s Direction=%s"),
+        *Attacker->GetName(),
+        *Projectile->GetName(),
+        *SpawnLocation.ToCompactString(),
+        *Direction.ToCompactString());
 
     return true;
 }
