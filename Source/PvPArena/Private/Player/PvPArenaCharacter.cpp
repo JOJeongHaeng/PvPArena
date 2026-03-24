@@ -3,6 +3,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "Components/AudioComponent.h"
 #include "Combat/PvPCombatComponent.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputSubsystems.h"
@@ -18,6 +19,7 @@
 #include "NiagaraSystem.h"
 #include "Net/UnrealNetwork.h"
 #include "PvPArena.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -26,6 +28,20 @@ APvPArenaCharacter::APvPArenaCharacter()
     bReplicates = true;
     PrimaryActorTick.bCanEverTick = true;
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
+    MeleeAttackAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("MeleeAttackAudioComponent"));
+    RangedAttackAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("RangedAttackAudioComponent"));
+
+    if (MeleeAttackAudioComponent)
+    {
+        MeleeAttackAudioComponent->SetupAttachment(GetRootComponent());
+        MeleeAttackAudioComponent->SetAutoActivate(false);
+    }
+
+    if (RangedAttackAudioComponent)
+    {
+        RangedAttackAudioComponent->SetupAttachment(GetRootComponent());
+        RangedAttackAudioComponent->SetAutoActivate(false);
+    }
 
     static ConstructorHelpers::FObjectFinder<UAnimationAsset> DeathAnimationFinder(
         TEXT("/Game/PvPArena/Animations/Stand_Relaxed_Death1.Stand_Relaxed_Death1"));
@@ -53,6 +69,28 @@ APvPArenaCharacter::APvPArenaCharacter()
     if (MeleeAttackEffectFinder.Succeeded())
     {
         MeleeAttackEffect = MeleeAttackEffectFinder.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<USoundBase> MeleeAttackSoundFinder(
+        TEXT("/Game/PvPArena/Audio/Fire01_Cue.Fire01_Cue"));
+    if (MeleeAttackSoundFinder.Succeeded())
+    {
+        MeleeAttackSound = MeleeAttackSoundFinder.Object;
+        if (MeleeAttackAudioComponent)
+        {
+            MeleeAttackAudioComponent->SetSound(MeleeAttackSound);
+        }
+    }
+
+    static ConstructorHelpers::FObjectFinder<USoundBase> RangedAttackSoundFinder(
+        TEXT("/Game/PvPArena/Audio/Explosion_Cue.Explosion_Cue"));
+    if (RangedAttackSoundFinder.Succeeded())
+    {
+        RangedAttackSound = RangedAttackSoundFinder.Object;
+        if (RangedAttackAudioComponent)
+        {
+            RangedAttackAudioComponent->SetSound(RangedAttackSound);
+        }
     }
 
     if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
@@ -498,6 +536,7 @@ bool APvPArenaCharacter::TriggerRangedAttackHit()
     }
 
     bRangedAttackHitTriggered = true;
+    MulticastPlayRangedAttackSound();
     const bool bLaunched = CombatComponent ? CombatComponent->TryServerRangedAttack(this) : false;
     UE_LOG(
         LogPvPArena,
@@ -901,6 +940,7 @@ bool APvPArenaCharacter::PlayMeleeAttackMontage()
     MontageEndedDelegate.BindUObject(this, &APvPArenaCharacter::HandleMeleeAttackMontageEnded);
     AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, MeleeAttackMontage);
     PlayMeleeAttackEffect();
+    PlayMeleeAttackSound();
     return true;
 }
 
@@ -952,6 +992,51 @@ void APvPArenaCharacter::PlayMeleeAttackEffect()
         FRotator::ZeroRotator,
         EAttachLocation::KeepRelativeOffset,
         true);
+}
+
+void APvPArenaCharacter::PlayMeleeAttackSound()
+{
+    if (GetNetMode() == NM_DedicatedServer || !MeleeAttackAudioComponent || !MeleeAttackSound)
+    {
+        return;
+    }
+
+    MeleeAttackAudioComponent->Stop();
+    MeleeAttackAudioComponent->Play(0.0f);
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    World->GetTimerManager().ClearTimer(MeleeAttackAudioTimerHandle);
+    World->GetTimerManager().SetTimer(
+        MeleeAttackAudioTimerHandle,
+        this,
+        &APvPArenaCharacter::StopMeleeAttackSound,
+        MeleeAttackSoundDurationSeconds,
+        false);
+}
+
+void APvPArenaCharacter::StopMeleeAttackSound()
+{
+    if (MeleeAttackAudioComponent)
+    {
+        MeleeAttackAudioComponent->Stop();
+    }
+}
+
+void APvPArenaCharacter::PlayRangedAttackSound()
+{
+    if (GetNetMode() == NM_DedicatedServer || !RangedAttackAudioComponent || !RangedAttackSound)
+    {
+        return;
+    }
+
+    RangedAttackAudioComponent->Stop();
+    RangedAttackAudioComponent->SetVolumeMultiplier(RangedAttackSoundVolume);
+    RangedAttackAudioComponent->Play(0.0f);
 }
 
 void APvPArenaCharacter::HandleMeleeAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -1183,6 +1268,11 @@ void APvPArenaCharacter::MulticastDrawMeleeDebug_Implementation(FVector Start, F
         0,
         1.5f);
     DrawDebugSphere(World, End, DebugRadius, 16, DebugColor, false, DebugDuration, 0, 1.0f);
+}
+
+void APvPArenaCharacter::MulticastPlayRangedAttackSound_Implementation()
+{
+    PlayRangedAttackSound();
 }
 
 void APvPArenaCharacter::ServerTryRangedAttack_Implementation()

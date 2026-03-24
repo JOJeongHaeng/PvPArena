@@ -5,12 +5,14 @@
 #include "PvPArenaCharacter.generated.h"
 
 class AController;
+class UAudioComponent;
 class UAnimationAsset;
 class UAnimMontage;
 class UInputMappingContext;
 class UNiagaraSystem;
 class UPvPCombatComponent;
 class USpringArmComponent;
+class USoundBase;
 
 enum class ERangedHitNotifyHandling : uint8
 {
@@ -146,6 +148,9 @@ private:
     void StartRangedAttackFacingLock(float TargetYaw);
     void UpdateRangedAttackFacing(float DeltaSeconds);
     void PlayDeathAnimation();
+    void PlayMeleeAttackSound();
+    void StopMeleeAttackSound();
+    void PlayRangedAttackSound();
     void PlayMeleeAttackEffect();
     bool PlayMeleeAttackMontage();
     bool PlayRangedAttackMontage(FName StartSectionName = NAME_None);
@@ -178,6 +183,9 @@ private:
     UFUNCTION(NetMulticast, Unreliable)
     void MulticastDrawMeleeDebug(FVector Start, FVector End, bool bHit);
 
+    UFUNCTION(NetMulticast, Unreliable)
+    void MulticastPlayRangedAttackSound();
+
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MaxHealth = 100.0f;
 
@@ -204,6 +212,18 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "VFX")
     TObjectPtr<UNiagaraSystem> MeleeAttackEffect;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Audio")
+    TObjectPtr<USoundBase> MeleeAttackSound;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Audio")
+    TObjectPtr<USoundBase> RangedAttackSound;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Audio", meta = (ClampMin = "0.1"))
+    float MeleeAttackSoundDurationSeconds = 1.25f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Audio", meta = (ClampMin = "0.0"))
+    float RangedAttackSoundVolume = 0.7f;
 
     UPROPERTY(EditDefaultsOnly, Category = "VFX")
     FName MeleeAttackEffectSocketName = TEXT("hand_l");
@@ -307,6 +327,12 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "Camera")
     float RangedAimCameraBlendAlpha = 0.0f;
 
+    UPROPERTY(VisibleAnywhere, Category = "Audio")
+    TObjectPtr<UAudioComponent> MeleeAttackAudioComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "Audio")
+    TObjectPtr<UAudioComponent> RangedAttackAudioComponent;
+
     UPROPERTY(Transient)
     TObjectPtr<USpringArmComponent> RangedAimSpringArm;
 
@@ -318,5 +344,6 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "Combat")
     bool bAttackMovementSuppressed = false;
 
+    FTimerHandle MeleeAttackAudioTimerHandle;
     FTimerHandle InvulnerabilityTimerHandle;
 };
