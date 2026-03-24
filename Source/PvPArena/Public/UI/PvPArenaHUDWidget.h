@@ -7,11 +7,13 @@
 class UProgressBar;
 class UTextBlock;
 class UButton;
+class UAudioComponent;
 class UOverlay;
 class UBorder;
 class USizeBox;
 class UHorizontalBox;
 class UVerticalBox;
+class USoundBase;
 enum class ESlateVisibility : uint8;
 struct FGeometry;
 class UPvPCombatComponent;
@@ -22,6 +24,7 @@ class PVPARENA_API UPvPArenaHUDWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer);
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
@@ -30,6 +33,7 @@ public:
     static void BuildSprintDisplayState(const class APvPArenaCharacter* Character, float& OutSprintPercent, FString& OutSprintLabel);
     static void BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel);
     static ESlateVisibility BuildRangedCrosshairVisibilityState(const class APvPArenaCharacter* Character);
+    static FString BuildBackgroundMusicAssetPathForMatchPhase(uint8 MatchPhaseValue);
 
 private:
     UFUNCTION()
@@ -38,6 +42,7 @@ private:
     void BuildWidgetTree();
     void RefreshWidgetData();
     void RefreshCrosshairVisibility();
+    void RefreshBackgroundMusic(const class APvPArenaGameState* GameState);
     void ApplyLobbyInputMode(class APlayerController* PlayerController, bool bEnableLobbyInput);
     FString GetLobbyStatusText(const class APvPArenaGameState* GameState) const;
     FString GetRoundResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
@@ -198,6 +203,18 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UBorder> RangedCrosshairVerticalLine;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Audio")
+    TObjectPtr<USoundBase> NonCombatBackgroundMusic;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Audio")
+    TObjectPtr<USoundBase> GameplayBackgroundMusic;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UAudioComponent> BackgroundMusicAudioComponent;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USoundBase> CurrentBackgroundMusic;
 
     FTimerHandle RefreshTimerHandle;
     bool bLobbyInputModeActive = false;

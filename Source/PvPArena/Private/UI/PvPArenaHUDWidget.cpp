@@ -1,6 +1,7 @@
 #include "UI/PvPArenaHUDWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/AudioComponent.h"
 #include "Components/Button.h"
 #include "Components/Border.h"
 #include "Components/Overlay.h"
@@ -20,8 +21,32 @@
 #include "GameFramework/PlayerState.h"
 #include "Combat/PvPCombatComponent.h"
 #include "Player/PvPArenaCharacter.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Widgets/SWidget.h"
+
+namespace
+{
+const TCHAR* NonCombatBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Music_Cue.Starter_Music_Cue");
+const TCHAR* GameplayBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Background_Cue.Starter_Background_Cue");
+}
+
+UPvPArenaHUDWidget::UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+{
+    static ConstructorHelpers::FObjectFinder<USoundBase> NonCombatMusicFinder(NonCombatBackgroundMusicPath);
+    if (NonCombatMusicFinder.Succeeded())
+    {
+        NonCombatBackgroundMusic = NonCombatMusicFinder.Object;
+    }
+
+    static ConstructorHelpers::FObjectFinder<USoundBase> GameplayMusicFinder(GameplayBackgroundMusicPath);
+    if (GameplayMusicFinder.Succeeded())
+    {
+        GameplayBackgroundMusic = GameplayMusicFinder.Object;
+    }
+}
 
 TSharedRef<SWidget> UPvPArenaHUDWidget::RebuildWidget()
 {
@@ -32,6 +57,17 @@ TSharedRef<SWidget> UPvPArenaHUDWidget::RebuildWidget()
 void UPvPArenaHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+
+    if (!BackgroundMusicAudioComponent && GetWorld())
+    {
+        BackgroundMusicAudioComponent = NewObject<UAudioComponent>(this, TEXT("BackgroundMusicAudioComponent"));
+        if (BackgroundMusicAudioComponent)
+        {
+            BackgroundMusicAudioComponent->bAutoActivate = false;
+            BackgroundMusicAudioComponent->bIsUISound = true;
+            BackgroundMusicAudioComponent->RegisterComponentWithWorld(GetWorld());
+        }
+    }
 
     BuildWidgetTree();
     RefreshWidgetData();
@@ -48,6 +84,15 @@ void UPvPArenaHUDWidget::NativeDestruct()
     {
         World->GetTimerManager().ClearTimer(RefreshTimerHandle);
     }
+
+    if (BackgroundMusicAudioComponent)
+    {
+        BackgroundMusicAudioComponent->Stop();
+        BackgroundMusicAudioComponent->UnregisterComponent();
+        BackgroundMusicAudioComponent = nullptr;
+    }
+
+    CurrentBackgroundMusic = nullptr;
 
     Super::NativeDestruct();
 }
@@ -567,6 +612,49 @@ ESlateVisibility UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(const A
         : ESlateVisibility::Collapsed;
 }
 
+FString UPvPArenaHUDWidget::BuildBackgroundMusicAssetPathForMatchPhase(uint8 MatchPhaseValue)
+{
+    switch (static_cast<EPvPAMatchPhase>(MatchPhaseValue))
+    {
+    case EPvPAMatchPhase::Playing:
+        return FString(GameplayBackgroundMusicPath);
+
+    case EPvPAMatchPhase::Lobby:
+    case EPvPAMatchPhase::MatchEnd:
+    default:
+        return FString(NonCombatBackgroundMusicPath);
+    }
+}
+
+void UPvPArenaHUDWidget::RefreshBackgroundMusic(const APvPArenaGameState* GameState)
+{
+    if (!BackgroundMusicAudioComponent)
+    {
+        return;
+    }
+
+    const USoundBase* DesiredMusic = GameState && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
+        ? GameplayBackgroundMusic
+        : NonCombatBackgroundMusic;
+
+    if (!DesiredMusic)
+    {
+        BackgroundMusicAudioComponent->Stop();
+        CurrentBackgroundMusic = nullptr;
+        return;
+    }
+
+    if (CurrentBackgroundMusic == DesiredMusic && BackgroundMusicAudioComponent->IsPlaying())
+    {
+        return;
+    }
+
+    BackgroundMusicAudioComponent->Stop();
+    BackgroundMusicAudioComponent->SetSound(const_cast<USoundBase*>(DesiredMusic));
+    BackgroundMusicAudioComponent->Play(0.0f);
+    CurrentBackgroundMusic = const_cast<USoundBase*>(DesiredMusic);
+}
+
 void UPvPArenaHUDWidget::RefreshWidgetData()
 {
     APlayerController* PlayerController = GetOwningPlayer();
@@ -595,6 +683,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         RangedCooldownLabel);
 
     RefreshCrosshairVisibility();
+    RefreshBackgroundMusic(PvPGameState);
 
     if (HealthBar)
     {
