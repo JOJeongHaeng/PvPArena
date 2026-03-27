@@ -11,14 +11,17 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
+#include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "GameFramework/GameUserSettings.h"
 #include "Engine/World.h"
 #include "Game/PvPArenaGameState.h"
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/PlayerState.h"
 #include "Combat/PvPCombatComponent.h"
 #include "Player/PvPArenaCharacter.h"
@@ -33,6 +36,7 @@ const TCHAR* NonCombatBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_M
 const TCHAR* GameplayBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Background_Cue.Starter_Background_Cue");
 const TCHAR* HostTravelMapPath = TEXT("/Game/PvPArena/Maps/PvPArena_TestMap?listen");
 const TCHAR* DefaultJoinAddressHint = TEXT("123.45.67.89:7777");
+const FIntPoint DefaultWindowedResolution(1280, 720);
 }
 
 UPvPArenaHUDWidget::UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer)
@@ -73,6 +77,21 @@ void UPvPArenaHUDWidget::NativeConstruct()
     }
 
     BuildWidgetTree();
+    if (UGameUserSettings* GameUserSettings = UGameUserSettings::GetGameUserSettings())
+    {
+        const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
+        const FIntPoint CurrentResolution = GameUserSettings->GetScreenResolution();
+        const int32 ResolutionIndex = SupportedResolutions.IndexOfByKey(CurrentResolution);
+        SelectedResolutionIndex = ResolutionIndex != INDEX_NONE ? ResolutionIndex : 0;
+        SelectedWindowModeIndex = static_cast<int32>(GameUserSettings->GetFullscreenMode());
+        bVSyncEnabled = GameUserSettings->IsVSyncEnabled();
+    }
+
+    MasterVolume = 1.0f;
+    BackgroundMusicVolume = 1.0f;
+    SfxVolume = 1.0f;
+    RefreshSettingsMenuState();
+    ApplyAudioSettings();
     RefreshWidgetData();
     RefreshCrosshairVisibility();
     if (UWorld* World = GetWorld())
@@ -131,6 +150,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyPanel"));
     LobbyControlsPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyControlsPanel"));
     MatchResultPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MatchResultPanel"));
+    SettingsPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SettingsPanel"));
     StatusBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusBox"));
     InfoBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("InfoBox"));
     AnnouncementBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("AnnouncementBox"));
@@ -138,6 +158,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyControlsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyControlsBox"));
     LobbyControlsCardsBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LobbyControlsCardsBox"));
     MatchResultBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MatchResultBox"));
+    SettingsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SettingsBox"));
     LobbyKeyboardCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyKeyboardCard"));
     LobbyMouseCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyMouseCard"));
     LobbyKeyboardCardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyKeyboardCardBox"));
@@ -171,18 +192,38 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     MatchResultTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchResultTitleText"));
     MatchResultSummaryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchResultSummaryText"));
     ConnectionStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionStatusText"));
+    SettingsTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsTitleText"));
+    SettingsDisplayModeLabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsDisplayModeLabelText"));
+    SettingsResolutionLabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsResolutionLabelText"));
+    SettingsAudioLabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsAudioLabelText"));
+    SettingsMasterVolumeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsMasterVolumeText"));
+    SettingsBgmVolumeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsBgmVolumeText"));
+    SettingsSfxVolumeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsSfxVolumeText"));
+    SettingsWindowModeButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsWindowModeButtonText"));
+    SettingsResolutionButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsResolutionButtonText"));
+    SettingsVSyncButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsVSyncButtonText"));
+    SettingsResumeButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsResumeButtonText"));
+    SettingsQuitButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsQuitButtonText"));
     JoinAddressTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("JoinAddressTextBox"));
     HostMatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HostMatchButton"));
     HostMatchButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HostMatchButtonText"));
     JoinByIpButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("JoinByIpButton"));
     JoinByIpButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JoinByIpButtonText"));
+    SettingsMasterVolumeSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("SettingsMasterVolumeSlider"));
+    SettingsBgmVolumeSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("SettingsBgmVolumeSlider"));
+    SettingsSfxVolumeSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("SettingsSfxVolumeSlider"));
+    SettingsWindowModeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SettingsWindowModeButton"));
+    SettingsResolutionButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SettingsResolutionButton"));
+    SettingsVSyncButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SettingsVSyncButton"));
+    SettingsResumeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SettingsResumeButton"));
+    SettingsQuitButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SettingsQuitButton"));
     RangedCrosshairOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("RangedCrosshairOverlay"));
     RangedCrosshairHorizontalBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCrosshairHorizontalBox"));
     RangedCrosshairVerticalBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCrosshairVerticalBox"));
     RangedCrosshairHorizontalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairHorizontalLine"));
     RangedCrosshairVerticalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairVerticalLine"));
 
-    if (!RootOverlay || !StatusPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !StatusBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !LobbyKeyboardCard || !LobbyMouseCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
+    if (!RootOverlay || !StatusPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !StatusBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !LobbyKeyboardCard || !LobbyMouseCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
     {
         return;
     }
@@ -215,12 +256,18 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     MatchResultPanel->SetBrushColor(FLinearColor(0.08f, 0.04f, 0.02f, 0.86f));
     MatchResultPanel->SetVisibility(ESlateVisibility::Collapsed);
 
+    SettingsPanel->SetContent(SettingsBox);
+    SettingsPanel->SetPadding(FMargin(30.0f, 24.0f, 30.0f, 24.0f));
+    SettingsPanel->SetBrushColor(FLinearColor(0.01f, 0.03f, 0.06f, 0.92f));
+    SettingsPanel->SetVisibility(ESlateVisibility::Collapsed);
+
     UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
     UOverlaySlot* InfoBoxSlot = RootOverlay->AddChildToOverlay(InfoPanel);
     UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementPanel);
     UOverlaySlot* LobbyBoxSlot = RootOverlay->AddChildToOverlay(LobbyPanel);
     UOverlaySlot* LobbyControlsBoxSlot = RootOverlay->AddChildToOverlay(LobbyControlsPanel);
     UOverlaySlot* MatchResultBoxSlot = RootOverlay->AddChildToOverlay(MatchResultPanel);
+    UOverlaySlot* SettingsBoxSlot = RootOverlay->AddChildToOverlay(SettingsPanel);
     UOverlaySlot* RangedCrosshairSlot = RootOverlay->AddChildToOverlay(RangedCrosshairOverlay);
 
     if (StatusBoxSlot)
@@ -261,6 +308,12 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     {
         MatchResultBoxSlot->SetHorizontalAlignment(HAlign_Center);
         MatchResultBoxSlot->SetVerticalAlignment(VAlign_Center);
+    }
+
+    if (SettingsBoxSlot)
+    {
+        SettingsBoxSlot->SetHorizontalAlignment(HAlign_Center);
+        SettingsBoxSlot->SetVerticalAlignment(VAlign_Center);
     }
 
     if (RangedCrosshairSlot)
@@ -340,6 +393,21 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     UVerticalBoxSlot* LobbyControlsMouseRangedTextSlot = LobbyMouseCardBox->AddChildToVerticalBox(LobbyControlsMouseRangedText);
     UVerticalBoxSlot* MatchResultTitleTextSlot = MatchResultBox->AddChildToVerticalBox(MatchResultTitleText);
     UVerticalBoxSlot* MatchResultSummaryTextSlot = MatchResultBox->AddChildToVerticalBox(MatchResultSummaryText);
+    UVerticalBoxSlot* SettingsTitleTextSlot = SettingsBox->AddChildToVerticalBox(SettingsTitleText);
+    UVerticalBoxSlot* SettingsAudioLabelTextSlot = SettingsBox->AddChildToVerticalBox(SettingsAudioLabelText);
+    UVerticalBoxSlot* SettingsMasterVolumeTextSlot = SettingsBox->AddChildToVerticalBox(SettingsMasterVolumeText);
+    UVerticalBoxSlot* SettingsMasterVolumeSliderSlot = SettingsBox->AddChildToVerticalBox(SettingsMasterVolumeSlider);
+    UVerticalBoxSlot* SettingsBgmVolumeTextSlot = SettingsBox->AddChildToVerticalBox(SettingsBgmVolumeText);
+    UVerticalBoxSlot* SettingsBgmVolumeSliderSlot = SettingsBox->AddChildToVerticalBox(SettingsBgmVolumeSlider);
+    UVerticalBoxSlot* SettingsSfxVolumeTextSlot = SettingsBox->AddChildToVerticalBox(SettingsSfxVolumeText);
+    UVerticalBoxSlot* SettingsSfxVolumeSliderSlot = SettingsBox->AddChildToVerticalBox(SettingsSfxVolumeSlider);
+    UVerticalBoxSlot* SettingsDisplayModeLabelTextSlot = SettingsBox->AddChildToVerticalBox(SettingsDisplayModeLabelText);
+    UVerticalBoxSlot* SettingsWindowModeButtonSlot = SettingsBox->AddChildToVerticalBox(SettingsWindowModeButton);
+    UVerticalBoxSlot* SettingsResolutionLabelTextSlot = SettingsBox->AddChildToVerticalBox(SettingsResolutionLabelText);
+    UVerticalBoxSlot* SettingsResolutionButtonSlot = SettingsBox->AddChildToVerticalBox(SettingsResolutionButton);
+    UVerticalBoxSlot* SettingsVSyncButtonSlot = SettingsBox->AddChildToVerticalBox(SettingsVSyncButton);
+    UVerticalBoxSlot* SettingsResumeButtonSlot = SettingsBox->AddChildToVerticalBox(SettingsResumeButton);
+    UVerticalBoxSlot* SettingsQuitButtonSlot = SettingsBox->AddChildToVerticalBox(SettingsQuitButton);
 
     if (HealthBarSlot)
     {
@@ -611,9 +679,140 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     JoinByIpButtonText->SetFont(FSlateFontInfo(JoinByIpButtonText->GetFont().FontObject, 18, JoinByIpButtonText->GetFont().TypefaceFontName));
     JoinByIpButtonText->SetText(FText::FromString(TEXT("Join By IP")));
 
+    if (SettingsTitleTextSlot)
+    {
+        SettingsTitleTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+        SettingsTitleTextSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    SettingsTitleText->SetJustification(ETextJustify::Center);
+    SettingsTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.98f, 1.0f, 1.0f)));
+    SettingsTitleText->SetFont(FSlateFontInfo(SettingsTitleText->GetFont().FontObject, 30, SettingsTitleText->GetFont().TypefaceFontName));
+    SettingsTitleText->SetText(FText::FromString(TEXT("Settings")));
+
+    auto ConfigureSettingsLabel = [](UTextBlock* TextBlock, const FString& Text, int32 FontSize)
+    {
+        if (!TextBlock)
+        {
+            return;
+        }
+
+        TextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.84f, 0.92f, 1.0f, 1.0f)));
+        TextBlock->SetFont(FSlateFontInfo(TextBlock->GetFont().FontObject, FontSize, TextBlock->GetFont().TypefaceFontName));
+        TextBlock->SetText(FText::FromString(Text));
+    };
+
+    if (SettingsAudioLabelTextSlot)
+    {
+        SettingsAudioLabelTextSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 8.0f));
+    }
+    ConfigureSettingsLabel(SettingsAudioLabelText, TEXT("Audio"), 20);
+
+    if (SettingsMasterVolumeTextSlot)
+    {
+        SettingsMasterVolumeTextSlot->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 2.0f));
+    }
+    ConfigureSettingsLabel(SettingsMasterVolumeText, TEXT("Master Volume"), 16);
+
+    if (SettingsBgmVolumeTextSlot)
+    {
+        SettingsBgmVolumeTextSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 2.0f));
+    }
+    ConfigureSettingsLabel(SettingsBgmVolumeText, TEXT("BGM Volume"), 16);
+
+    if (SettingsSfxVolumeTextSlot)
+    {
+        SettingsSfxVolumeTextSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 2.0f));
+    }
+    ConfigureSettingsLabel(SettingsSfxVolumeText, TEXT("SFX Volume"), 16);
+
+    if (SettingsDisplayModeLabelTextSlot)
+    {
+        SettingsDisplayModeLabelTextSlot->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 6.0f));
+    }
+    ConfigureSettingsLabel(SettingsDisplayModeLabelText, TEXT("Window Mode"), 20);
+
+    if (SettingsResolutionLabelTextSlot)
+    {
+        SettingsResolutionLabelTextSlot->SetPadding(FMargin(0.0f, 12.0f, 0.0f, 6.0f));
+    }
+    ConfigureSettingsLabel(SettingsResolutionLabelText, TEXT("Resolution"), 20);
+
+    SettingsMasterVolumeSlider->SetMinValue(0.0f);
+    SettingsMasterVolumeSlider->SetMaxValue(1.0f);
+    SettingsMasterVolumeSlider->SetStepSize(0.05f);
+    SettingsMasterVolumeSlider->OnValueChanged.AddDynamic(this, &UPvPArenaHUDWidget::HandleMasterVolumeSliderChanged);
+
+    SettingsBgmVolumeSlider->SetMinValue(0.0f);
+    SettingsBgmVolumeSlider->SetMaxValue(1.0f);
+    SettingsBgmVolumeSlider->SetStepSize(0.05f);
+    SettingsBgmVolumeSlider->OnValueChanged.AddDynamic(this, &UPvPArenaHUDWidget::HandleBgmVolumeSliderChanged);
+
+    SettingsSfxVolumeSlider->SetMinValue(0.0f);
+    SettingsSfxVolumeSlider->SetMaxValue(1.0f);
+    SettingsSfxVolumeSlider->SetStepSize(0.05f);
+    SettingsSfxVolumeSlider->OnValueChanged.AddDynamic(this, &UPvPArenaHUDWidget::HandleSfxVolumeSliderChanged);
+
+    auto ConfigureSettingsButton = [](UButton* Button, UTextBlock* Label, const FLinearColor& Color, const FString& Text)
+    {
+        if (!Button || !Label)
+        {
+            return;
+        }
+
+        Button->SetContent(Label);
+        Button->SetBackgroundColor(Color);
+        Label->SetJustification(ETextJustify::Center);
+        Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+        Label->SetFont(FSlateFontInfo(Label->GetFont().FontObject, 16, Label->GetFont().TypefaceFontName));
+        Label->SetText(FText::FromString(Text));
+    };
+
+    ConfigureSettingsButton(SettingsWindowModeButton, SettingsWindowModeButtonText, FLinearColor(0.22f, 0.37f, 0.58f, 1.0f), TEXT("Window Mode"));
+    ConfigureSettingsButton(SettingsResolutionButton, SettingsResolutionButtonText, FLinearColor(0.28f, 0.43f, 0.28f, 1.0f), TEXT("Resolution"));
+    ConfigureSettingsButton(SettingsVSyncButton, SettingsVSyncButtonText, FLinearColor(0.45f, 0.36f, 0.18f, 1.0f), TEXT("VSync"));
+    ConfigureSettingsButton(SettingsResumeButton, SettingsResumeButtonText, FLinearColor(0.18f, 0.52f, 0.34f, 1.0f), TEXT("Resume"));
+    ConfigureSettingsButton(SettingsQuitButton, SettingsQuitButtonText, FLinearColor(0.62f, 0.18f, 0.18f, 1.0f), TEXT("Quit To Desktop"));
+
+    SettingsWindowModeButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsWindowModeButtonClicked);
+    SettingsResolutionButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsResolutionButtonClicked);
+    SettingsVSyncButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsVSyncButtonClicked);
+    SettingsResumeButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsResumeButtonClicked);
+    SettingsQuitButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsQuitButtonClicked);
+
+    if (SettingsWindowModeButtonSlot)
+    {
+        SettingsWindowModeButtonSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+        SettingsWindowModeButtonSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
+    if (SettingsResolutionButtonSlot)
+    {
+        SettingsResolutionButtonSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+        SettingsResolutionButtonSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
+    if (SettingsVSyncButtonSlot)
+    {
+        SettingsVSyncButtonSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
+        SettingsVSyncButtonSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
+    if (SettingsResumeButtonSlot)
+    {
+        SettingsResumeButtonSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 6.0f));
+        SettingsResumeButtonSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
+    if (SettingsQuitButtonSlot)
+    {
+        SettingsQuitButtonSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
     RangedCrosshairHorizontalLine->SetBrushColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f));
     RangedCrosshairVerticalLine->SetBrushColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f));
     RangedCrosshairOverlay->SetVisibility(ESlateVisibility::Collapsed);
+
+    RefreshSettingsMenuState();
 }
 
 void UPvPArenaHUDWidget::BuildHealthDisplayState(const APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel)
@@ -691,6 +890,8 @@ void UPvPArenaHUDWidget::RefreshBackgroundMusic(const APvPArenaGameState* GameSt
         return;
     }
 
+    BackgroundMusicAudioComponent->SetVolumeMultiplier(MasterVolume * BackgroundMusicVolume);
+
     const USoundBase* DesiredMusic = GameState && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
         ? GameplayBackgroundMusic
         : NonCombatBackgroundMusic;
@@ -740,6 +941,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         RangedCooldownPercent,
         RangedCooldownLabel);
 
+    ApplyAudioSettings();
     RefreshCrosshairVisibility();
     RefreshBackgroundMusic(PvPGameState);
 
@@ -800,7 +1002,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         const bool bIsLobby = PvPGameState->GetMatchPhase() == EPvPAMatchPhase::Lobby;
         const bool bIsMatchEnd = PvPGameState->GetMatchPhase() == EPvPAMatchPhase::MatchEnd;
 
-        ApplyLobbyInputMode(PlayerController, bIsLobby);
+        ApplyLobbyInputMode(PlayerController, bIsLobby || bSettingsMenuOpen);
 
         if (AnnouncementPanel)
         {
@@ -1007,6 +1209,223 @@ FString UPvPArenaHUDWidget::BuildJoinTravelCommand(const FString& JoinAddress) c
     }
 
     return FString::Printf(TEXT("open %s"), *CleanAddress);
+}
+
+void UPvPArenaHUDWidget::ToggleSettingsMenu()
+{
+    bSettingsMenuOpen = !bSettingsMenuOpen;
+    RefreshSettingsMenuState();
+
+    APlayerController* PlayerController = GetOwningPlayer();
+    const APvPArenaGameState* PvPGameState = GetWorld() ? GetWorld()->GetGameState<APvPArenaGameState>() : nullptr;
+    const bool bIsLobby = PvPGameState && PvPGameState->GetMatchPhase() == EPvPAMatchPhase::Lobby;
+    ApplyLobbyInputMode(PlayerController, bSettingsMenuOpen || bIsLobby);
+}
+
+void UPvPArenaHUDWidget::HandleSettingsResumeButtonClicked()
+{
+    if (!bSettingsMenuOpen)
+    {
+        return;
+    }
+
+    ToggleSettingsMenu();
+}
+
+void UPvPArenaHUDWidget::HandleSettingsQuitButtonClicked()
+{
+    APlayerController* PlayerController = GetOwningPlayer();
+    if (!PlayerController)
+    {
+        return;
+    }
+
+    UKismetSystemLibrary::QuitGame(this, PlayerController, EQuitPreference::Quit, false);
+}
+
+void UPvPArenaHUDWidget::HandleSettingsWindowModeButtonClicked()
+{
+    ApplyWindowModeIndex((SelectedWindowModeIndex + 1) % 3);
+    ApplyDisplaySettings();
+}
+
+void UPvPArenaHUDWidget::HandleSettingsResolutionButtonClicked()
+{
+    const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
+    if (SupportedResolutions.IsEmpty())
+    {
+        return;
+    }
+
+    ApplyResolutionIndex((SelectedResolutionIndex + 1) % SupportedResolutions.Num());
+    ApplyDisplaySettings();
+}
+
+void UPvPArenaHUDWidget::HandleSettingsVSyncButtonClicked()
+{
+    bVSyncEnabled = !bVSyncEnabled;
+    ApplyDisplaySettings();
+}
+
+void UPvPArenaHUDWidget::HandleMasterVolumeSliderChanged(float NewValue)
+{
+    MasterVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+    ApplyAudioSettings();
+}
+
+void UPvPArenaHUDWidget::HandleBgmVolumeSliderChanged(float NewValue)
+{
+    BackgroundMusicVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+    ApplyAudioSettings();
+}
+
+void UPvPArenaHUDWidget::HandleSfxVolumeSliderChanged(float NewValue)
+{
+    SfxVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+    ApplyAudioSettings();
+}
+
+void UPvPArenaHUDWidget::ApplyDisplaySettings()
+{
+    UGameUserSettings* GameUserSettings = UGameUserSettings::GetGameUserSettings();
+    const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
+    if (!GameUserSettings || !SupportedResolutions.IsValidIndex(SelectedResolutionIndex))
+    {
+        return;
+    }
+
+    GameUserSettings->SetScreenResolution(SupportedResolutions[SelectedResolutionIndex]);
+    GameUserSettings->SetFullscreenMode(static_cast<EWindowMode::Type>(SelectedWindowModeIndex));
+    GameUserSettings->SetVSyncEnabled(bVSyncEnabled);
+    GameUserSettings->ApplySettings(false);
+    GameUserSettings->SaveSettings();
+    RefreshSettingsMenuState();
+}
+
+void UPvPArenaHUDWidget::ApplyAudioSettings()
+{
+    if (BackgroundMusicAudioComponent)
+    {
+        BackgroundMusicAudioComponent->SetVolumeMultiplier(MasterVolume * BackgroundMusicVolume);
+    }
+
+    const APlayerController* PlayerController = GetOwningPlayer();
+    APvPArenaCharacter* Character = PlayerController ? Cast<APvPArenaCharacter>(PlayerController->GetPawn()) : nullptr;
+    if (Character)
+    {
+        Character->ApplyAudioSettings(MasterVolume, SfxVolume);
+    }
+
+    RefreshSettingsMenuState();
+}
+
+void UPvPArenaHUDWidget::RefreshSettingsMenuState()
+{
+    if (SettingsPanel)
+    {
+        SettingsPanel->SetVisibility(bSettingsMenuOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    }
+
+    if (SettingsMasterVolumeSlider && !FMath::IsNearlyEqual(SettingsMasterVolumeSlider->GetValue(), MasterVolume))
+    {
+        SettingsMasterVolumeSlider->SetValue(MasterVolume);
+    }
+
+    if (SettingsBgmVolumeSlider && !FMath::IsNearlyEqual(SettingsBgmVolumeSlider->GetValue(), BackgroundMusicVolume))
+    {
+        SettingsBgmVolumeSlider->SetValue(BackgroundMusicVolume);
+    }
+
+    if (SettingsSfxVolumeSlider && !FMath::IsNearlyEqual(SettingsSfxVolumeSlider->GetValue(), SfxVolume))
+    {
+        SettingsSfxVolumeSlider->SetValue(SfxVolume);
+    }
+
+    if (SettingsMasterVolumeText)
+    {
+        SettingsMasterVolumeText->SetText(FText::FromString(FString::Printf(TEXT("Master Volume: %d%%"), FMath::RoundToInt(MasterVolume * 100.0f))));
+    }
+
+    if (SettingsBgmVolumeText)
+    {
+        SettingsBgmVolumeText->SetText(FText::FromString(FString::Printf(TEXT("BGM Volume: %d%%"), FMath::RoundToInt(BackgroundMusicVolume * 100.0f))));
+    }
+
+    if (SettingsSfxVolumeText)
+    {
+        SettingsSfxVolumeText->SetText(FText::FromString(FString::Printf(TEXT("SFX Volume: %d%%"), FMath::RoundToInt(SfxVolume * 100.0f))));
+    }
+
+    if (SettingsWindowModeButtonText)
+    {
+        SettingsWindowModeButtonText->SetText(FText::FromString(FString::Printf(TEXT("Window Mode: %s"), *BuildWindowModeLabel(SelectedWindowModeIndex))));
+    }
+
+    const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
+    if (SettingsResolutionButtonText && SupportedResolutions.IsValidIndex(SelectedResolutionIndex))
+    {
+        SettingsResolutionButtonText->SetText(FText::FromString(FString::Printf(TEXT("Resolution: %s"), *BuildResolutionLabel(SupportedResolutions[SelectedResolutionIndex]))));
+    }
+
+    if (SettingsVSyncButtonText)
+    {
+        SettingsVSyncButtonText->SetText(FText::FromString(FString::Printf(TEXT("VSync: %s"), bVSyncEnabled ? TEXT("On") : TEXT("Off"))));
+    }
+}
+
+void UPvPArenaHUDWidget::ApplyResolutionIndex(int32 NewResolutionIndex)
+{
+    const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
+    if (!SupportedResolutions.IsValidIndex(NewResolutionIndex))
+    {
+        return;
+    }
+
+    SelectedResolutionIndex = NewResolutionIndex;
+    RefreshSettingsMenuState();
+}
+
+void UPvPArenaHUDWidget::ApplyWindowModeIndex(int32 NewWindowModeIndex)
+{
+    SelectedWindowModeIndex = FMath::Clamp(NewWindowModeIndex, 0, 2);
+    RefreshSettingsMenuState();
+}
+
+FString UPvPArenaHUDWidget::BuildWindowModeLabel(int32 WindowModeIndex)
+{
+    switch (static_cast<EWindowMode::Type>(WindowModeIndex))
+    {
+    case EWindowMode::Fullscreen:
+        return TEXT("Fullscreen");
+    case EWindowMode::WindowedFullscreen:
+        return TEXT("Borderless");
+    case EWindowMode::Windowed:
+    default:
+        return TEXT("Windowed");
+    }
+}
+
+FString UPvPArenaHUDWidget::BuildResolutionLabel(const FIntPoint& Resolution)
+{
+    return FString::Printf(TEXT("%d x %d"), Resolution.X, Resolution.Y);
+}
+
+TArray<FIntPoint> UPvPArenaHUDWidget::BuildSupportedResolutions()
+{
+    TArray<FIntPoint> Resolutions;
+    Resolutions.Add(DefaultWindowedResolution);
+    Resolutions.Add(FIntPoint(1600, 900));
+    Resolutions.Add(FIntPoint(1920, 1080));
+
+    const FIntPoint DesktopResolution = UGameUserSettings::GetGameUserSettings()
+        ? UGameUserSettings::GetGameUserSettings()->GetDesktopResolution()
+        : FIntPoint::ZeroValue;
+    if (DesktopResolution.X > 0 && DesktopResolution.Y > 0)
+    {
+        Resolutions.AddUnique(DesktopResolution);
+    }
+
+    return Resolutions;
 }
 
 void UPvPArenaHUDWidget::SetConnectionStatus(const FString& NewStatus)

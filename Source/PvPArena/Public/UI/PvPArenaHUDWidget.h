@@ -14,6 +14,7 @@ class UBorder;
 class USizeBox;
 class UHorizontalBox;
 class UVerticalBox;
+class USlider;
 class USoundBase;
 enum class ESlateVisibility : uint8;
 struct FGeometry;
@@ -36,6 +37,9 @@ public:
     static ESlateVisibility BuildRangedCrosshairVisibilityState(const class APvPArenaCharacter* Character);
     static FString BuildBackgroundMusicAssetPathForMatchPhase(uint8 MatchPhaseValue);
 
+    UFUNCTION()
+    void ToggleSettingsMenu();
+
 private:
     UFUNCTION()
     void HandleLobbyReadyButtonClicked();
@@ -52,6 +56,36 @@ private:
     UFUNCTION()
     FString BuildJoinTravelCommand(const FString& JoinAddress) const;
 
+    UFUNCTION()
+    void HandleSettingsResumeButtonClicked();
+
+    UFUNCTION()
+    void HandleSettingsQuitButtonClicked();
+
+    UFUNCTION()
+    void HandleSettingsWindowModeButtonClicked();
+
+    UFUNCTION()
+    void HandleSettingsResolutionButtonClicked();
+
+    UFUNCTION()
+    void HandleSettingsVSyncButtonClicked();
+
+    UFUNCTION()
+    void HandleMasterVolumeSliderChanged(float NewValue);
+
+    UFUNCTION()
+    void HandleBgmVolumeSliderChanged(float NewValue);
+
+    UFUNCTION()
+    void HandleSfxVolumeSliderChanged(float NewValue);
+
+    UFUNCTION()
+    void ApplyDisplaySettings();
+
+    UFUNCTION()
+    void ApplyAudioSettings();
+
     void BuildWidgetTree();
     void RefreshWidgetData();
     void RefreshCrosshairVisibility();
@@ -63,6 +97,12 @@ private:
     FString GetRoundResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetMatchResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetMatchSummaryText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
+    void RefreshSettingsMenuState();
+    void ApplyResolutionIndex(int32 NewResolutionIndex);
+    void ApplyWindowModeIndex(int32 NewWindowModeIndex);
+    static FString BuildWindowModeLabel(int32 WindowModeIndex);
+    static FString BuildResolutionLabel(const FIntPoint& Resolution);
+    static TArray<FIntPoint> BuildSupportedResolutions();
     static FString MatchPhaseToString(uint8 MatchPhaseValue);
     static FString RoundStateToString(uint8 RoundStateValue);
 
@@ -88,6 +128,9 @@ private:
     TObjectPtr<UBorder> MatchResultPanel;
 
     UPROPERTY(Transient)
+    TObjectPtr<UBorder> SettingsPanel;
+
+    UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> StatusBox;
 
     UPROPERTY(Transient)
@@ -107,6 +150,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> MatchResultBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> SettingsBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UBorder> LobbyKeyboardCard;
@@ -208,6 +254,42 @@ private:
     TObjectPtr<UTextBlock> ConnectionStatusText;
 
     UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsTitleText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsDisplayModeLabelText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsResolutionLabelText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsAudioLabelText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsMasterVolumeText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsBgmVolumeText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsSfxVolumeText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsWindowModeButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsResolutionButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsVSyncButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsResumeButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SettingsQuitButtonText;
+
+    UPROPERTY(Transient)
     TObjectPtr<UEditableTextBox> JoinAddressTextBox;
 
     UPROPERTY(Transient)
@@ -221,6 +303,30 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> JoinByIpButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USlider> SettingsMasterVolumeSlider;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USlider> SettingsBgmVolumeSlider;
+
+    UPROPERTY(Transient)
+    TObjectPtr<USlider> SettingsSfxVolumeSlider;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> SettingsWindowModeButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> SettingsResolutionButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> SettingsVSyncButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> SettingsResumeButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> SettingsQuitButton;
 
     UPROPERTY(Transient)
     TObjectPtr<UOverlay> RangedCrosshairOverlay;
@@ -251,4 +357,11 @@ private:
 
     FTimerHandle RefreshTimerHandle;
     bool bLobbyInputModeActive = false;
+    bool bSettingsMenuOpen = false;
+    float MasterVolume = 1.0f;
+    float BackgroundMusicVolume = 1.0f;
+    float SfxVolume = 1.0f;
+    int32 SelectedResolutionIndex = 0;
+    int32 SelectedWindowModeIndex = 1;
+    bool bVSyncEnabled = false;
 };

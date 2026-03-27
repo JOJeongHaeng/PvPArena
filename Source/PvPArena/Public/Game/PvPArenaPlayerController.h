@@ -15,6 +15,7 @@ public:
     APvPArenaPlayerController();
     virtual void BeginPlay() override;
     virtual void OnPossess(APawn* InPawn) override;
+    virtual void SetupInputComponent() override;
     UFUNCTION(BlueprintCallable, Category = "Lobby")
     void ToggleLobbyReady();
 
@@ -23,6 +24,8 @@ protected:
     TSubclassOf<UUserWidget> HUDWidgetClass;
 
 private:
+    void HandleToggleSettingsMenu();
+
     UFUNCTION(Server, Reliable)
     void ServerSetLobbyReady(bool bReadyForStart);
 
