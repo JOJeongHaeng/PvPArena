@@ -4,6 +4,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/Button.h"
 #include "Components/Border.h"
+#include "Components/EditableTextBox.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/HorizontalBox.h"
@@ -30,6 +31,8 @@ namespace
 {
 const TCHAR* NonCombatBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Music_Cue.Starter_Music_Cue");
 const TCHAR* GameplayBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Background_Cue.Starter_Background_Cue");
+const TCHAR* HostTravelMapPath = TEXT("/Game/PvPArena/Maps/PvPArena_TestMap?listen");
+const TCHAR* DefaultJoinAddressHint = TEXT("123.45.67.89:7777");
 }
 
 UPvPArenaHUDWidget::UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer)
@@ -167,13 +170,19 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyControlsMouseRangedText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyControlsMouseRangedText"));
     MatchResultTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchResultTitleText"));
     MatchResultSummaryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchResultSummaryText"));
+    ConnectionStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionStatusText"));
+    JoinAddressTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("JoinAddressTextBox"));
+    HostMatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HostMatchButton"));
+    HostMatchButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HostMatchButtonText"));
+    JoinByIpButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("JoinByIpButton"));
+    JoinByIpButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JoinByIpButtonText"));
     RangedCrosshairOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("RangedCrosshairOverlay"));
     RangedCrosshairHorizontalBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCrosshairHorizontalBox"));
     RangedCrosshairVerticalBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RangedCrosshairVerticalBox"));
     RangedCrosshairHorizontalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairHorizontalLine"));
     RangedCrosshairVerticalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairVerticalLine"));
 
-    if (!RootOverlay || !StatusPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !StatusBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !LobbyKeyboardCard || !LobbyMouseCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
+    if (!RootOverlay || !StatusPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !StatusBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !LobbyKeyboardCard || !LobbyMouseCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
     {
         return;
     }
@@ -315,6 +324,10 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     UVerticalBoxSlot* NextRoundTextSlot = AnnouncementBox->AddChildToVerticalBox(NextRoundText);
     UVerticalBoxSlot* LobbyTitleTextSlot = LobbyBox->AddChildToVerticalBox(LobbyTitleText);
     UVerticalBoxSlot* LobbyStatusTextSlot = LobbyBox->AddChildToVerticalBox(LobbyStatusText);
+    UVerticalBoxSlot* ConnectionStatusTextSlot = LobbyBox->AddChildToVerticalBox(ConnectionStatusText);
+    UVerticalBoxSlot* JoinAddressTextBoxSlot = LobbyBox->AddChildToVerticalBox(JoinAddressTextBox);
+    UVerticalBoxSlot* HostMatchButtonSlot = LobbyBox->AddChildToVerticalBox(HostMatchButton);
+    UVerticalBoxSlot* JoinByIpButtonSlot = LobbyBox->AddChildToVerticalBox(JoinByIpButton);
     UVerticalBoxSlot* LobbyControlsTitleTextSlot = LobbyControlsBox->AddChildToVerticalBox(LobbyControlsTitleText);
     UVerticalBoxSlot* LobbyControlsCardsBoxSlot = LobbyControlsBox->AddChildToVerticalBox(LobbyControlsCardsBox);
     UHorizontalBoxSlot* LobbyKeyboardCardSlot = LobbyControlsCardsBox->AddChildToHorizontalBox(LobbyKeyboardCard);
@@ -431,7 +444,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     if (LobbyStatusTextSlot)
     {
-        LobbyStatusTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f));
+        LobbyStatusTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 12.0f));
     }
     LobbyStatusText->SetJustification(ETextJustify::Center);
     LobbyStatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.65f, 0.92f, 1.0f, 1.0f)));
@@ -467,6 +480,25 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyControlsTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.98f, 1.0f, 1.0f)));
     LobbyControlsTitleText->SetFont(FSlateFontInfo(LobbyControlsTitleText->GetFont().FontObject, 24, LobbyControlsTitleText->GetFont().TypefaceFontName));
     LobbyControlsTitleText->SetText(FText::FromString(TEXT("Controls")));
+
+    if (ConnectionStatusTextSlot)
+    {
+        ConnectionStatusTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+        ConnectionStatusTextSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    ConnectionStatusText->SetJustification(ETextJustify::Center);
+    ConnectionStatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.55f, 0.9f, 1.0f, 1.0f)));
+    ConnectionStatusText->SetFont(FSlateFontInfo(ConnectionStatusText->GetFont().FontObject, 16, ConnectionStatusText->GetFont().TypefaceFontName));
+    ConnectionStatusText->SetText(FText::FromString(TEXT("Network: Ready to host or join")));
+
+    if (JoinAddressTextBoxSlot)
+    {
+        JoinAddressTextBoxSlot->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+        JoinAddressTextBoxSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    JoinAddressTextBox->SetMinDesiredWidth(250.0f);
+    JoinAddressTextBox->SetHintText(FText::FromString(DefaultJoinAddressHint));
+    JoinAddressTextBox->SetText(FText::GetEmpty());
 
     LobbyKeyboardCard->SetContent(LobbyKeyboardCardBox);
     LobbyKeyboardCard->SetPadding(FMargin(18.0f, 14.0f, 18.0f, 14.0f));
@@ -552,6 +584,32 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     MatchResultSummaryText->SetFont(FSlateFontInfo(MatchResultSummaryText->GetFont().FontObject, 24, MatchResultSummaryText->GetFont().TypefaceFontName));
     MatchResultSummaryText->SetShadowOffset(FVector2D(1.0f, 1.0f));
     MatchResultSummaryText->SetVisibility(ESlateVisibility::Collapsed);
+
+    HostMatchButton->SetContent(HostMatchButtonText);
+    HostMatchButton->SetBackgroundColor(FLinearColor(0.18f, 0.52f, 0.34f, 1.0f));
+    HostMatchButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleHostMatchButtonClicked);
+    if (HostMatchButtonSlot)
+    {
+        HostMatchButtonSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+        HostMatchButtonSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    HostMatchButtonText->SetJustification(ETextJustify::Center);
+    HostMatchButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    HostMatchButtonText->SetFont(FSlateFontInfo(HostMatchButtonText->GetFont().FontObject, 18, HostMatchButtonText->GetFont().TypefaceFontName));
+    HostMatchButtonText->SetText(FText::FromString(TEXT("Host Match")));
+
+    JoinByIpButton->SetContent(JoinByIpButtonText);
+    JoinByIpButton->SetBackgroundColor(FLinearColor(0.68f, 0.45f, 0.16f, 1.0f));
+    JoinByIpButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleJoinByIpButtonClicked);
+    if (JoinByIpButtonSlot)
+    {
+        JoinByIpButtonSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+        JoinByIpButtonSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    JoinByIpButtonText->SetJustification(ETextJustify::Center);
+    JoinByIpButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    JoinByIpButtonText->SetFont(FSlateFontInfo(JoinByIpButtonText->GetFont().FontObject, 18, JoinByIpButtonText->GetFont().TypefaceFontName));
+    JoinByIpButtonText->SetText(FText::FromString(TEXT("Join By IP")));
 
     RangedCrosshairHorizontalLine->SetBrushColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f));
     RangedCrosshairVerticalLine->SetBrushColor(FLinearColor(0.95f, 0.98f, 1.0f, 0.95f));
@@ -900,6 +958,83 @@ void UPvPArenaHUDWidget::HandleLobbyReadyButtonClicked()
     }
 
     PvPPlayerController->ToggleLobbyReady();
+}
+
+void UPvPArenaHUDWidget::HandleHostMatchButtonClicked()
+{
+    ExecuteTravelCommand(BuildHostTravelCommand(), TEXT("Network: Hosting match on port 7777"));
+}
+
+void UPvPArenaHUDWidget::HandleJoinByIpButtonClicked()
+{
+    const FString JoinAddress = JoinAddressTextBox ? JoinAddressTextBox->GetText().ToString() : FString();
+    const FString TravelCommand = BuildJoinTravelCommand(JoinAddress);
+    if (TravelCommand.IsEmpty())
+    {
+        SetConnectionStatus(TEXT("Network: Enter a host IP address"));
+        return;
+    }
+
+    const int32 AddressStartIndex = TravelCommand.Find(TEXT(" "));
+    const FString PendingAddress = AddressStartIndex != INDEX_NONE
+        ? TravelCommand.Mid(AddressStartIndex + 1)
+        : TravelCommand;
+    ExecuteTravelCommand(TravelCommand, FString::Printf(TEXT("Network: Joining %s"), *PendingAddress));
+}
+
+FString UPvPArenaHUDWidget::BuildHostTravelCommand() const
+{
+    return FString::Printf(TEXT("open %s"), HostTravelMapPath);
+}
+
+FString UPvPArenaHUDWidget::BuildJoinTravelCommand(const FString& JoinAddress) const
+{
+    FString CleanAddress = JoinAddress;
+    CleanAddress.TrimStartAndEndInline();
+    if (CleanAddress.IsEmpty())
+    {
+        return FString();
+    }
+
+    if (CleanAddress.StartsWith(TEXT("open ")))
+    {
+        return CleanAddress;
+    }
+
+    if (!CleanAddress.Contains(TEXT(":")))
+    {
+        CleanAddress += TEXT(":7777");
+    }
+
+    return FString::Printf(TEXT("open %s"), *CleanAddress);
+}
+
+void UPvPArenaHUDWidget::SetConnectionStatus(const FString& NewStatus)
+{
+    if (ConnectionStatusText)
+    {
+        ConnectionStatusText->SetText(FText::FromString(NewStatus));
+    }
+}
+
+bool UPvPArenaHUDWidget::ExecuteTravelCommand(const FString& TravelCommand, const FString& PendingStatus)
+{
+    APlayerController* PlayerController = GetOwningPlayer();
+    if (!PlayerController)
+    {
+        SetConnectionStatus(TEXT("Network: Player controller unavailable"));
+        return false;
+    }
+
+    if (TravelCommand.IsEmpty())
+    {
+        SetConnectionStatus(TEXT("Network: Invalid travel command"));
+        return false;
+    }
+
+    PlayerController->ConsoleCommand(TravelCommand, true);
+    SetConnectionStatus(PendingStatus);
+    return true;
 }
 
 void UPvPArenaHUDWidget::RefreshCrosshairVisibility()

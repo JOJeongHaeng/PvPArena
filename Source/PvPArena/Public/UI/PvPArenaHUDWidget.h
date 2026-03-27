@@ -7,6 +7,7 @@
 class UProgressBar;
 class UTextBlock;
 class UButton;
+class UEditableTextBox;
 class UAudioComponent;
 class UOverlay;
 class UBorder;
@@ -39,11 +40,25 @@ private:
     UFUNCTION()
     void HandleLobbyReadyButtonClicked();
 
+    UFUNCTION()
+    void HandleHostMatchButtonClicked();
+
+    UFUNCTION()
+    void HandleJoinByIpButtonClicked();
+
+    UFUNCTION()
+    FString BuildHostTravelCommand() const;
+
+    UFUNCTION()
+    FString BuildJoinTravelCommand(const FString& JoinAddress) const;
+
     void BuildWidgetTree();
     void RefreshWidgetData();
     void RefreshCrosshairVisibility();
     void RefreshBackgroundMusic(const class APvPArenaGameState* GameState);
     void ApplyLobbyInputMode(class APlayerController* PlayerController, bool bEnableLobbyInput);
+    void SetConnectionStatus(const FString& NewStatus);
+    bool ExecuteTravelCommand(const FString& TravelCommand, const FString& PendingStatus);
     FString GetLobbyStatusText(const class APvPArenaGameState* GameState) const;
     FString GetRoundResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetMatchResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
@@ -188,6 +203,24 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> MatchResultSummaryText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> ConnectionStatusText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UEditableTextBox> JoinAddressTextBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> HostMatchButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> HostMatchButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> JoinByIpButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> JoinByIpButtonText;
 
     UPROPERTY(Transient)
     TObjectPtr<UOverlay> RangedCrosshairOverlay;
