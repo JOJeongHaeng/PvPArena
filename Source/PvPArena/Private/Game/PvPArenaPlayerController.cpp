@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "Game/PvPArenaGameMode.h"
 #include "Game/PvPArenaPlayerState.h"
+#include "InputCoreTypes.h"
 #include "TimerManager.h"
 #include "UI/PvPArenaHUDWidget.h"
 
@@ -22,6 +23,18 @@ void APvPArenaPlayerController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
     TryCreateHUDWidget();
+}
+
+void APvPArenaPlayerController::SetupInputComponent()
+{
+    Super::SetupInputComponent();
+
+    if (!InputComponent)
+    {
+        return;
+    }
+
+    InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &APvPArenaPlayerController::HandleToggleSettingsMenu);
 }
 
 void APvPArenaPlayerController::ToggleLobbyReady()
@@ -48,6 +61,17 @@ void APvPArenaPlayerController::ServerSetLobbyReady_Implementation(bool bReadyFo
     }
 
     PvPGameMode->HandleLobbyReadyStateChanged(PvPPlayerState, bReadyForStart);
+}
+
+void APvPArenaPlayerController::HandleToggleSettingsMenu()
+{
+    UPvPArenaHUDWidget* PvPHUDWidget = Cast<UPvPArenaHUDWidget>(ActiveHUDWidget);
+    if (!PvPHUDWidget)
+    {
+        return;
+    }
+
+    PvPHUDWidget->ToggleSettingsMenu();
 }
 
 void APvPArenaPlayerController::TryCreateHUDWidget()

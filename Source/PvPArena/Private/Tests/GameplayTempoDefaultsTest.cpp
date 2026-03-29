@@ -18,7 +18,7 @@ bool FGameplayTempoDefaultsTest::RunTest(const FString& Parameters)
     }
 
     TestEqual(TEXT("Iteration score limit should stay on the short test default"), GameMode->GetIterationScoreLimitDefault(), 3);
-    TestEqual(TEXT("Iteration round wins-to-win should be first to three"), GameMode->GetIterationRoundWinsToWinDefault(), 3);
+    TestEqual(TEXT("Iteration round wins-to-win should be best of three"), GameMode->GetIterationRoundWinsToWinDefault(), 2);
     TestEqual(TEXT("Lobby countdown should be three seconds"), GameMode->GetLobbyCountdownSeconds(), 3);
     TestEqual(TEXT("Iteration round duration should stay on the short test default"), GameMode->GetIterationRoundDurationSecondsDefault(), 60);
     TestEqual(TEXT("Final restore score limit target should remain documented"), GameMode->GetPlannedFinalScoreLimitDefault(), 5);

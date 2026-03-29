@@ -53,6 +53,7 @@ public:
     float GetRangedAimCameraBlendAlpha() const { return RangedAimCameraBlendAlpha; }
     bool ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const;
     bool GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const;
+    void ApplyAudioSettings(float InMasterVolume, float InSfxVolume);
     static ERangedHitNotifyHandling ResolveRangedHitNotifyHandling(
         bool bHasAuthority,
         bool bIsLocallyControlled,
@@ -151,6 +152,7 @@ private:
     void PlayMeleeAttackSound();
     void StopMeleeAttackSound();
     void PlayRangedAttackSound();
+    void RefreshAttackAudioVolumes();
     void PlayMeleeAttackEffect();
     bool PlayMeleeAttackMontage();
     bool PlayRangedAttackMontage(FName StartSectionName = NAME_None);
@@ -346,4 +348,6 @@ private:
 
     FTimerHandle MeleeAttackAudioTimerHandle;
     FTimerHandle InvulnerabilityTimerHandle;
+    float CurrentMasterVolume = 1.0f;
+    float CurrentSfxVolume = 1.0f;
 };

@@ -39,13 +39,14 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
 
     UOverlay* RootOverlay = Cast<UOverlay>(WidgetTree->RootWidget);
     TestNotNull(TEXT("HUD widget should build an overlay root"), RootOverlay);
-    TestEqual(TEXT("HUD root should contain gauge, info, lobby, lobby controls, result, announcement, and crosshair layers"), RootOverlay ? RootOverlay->GetChildrenCount() : 0, 7);
+    TestEqual(TEXT("HUD root should contain gauge, info, lobby, lobby controls, result, announcement, crosshair, and settings layers"), RootOverlay ? RootOverlay->GetChildrenCount() : 0, 8);
 
     UBorder* StatusPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("StatusPanel")));
     UBorder* InfoPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("InfoPanel")));
     UBorder* AnnouncementPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("AnnouncementPanel")));
     UBorder* LobbyPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyPanel")));
     UBorder* LobbyControlsPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyControlsPanel")));
+    UBorder* SettingsPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("SettingsPanel")));
     UBorder* LobbyKeyboardCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyKeyboardCard")));
     UBorder* LobbyMouseCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyMouseCard")));
     UVerticalBox* StatusBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("StatusBox")));
@@ -61,6 +62,7 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("AnnouncementPanel should exist"), AnnouncementPanel);
     TestNotNull(TEXT("LobbyPanel should exist"), LobbyPanel);
     TestNotNull(TEXT("LobbyControlsPanel should exist"), LobbyControlsPanel);
+    TestNotNull(TEXT("SettingsPanel should exist"), SettingsPanel);
     TestNotNull(TEXT("Lobby keyboard card should exist"), LobbyKeyboardCard);
     TestNotNull(TEXT("Lobby mouse card should exist"), LobbyMouseCard);
     TestNotNull(TEXT("StatusBox should exist"), StatusBox);
@@ -130,6 +132,8 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     UEditableTextBox* JoinAddressTextBox = Cast<UEditableTextBox>(WidgetTree->FindWidget(TEXT("JoinAddressTextBox")));
     UButton* HostMatchButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("HostMatchButton")));
     UButton* JoinByIpButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("JoinByIpButton")));
+    UButton* SettingsResumeButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingsResumeButton")));
+    UButton* SettingsQuitButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingsQuitButton")));
 
     TestTrue(TEXT("Health bar should use a thicker readability-first height"),
         HealthBarSizeBox && HealthBarSizeBox->GetHeightOverride() >= 20.0f);
@@ -165,6 +169,8 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("JoinAddressTextBox should exist"), JoinAddressTextBox);
     TestNotNull(TEXT("HostMatchButton should exist"), HostMatchButton);
     TestNotNull(TEXT("JoinByIpButton should exist"), JoinByIpButton);
+    TestNotNull(TEXT("SettingsResumeButton should exist"), SettingsResumeButton);
+    TestNotNull(TEXT("SettingsQuitButton should exist"), SettingsQuitButton);
     TestEqual(TEXT("AnnouncementPanel should stay hidden until round end"),
         AnnouncementPanel ? AnnouncementPanel->GetVisibility() : ESlateVisibility::Visible,
         ESlateVisibility::Collapsed);
@@ -215,6 +221,9 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         && LobbyControlsPanelSlot->GetVerticalAlignment() == VAlign_Bottom);
     TestEqual(TEXT("Lobby controls panel should stay hidden until the lobby is shown"),
         LobbyControlsPanel ? LobbyControlsPanel->GetVisibility() : ESlateVisibility::Visible,
+        ESlateVisibility::Collapsed);
+    TestEqual(TEXT("Settings panel should stay hidden until the menu is opened"),
+        SettingsPanel ? SettingsPanel->GetVisibility() : ESlateVisibility::Visible,
         ESlateVisibility::Collapsed);
     TestTrue(TEXT("Lobby keyboard card should use a visible dark backing"),
         LobbyKeyboardCard && LobbyKeyboardCard->GetBrushColor().A >= 0.85f);

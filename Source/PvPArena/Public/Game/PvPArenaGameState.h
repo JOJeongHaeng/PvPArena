@@ -70,7 +70,7 @@ private:
     int32 ScoreLimit = 5;
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
-    int32 RoundWinsToWin = 3;
+    int32 RoundWinsToWin = 2;
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
     EPvPARoundState RoundState = EPvPARoundState::Playing;

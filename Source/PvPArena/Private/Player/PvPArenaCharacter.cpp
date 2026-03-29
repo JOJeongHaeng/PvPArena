@@ -117,6 +117,7 @@ void APvPArenaCharacter::BeginPlay()
     Super::BeginPlay();
     CurrentSprintEnergySeconds = FMath::Clamp(CurrentSprintEnergySeconds, 0.0f, SprintDurationSeconds);
     RefreshSprintMovementSpeed();
+    RefreshAttackAudioVolumes();
     SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
 }
@@ -176,6 +177,13 @@ float APvPArenaCharacter::GetSprintEnergyAlpha() const
     return SprintDurationSeconds > 0.0f
         ? FMath::Clamp(CurrentSprintEnergySeconds / SprintDurationSeconds, 0.0f, 1.0f)
         : 0.0f;
+}
+
+void APvPArenaCharacter::ApplyAudioSettings(float InMasterVolume, float InSfxVolume)
+{
+    CurrentMasterVolume = FMath::Clamp(InMasterVolume, 0.0f, 1.0f);
+    CurrentSfxVolume = FMath::Clamp(InSfxVolume, 0.0f, 1.0f);
+    RefreshAttackAudioVolumes();
 }
 
 void APvPArenaCharacter::TryApplyInputMappingContext()
@@ -1001,6 +1009,7 @@ void APvPArenaCharacter::PlayMeleeAttackSound()
         return;
     }
 
+    RefreshAttackAudioVolumes();
     MeleeAttackAudioComponent->Stop();
     MeleeAttackAudioComponent->Play(0.0f);
 
@@ -1034,9 +1043,22 @@ void APvPArenaCharacter::PlayRangedAttackSound()
         return;
     }
 
+    RefreshAttackAudioVolumes();
     RangedAttackAudioComponent->Stop();
-    RangedAttackAudioComponent->SetVolumeMultiplier(RangedAttackSoundVolume);
     RangedAttackAudioComponent->Play(0.0f);
+}
+
+void APvPArenaCharacter::RefreshAttackAudioVolumes()
+{
+    if (MeleeAttackAudioComponent)
+    {
+        MeleeAttackAudioComponent->SetVolumeMultiplier(CurrentMasterVolume * CurrentSfxVolume);
+    }
+
+    if (RangedAttackAudioComponent)
+    {
+        RangedAttackAudioComponent->SetVolumeMultiplier(RangedAttackSoundVolume * CurrentMasterVolume * CurrentSfxVolume);
+    }
 }
 
 void APvPArenaCharacter::HandleMeleeAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)

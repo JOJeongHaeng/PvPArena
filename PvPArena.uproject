@@ -12,6 +12,13 @@
 	],
 	"Plugins": [
 		{
+			"Name": "Fab",
+			"Enabled": false,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

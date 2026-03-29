@@ -117,9 +117,24 @@ bool APvPArenaGameMode::ShouldEndMatchOnRoundWin(int32 RoundWins) const
     return RoundWins >= IterationRoundWinsToWinDefault;
 }
 
+EPvPAMatchPhase APvPArenaGameMode::ResolveMatchPhaseAfterRoundWin(int32 RoundWins) const
+{
+    return ShouldEndMatchOnRoundWin(RoundWins) ? EPvPAMatchPhase::MatchEnd : EPvPAMatchPhase::Playing;
+}
+
+bool APvPArenaGameMode::ShouldContinueToNextRoundAfterRoundWin(int32 RoundWins) const
+{
+    return ResolveMatchPhaseAfterRoundWin(RoundWins) == EPvPAMatchPhase::Playing;
+}
+
 bool APvPArenaGameMode::IsReadyToStartMatch(int32 ConnectedPlayers, int32 ReadyPlayers) const
 {
-    return ConnectedPlayers >= MinimumPlayersToStartMatch && ReadyPlayers >= ConnectedPlayers;
+    return ConnectedPlayers >= MinimumPlayersToStartMatch;
+}
+
+bool APvPArenaGameMode::ShouldReturnToLobbyAfterMatchEnd(int32 RemainingMatchEndSeconds) const
+{
+    return RemainingMatchEndSeconds <= 0;
 }
 
 void APvPArenaGameMode::HandleLobbyReadyStateChanged(APvPArenaPlayerState* PlayerState, bool bReadyForStart)
