@@ -989,7 +989,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
                 FString::Printf(
                     TEXT("Rounds: %d / %d | Match K / D: %d / %d"),
                     PvPPlayerState->GetRoundWins(),
-                    PvPGameState ? PvPGameState->GetRoundWinsToWin() : 3,
+                    PvPGameState ? PvPGameState->GetRoundWinsToWin() : 2,
                     PvPPlayerState->GetMatchKills(),
                     PvPPlayerState->GetMatchDeaths())));
         }
@@ -1085,14 +1085,12 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
         if (LobbyReadyButton)
         {
-            LobbyReadyButton->SetVisibility(bIsLobby ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+            LobbyReadyButton->SetVisibility(ESlateVisibility::Collapsed);
         }
 
         if (LobbyReadyButtonText)
         {
-            const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
-            const bool bReadyForLobbyStart = LocalPlayerState && LocalPlayerState->IsReadyForLobbyStart();
-            LobbyReadyButtonText->SetText(FText::FromString(bReadyForLobbyStart ? TEXT("Cancel Ready") : TEXT("Ready")));
+            LobbyReadyButtonText->SetText(FText::FromString(TEXT("Waiting for players")));
         }
 
         if (MatchResultTitleText)
@@ -1518,7 +1516,6 @@ FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerCo
 FString UPvPArenaHUDWidget::GetLobbyStatusText(const APvPArenaGameState* GameState) const
 {
     int32 ConnectedPlayers = 0;
-    int32 ReadyPlayers = 0;
     if (GameState)
     {
         for (APlayerState* PlayerState : GameState->PlayerArray)
@@ -1530,10 +1527,6 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APvPArenaGameState* GameSta
             }
 
             ++ConnectedPlayers;
-            if (PvPPlayerState->IsReadyForLobbyStart())
-            {
-                ++ReadyPlayers;
-            }
         }
     }
 
@@ -1541,18 +1534,19 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APvPArenaGameState* GameSta
     if (CountdownSeconds > 0)
     {
         return FString::Printf(
-            TEXT("Players Ready: %d / %d\nMatch starts in: %d\nFirst to %d round wins takes the match."),
-            ReadyPlayers,
+            TEXT("Players Connected: %d / %d\nMatch starts in: %d\nFirst to %d round wins takes the match."),
+            ConnectedPlayers,
             ConnectedPlayers,
             CountdownSeconds,
-            GameState ? GameState->GetRoundWinsToWin() : 3);
+            GameState ? GameState->GetRoundWinsToWin() : 2);
     }
 
     return FString::Printf(
-        TEXT("Players Ready: %d / %d\nNeed all players ready to begin.\nFirst to %d round wins takes the match."),
-        ReadyPlayers,
+        TEXT("Players Connected: %d / %d\nNeed %d players connected to begin.\nFirst to %d round wins takes the match."),
         ConnectedPlayers,
-        GameState ? GameState->GetRoundWinsToWin() : 3);
+        ConnectedPlayers,
+        2,
+        GameState ? GameState->GetRoundWinsToWin() : 2);
 }
 
 FString UPvPArenaHUDWidget::GetMatchResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const

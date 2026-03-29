@@ -19,7 +19,7 @@ public:
     APvPArenaGameMode();
 
     static constexpr int32 IterationScoreLimitDefault = 3;
-    static constexpr int32 IterationRoundWinsToWinDefault = 3;
+    static constexpr int32 IterationRoundWinsToWinDefault = 2;
     static constexpr int32 IterationRoundDurationSecondsDefault = 60;
     static constexpr int32 PlannedFinalScoreLimitDefault = 5;
     static constexpr int32 PlannedFinalRoundDurationSecondsDefault = 180;
@@ -48,7 +48,19 @@ public:
     bool ShouldEndMatchOnRoundWin(int32 RoundWins) const;
 
     UFUNCTION(BlueprintPure, Category = "Match")
+    EPvPAMatchPhase GetInitialMatchPhase() const { return EPvPAMatchPhase::Lobby; }
+
+    UFUNCTION(BlueprintPure, Category = "Match")
+    EPvPAMatchPhase ResolveMatchPhaseAfterRoundWin(int32 RoundWins) const;
+
+    UFUNCTION(BlueprintPure, Category = "Match")
+    bool ShouldContinueToNextRoundAfterRoundWin(int32 RoundWins) const;
+
+    UFUNCTION(BlueprintPure, Category = "Match")
     bool IsReadyToStartMatch(int32 ConnectedPlayers, int32 ReadyPlayers) const;
+
+    UFUNCTION(BlueprintPure, Category = "Match")
+    bool ShouldReturnToLobbyAfterMatchEnd(int32 RemainingMatchEndSeconds) const;
 
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandleLobbyReadyStateChanged(APvPArenaPlayerState* PlayerState, bool bReadyForStart);
