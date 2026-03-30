@@ -37,6 +37,17 @@ void APvPArenaPlayerController::SetupInputComponent()
     InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &APvPArenaPlayerController::HandleToggleSettingsMenu);
 }
 
+void APvPArenaPlayerController::RequestLobbyMatchStart()
+{
+    if (HasAuthority())
+    {
+        ServerRequestLobbyMatchStart_Implementation();
+        return;
+    }
+
+    ServerRequestLobbyMatchStart();
+}
+
 void APvPArenaPlayerController::ToggleLobbyReady()
 {
     const APvPArenaPlayerState* PvPPlayerState = GetPlayerState<APvPArenaPlayerState>();
@@ -49,6 +60,17 @@ void APvPArenaPlayerController::ToggleLobbyReady()
     }
 
     ServerSetLobbyReady(bNewReady);
+}
+
+void APvPArenaPlayerController::ServerRequestLobbyMatchStart_Implementation()
+{
+    APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
+    if (!PvPGameMode)
+    {
+        return;
+    }
+
+    PvPGameMode->RequestLobbyMatchStart(this);
 }
 
 void APvPArenaPlayerController::ServerSetLobbyReady_Implementation(bool bReadyForStart)

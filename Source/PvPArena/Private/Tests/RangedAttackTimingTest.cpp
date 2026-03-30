@@ -1,6 +1,7 @@
 #include "Misc/AutomationTest.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Combat/PvPCombatComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Player/PvPArenaCharacter.h"
@@ -76,6 +77,11 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("Ranged aim snapshot should start uncached"), CachedAimProperty->GetPropertyValue_InContainer(Character));
     TestEqual(TEXT("Ranged aim camera blend should start disabled"), CameraBlendAlphaProperty->GetPropertyValue_InContainer(Character), 0.0f);
     TestEqual(TEXT("Ranged charge minimum hold should now be half a second"), MinimumHoldSecondsProperty->GetPropertyValue_InContainer(Character), 0.5f);
+
+    Character->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+    TestFalse(TEXT("Ranged charge should be blocked while airborne"), Character->BeginRangedCharge(0.0f));
+    TestFalse(TEXT("Airborne ranged block should not start the attack"), Character->IsRangedAttackInProgress());
+    Character->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
     APlayerController* Controller = NewObject<APlayerController>(Character);
     TestNotNull(TEXT("Controller should be created for hold aim updates"), Controller);

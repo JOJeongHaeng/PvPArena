@@ -1,4 +1,5 @@
 #include "Misc/AutomationTest.h"
+#include "Game/PvPArenaPlayerController.h"
 #include "UI/PvPArenaHUDWidget.h"
 #include "UObject/UnrealType.h"
 
@@ -22,6 +23,9 @@ bool FHUDWidgetOnlineControlsTest::RunTest(const FString& Parameters)
     UFunction* HostMatchFunction = WidgetClass->FindFunctionByName(TEXT("HandleHostMatchButtonClicked"));
     TestNotNull(TEXT("HUD widget should expose a host-match button handler"), HostMatchFunction);
 
+    UFunction* LobbyStartFunction = WidgetClass->FindFunctionByName(TEXT("HandleLobbyReadyButtonClicked"));
+    TestNotNull(TEXT("HUD widget should expose a lobby start button handler"), LobbyStartFunction);
+
     UFunction* JoinByIpFunction = WidgetClass->FindFunctionByName(TEXT("HandleJoinByIpButtonClicked"));
     TestNotNull(TEXT("HUD widget should expose a join-by-ip button handler"), JoinByIpFunction);
 
@@ -31,10 +35,16 @@ bool FHUDWidgetOnlineControlsTest::RunTest(const FString& Parameters)
     UFunction* BuildJoinTravelCommandFunction = WidgetClass->FindFunctionByName(TEXT("BuildJoinTravelCommand"));
     TestNotNull(TEXT("HUD widget should expose a join travel command builder"), BuildJoinTravelCommandFunction);
 
+    const UClass* PlayerControllerClass = APvPArenaPlayerController::StaticClass();
+    UFunction* RequestLobbyMatchStartFunction = PlayerControllerClass->FindFunctionByName(TEXT("RequestLobbyMatchStart"));
+    TestNotNull(TEXT("Player controller should expose a host-only lobby start request"), RequestLobbyMatchStartFunction);
+
     return ConnectionStatusTextProperty
         && JoinAddressTextBoxProperty
         && HostMatchFunction
+        && LobbyStartFunction
         && JoinByIpFunction
         && BuildHostTravelCommandFunction
-        && BuildJoinTravelCommandFunction;
+        && BuildJoinTravelCommandFunction
+        && RequestLobbyMatchStartFunction;
 }

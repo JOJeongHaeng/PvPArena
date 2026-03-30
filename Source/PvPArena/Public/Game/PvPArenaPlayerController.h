@@ -17,6 +17,9 @@ public:
     virtual void OnPossess(APawn* InPawn) override;
     virtual void SetupInputComponent() override;
     UFUNCTION(BlueprintCallable, Category = "Lobby")
+    void RequestLobbyMatchStart();
+
+    UFUNCTION(BlueprintCallable, Category = "Lobby")
     void ToggleLobbyReady();
 
 protected:
@@ -25,6 +28,9 @@ protected:
 
 private:
     void HandleToggleSettingsMenu();
+
+    UFUNCTION(Server, Reliable)
+    void ServerRequestLobbyMatchStart();
 
     UFUNCTION(Server, Reliable)
     void ServerSetLobbyReady(bool bReadyForStart);

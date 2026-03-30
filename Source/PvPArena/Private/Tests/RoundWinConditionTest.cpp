@@ -36,6 +36,9 @@ bool FRoundWinConditionTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("One player is not enough to leave lobby"), GameMode->IsReadyToStartMatch(1, 1));
     TestTrue(TEXT("Two connected players should be enough to leave lobby"), GameMode->IsReadyToStartMatch(2, 0));
     TestTrue(TEXT("Extra ready-state information should not block match start"), GameMode->IsReadyToStartMatch(2, 2));
+    TestFalse(TEXT("A non-host client should not be able to start the lobby match"), GameMode->CanLobbyHostStartMatch(false, 2));
+    TestFalse(TEXT("The host still needs enough players before starting"), GameMode->CanLobbyHostStartMatch(true, 1));
+    TestTrue(TEXT("The host should be able to start once enough players are connected"), GameMode->CanLobbyHostStartMatch(true, 2));
     TestTrue(TEXT("Match-end countdown reaching zero should return to lobby"), GameMode->ShouldReturnToLobbyAfterMatchEnd(0));
     TestFalse(TEXT("Positive match-end countdown should keep result phase active"), GameMode->ShouldReturnToLobbyAfterMatchEnd(1));
 

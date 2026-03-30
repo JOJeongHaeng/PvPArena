@@ -30,7 +30,6 @@ void APvPArenaGameMode::BeginPlay()
 void APvPArenaGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
-    TryStartMatchFromLobby();
 }
 
 void APvPArenaGameMode::Logout(AController* Exiting)
@@ -132,9 +131,30 @@ bool APvPArenaGameMode::IsReadyToStartMatch(int32 ConnectedPlayers, int32 ReadyP
     return ConnectedPlayers >= MinimumPlayersToStartMatch;
 }
 
+bool APvPArenaGameMode::CanLobbyHostStartMatch(bool bRequestingControllerHasAuthority, int32 ConnectedPlayers) const
+{
+    return bRequestingControllerHasAuthority && ConnectedPlayers >= MinimumPlayersToStartMatch;
+}
+
 bool APvPArenaGameMode::ShouldReturnToLobbyAfterMatchEnd(int32 RemainingMatchEndSeconds) const
 {
     return RemainingMatchEndSeconds <= 0;
+}
+
+void APvPArenaGameMode::RequestLobbyMatchStart(AController* RequestingController)
+{
+    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    if (!PvPGameState || PvPGameState->GetMatchPhase() != EPvPAMatchPhase::Lobby)
+    {
+        return;
+    }
+
+    if (!CanLobbyHostStartMatch(RequestingController && RequestingController->HasAuthority(), CountConnectedPlayers()))
+    {
+        return;
+    }
+
+    StartMatchFlow();
 }
 
 void APvPArenaGameMode::HandleLobbyReadyStateChanged(APvPArenaPlayerState* PlayerState, bool bReadyForStart)
@@ -145,7 +165,6 @@ void APvPArenaGameMode::HandleLobbyReadyStateChanged(APvPArenaPlayerState* Playe
     }
 
     PlayerState->SetReadyForLobbyStart(bReadyForStart);
-    TryStartMatchFromLobby();
 }
 
 bool APvPArenaGameMode::ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const
@@ -472,34 +491,7 @@ void APvPArenaGameMode::EnterLobbyPhase(bool bResetMatchStats)
 
 void APvPArenaGameMode::TryStartMatchFromLobby()
 {
-    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
-    if (!PvPGameState || PvPGameState->GetMatchPhase() != EPvPAMatchPhase::Lobby)
-    {
-        return;
-    }
-
-    const int32 ConnectedPlayers = CountConnectedPlayers();
-    const int32 ReadyPlayers = CountReadyPlayers();
-    if (!IsReadyToStartMatch(ConnectedPlayers, ReadyPlayers))
-    {
-        CancelLobbyCountdown();
-        return;
-    }
-
-    if (PvPGameState->GetRemainingLobbyCountdownSeconds() <= 0)
-    {
-        PvPGameState->SetRemainingLobbyCountdownSeconds(LobbyCountdownSeconds);
-    }
-
-    if (!LobbyCountdownTimerHandle.IsValid())
-    {
-        GetWorldTimerManager().SetTimer(
-            LobbyCountdownTimerHandle,
-            this,
-            &APvPArenaGameMode::OnLobbyCountdownSecondElapsed,
-            1.0f,
-            true);
-    }
+    CancelLobbyCountdown();
 }
 
 void APvPArenaGameMode::CancelLobbyCountdown()
@@ -514,30 +506,7 @@ void APvPArenaGameMode::CancelLobbyCountdown()
 
 void APvPArenaGameMode::OnLobbyCountdownSecondElapsed()
 {
-    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
-    if (!PvPGameState || PvPGameState->GetMatchPhase() != EPvPAMatchPhase::Lobby)
-    {
-        CancelLobbyCountdown();
-        return;
-    }
-
-    const int32 ConnectedPlayers = CountConnectedPlayers();
-    const int32 ReadyPlayers = CountReadyPlayers();
-    if (!IsReadyToStartMatch(ConnectedPlayers, ReadyPlayers))
-    {
-        CancelLobbyCountdown();
-        return;
-    }
-
-    const int32 NewTime = PvPGameState->GetRemainingLobbyCountdownSeconds() - 1;
-    PvPGameState->SetRemainingLobbyCountdownSeconds(NewTime);
-    if (NewTime > 0)
-    {
-        return;
-    }
-
-    GetWorldTimerManager().ClearTimer(LobbyCountdownTimerHandle);
-    StartMatchFlow();
+    CancelLobbyCountdown();
 }
 
 void APvPArenaGameMode::StartMatchFlow()

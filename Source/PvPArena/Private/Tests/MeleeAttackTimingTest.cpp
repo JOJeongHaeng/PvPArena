@@ -1,4 +1,5 @@
 #include "Misc/AutomationTest.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Player/PvPArenaCharacter.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -18,6 +19,11 @@ bool FMeleeAttackTimingTest::RunTest(const FString& Parameters)
 
     TestFalse(TEXT("Attack should not start in progress"), Character->IsMeleeAttackInProgress());
     TestFalse(TEXT("Hit should not start triggered"), Character->HasTriggeredMeleeAttackHit());
+
+    Character->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
+    TestFalse(TEXT("Melee attack should be blocked while airborne"), Character->BeginMeleeAttack(0.0f));
+    TestFalse(TEXT("Airborne melee block should not start the attack"), Character->IsMeleeAttackInProgress());
+    Character->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 
     TestTrue(TEXT("First melee start should succeed"), Character->BeginMeleeAttack(0.0f));
     TestTrue(TEXT("Attack should enter in-progress state"), Character->IsMeleeAttackInProgress());

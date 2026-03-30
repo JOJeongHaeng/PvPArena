@@ -316,7 +316,12 @@ float APvPArenaCharacter::GetDeathAnimationDuration() const
 
 bool APvPArenaCharacter::BeginMeleeAttack(float NowSeconds)
 {
-    if (!CombatComponent || bIsDead || bMeleeAttackInProgress || bRangedAttackInProgress || !CombatComponent->CanUseMelee(NowSeconds))
+    if (!CombatComponent
+        || bIsDead
+        || bMeleeAttackInProgress
+        || bRangedAttackInProgress
+        || GetCharacterMovement()->IsFalling()
+        || !CombatComponent->CanUseMelee(NowSeconds))
     {
         return false;
     }
@@ -382,12 +387,17 @@ bool APvPArenaCharacter::BeginRangedAttack(float NowSeconds)
 
 bool APvPArenaCharacter::BeginRangedCharge(float NowSeconds)
 {
-    if (!CombatComponent || bIsDead || bMeleeAttackInProgress || bRangedAttackInProgress || !CombatComponent->CanUseRanged(NowSeconds))
+    if (!CombatComponent
+        || bIsDead
+        || bMeleeAttackInProgress
+        || bRangedAttackInProgress
+        || GetCharacterMovement()->IsFalling()
+        || !CombatComponent->CanUseRanged(NowSeconds))
     {
         UE_LOG(
             LogPvPArena,
             Warning,
-            TEXT("BeginRangedCharge blocked Character=%s Role=%d Authority=%d Local=%d Combat=%d Dead=%d MeleeInProgress=%d RangedInProgress=%d CanUse=%d"),
+            TEXT("BeginRangedCharge blocked Character=%s Role=%d Authority=%d Local=%d Combat=%d Dead=%d MeleeInProgress=%d RangedInProgress=%d Falling=%d CanUse=%d"),
             *GetName(),
             static_cast<int32>(GetLocalRole()),
             HasAuthority(),
@@ -396,6 +406,7 @@ bool APvPArenaCharacter::BeginRangedCharge(float NowSeconds)
             bIsDead,
             bMeleeAttackInProgress,
             bRangedAttackInProgress,
+            GetCharacterMovement()->IsFalling(),
             CombatComponent ? CombatComponent->CanUseRanged(NowSeconds) : 0);
         return false;
     }

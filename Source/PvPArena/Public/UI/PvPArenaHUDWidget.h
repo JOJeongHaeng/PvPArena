@@ -44,6 +44,8 @@ private:
     UFUNCTION()
     void HandleLobbyReadyButtonClicked();
 
+    bool ShouldShowLobbyStartButton(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
+
     UFUNCTION()
     void HandleHostMatchButtonClicked();
 
@@ -93,7 +95,7 @@ private:
     void ApplyLobbyInputMode(class APlayerController* PlayerController, bool bEnableLobbyInput);
     void SetConnectionStatus(const FString& NewStatus);
     bool ExecuteTravelCommand(const FString& TravelCommand, const FString& PendingStatus);
-    FString GetLobbyStatusText(const class APvPArenaGameState* GameState) const;
+    FString GetLobbyStatusText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetRoundResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetMatchResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetMatchSummaryText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
