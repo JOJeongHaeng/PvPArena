@@ -132,6 +132,7 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     UEditableTextBox* JoinAddressTextBox = Cast<UEditableTextBox>(WidgetTree->FindWidget(TEXT("JoinAddressTextBox")));
     UButton* HostMatchButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("HostMatchButton")));
     UButton* JoinByIpButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("JoinByIpButton")));
+    UTextBlock* LobbyReadyButtonText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("LobbyReadyButtonText")));
     UButton* SettingsResumeButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingsResumeButton")));
     UButton* SettingsQuitButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingsQuitButton")));
 
@@ -169,6 +170,7 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("JoinAddressTextBox should exist"), JoinAddressTextBox);
     TestNotNull(TEXT("HostMatchButton should exist"), HostMatchButton);
     TestNotNull(TEXT("JoinByIpButton should exist"), JoinByIpButton);
+    TestNotNull(TEXT("LobbyReadyButtonText should exist"), LobbyReadyButtonText);
     TestNotNull(TEXT("SettingsResumeButton should exist"), SettingsResumeButton);
     TestNotNull(TEXT("SettingsQuitButton should exist"), SettingsQuitButton);
     TestEqual(TEXT("AnnouncementPanel should stay hidden until round end"),
@@ -241,6 +243,9 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         ConnectionStatusText && ConnectionStatusText->Slot && ConnectionStatusText->Slot->Parent == LobbyBox);
     TestTrue(TEXT("Join address text box should sit inside the main lobby panel"),
         JoinAddressTextBox && JoinAddressTextBox->Slot && JoinAddressTextBox->Slot->Parent == LobbyBox);
+    TestEqual(TEXT("Lobby start button should use the new explicit start label"),
+        LobbyReadyButtonText ? LobbyReadyButtonText->GetText().ToString() : FString(),
+        FString(TEXT("Start Match")));
     TestTrue(TEXT("Join address text box should guide direct IP input"),
         JoinAddressTextBox && JoinAddressTextBox->GetHintText().ToString().Contains(TEXT("7777")));
     return true;

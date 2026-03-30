@@ -532,7 +532,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyReadyButtonText->SetJustification(ETextJustify::Center);
     LobbyReadyButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyReadyButtonText->SetFont(FSlateFontInfo(LobbyReadyButtonText->GetFont().FontObject, 22, LobbyReadyButtonText->GetFont().TypefaceFontName));
-    LobbyReadyButtonText->SetText(FText::FromString(TEXT("Ready")));
+    LobbyReadyButtonText->SetText(FText::FromString(TEXT("Start Match")));
 
     if (LobbyControlsTitleTextSlot)
     {
@@ -1080,17 +1080,20 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
         if (LobbyStatusText)
         {
-            LobbyStatusText->SetText(FText::FromString(bIsLobby ? GetLobbyStatusText(PvPGameState) : FString()));
+            LobbyStatusText->SetText(FText::FromString(bIsLobby ? GetLobbyStatusText(PlayerController, PvPGameState) : FString()));
         }
 
         if (LobbyReadyButton)
         {
-            LobbyReadyButton->SetVisibility(ESlateVisibility::Collapsed);
+            LobbyReadyButton->SetVisibility(
+                bIsLobby && ShouldShowLobbyStartButton(PlayerController, PvPGameState)
+                    ? ESlateVisibility::Visible
+                    : ESlateVisibility::Collapsed);
         }
 
         if (LobbyReadyButtonText)
         {
-            LobbyReadyButtonText->SetText(FText::FromString(TEXT("Waiting for players")));
+            LobbyReadyButtonText->SetText(FText::FromString(TEXT("Start Match")));
         }
 
         if (MatchResultTitleText)
@@ -1157,7 +1160,7 @@ void UPvPArenaHUDWidget::HandleLobbyReadyButtonClicked()
         return;
     }
 
-    PvPPlayerController->ToggleLobbyReady();
+    PvPPlayerController->RequestLobbyMatchStart();
 }
 
 void UPvPArenaHUDWidget::HandleHostMatchButtonClicked()
@@ -1513,7 +1516,26 @@ FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerCo
     return TEXT("Draw");
 }
 
-FString UPvPArenaHUDWidget::GetLobbyStatusText(const APvPArenaGameState* GameState) const
+bool UPvPArenaHUDWidget::ShouldShowLobbyStartButton(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
+{
+    if (!PlayerController || !GameState || GameState->GetMatchPhase() != EPvPAMatchPhase::Lobby)
+    {
+        return false;
+    }
+
+    int32 ConnectedPlayers = 0;
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        if (Cast<APvPArenaPlayerState>(PlayerState))
+        {
+            ++ConnectedPlayers;
+        }
+    }
+
+    return PlayerController->HasAuthority() && ConnectedPlayers >= 2;
+}
+
+FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
 {
     int32 ConnectedPlayers = 0;
     if (GameState)
@@ -1530,22 +1552,29 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APvPArenaGameState* GameSta
         }
     }
 
-    const int32 CountdownSeconds = GameState ? GameState->GetRemainingLobbyCountdownSeconds() : 0;
-    if (CountdownSeconds > 0)
+    if (ConnectedPlayers < 2)
     {
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nMatch starts in: %d\nFirst to %d round wins takes the match."),
+            TEXT("Players Connected: %d / %d\nNeed %d players connected to begin.\nFirst to %d round wins takes the match."),
             ConnectedPlayers,
             ConnectedPlayers,
-            CountdownSeconds,
+            2,
+            GameState ? GameState->GetRoundWinsToWin() : 2);
+    }
+
+    if (PlayerController && PlayerController->HasAuthority())
+    {
+        return FString::Printf(
+            TEXT("Players Connected: %d / %d\nAll players are in. Press Start Match when ready.\nFirst to %d round wins takes the match."),
+            ConnectedPlayers,
+            ConnectedPlayers,
             GameState ? GameState->GetRoundWinsToWin() : 2);
     }
 
     return FString::Printf(
-        TEXT("Players Connected: %d / %d\nNeed %d players connected to begin.\nFirst to %d round wins takes the match."),
+        TEXT("Players Connected: %d / %d\nWaiting for the host to start the match.\nFirst to %d round wins takes the match."),
         ConnectedPlayers,
         ConnectedPlayers,
-        2,
         GameState ? GameState->GetRoundWinsToWin() : 2);
 }
 

@@ -60,7 +60,13 @@ public:
     bool IsReadyToStartMatch(int32 ConnectedPlayers, int32 ReadyPlayers) const;
 
     UFUNCTION(BlueprintPure, Category = "Match")
+    bool CanLobbyHostStartMatch(bool bRequestingControllerHasAuthority, int32 ConnectedPlayers) const;
+
+    UFUNCTION(BlueprintPure, Category = "Match")
     bool ShouldReturnToLobbyAfterMatchEnd(int32 RemainingMatchEndSeconds) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Match")
+    void RequestLobbyMatchStart(AController* RequestingController);
 
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandleLobbyReadyStateChanged(APvPArenaPlayerState* PlayerState, bool bReadyForStart);
