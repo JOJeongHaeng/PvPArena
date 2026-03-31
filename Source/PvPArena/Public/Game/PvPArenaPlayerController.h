@@ -22,6 +22,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Lobby")
     void ToggleLobbyReady();
 
+    UFUNCTION(BlueprintCallable, Category = "Lobby")
+    void SubmitLobbyNickname(const FString& Nickname);
+
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<UUserWidget> HUDWidgetClass;
@@ -34,6 +37,9 @@ private:
 
     UFUNCTION(Server, Reliable)
     void ServerSetLobbyReady(bool bReadyForStart);
+
+    UFUNCTION(Server, Reliable)
+    void ServerSubmitLobbyNickname(const FString& Nickname);
 
     void TryCreateHUDWidget();
     void RetryCreateHUDWidget();

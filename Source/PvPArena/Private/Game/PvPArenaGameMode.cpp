@@ -20,6 +20,11 @@ APvPArenaGameMode::APvPArenaGameMode()
     HUDClass = AHUD::StaticClass();
 }
 
+FString APvPArenaGameMode::BuildDefaultDisplayNickname(int32 PlayerIndex)
+{
+    return FString::Printf(TEXT("Player%d"), FMath::Max(1, PlayerIndex));
+}
+
 void APvPArenaGameMode::BeginPlay()
 {
     Super::BeginPlay();
@@ -30,6 +35,12 @@ void APvPArenaGameMode::BeginPlay()
 void APvPArenaGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
+
+    APvPArenaPlayerState* PlayerState = NewPlayer ? NewPlayer->GetPlayerState<APvPArenaPlayerState>() : nullptr;
+    if (PlayerState && PlayerState->GetDisplayNickname().IsEmpty())
+    {
+        PlayerState->SetDisplayNickname(ResolveUniqueDefaultDisplayNickname(PlayerState));
+    }
 }
 
 void APvPArenaGameMode::Logout(AController* Exiting)
@@ -165,6 +176,20 @@ void APvPArenaGameMode::HandleLobbyReadyStateChanged(APvPArenaPlayerState* Playe
     }
 
     PlayerState->SetReadyForLobbyStart(bReadyForStart);
+}
+
+void APvPArenaGameMode::HandleLobbyDisplayNicknameChanged(APvPArenaPlayerState* PlayerState, const FString& RequestedNickname)
+{
+    if (!PlayerState)
+    {
+        return;
+    }
+
+    const FString NormalizedNickname = APvPArenaPlayerState::BuildNormalizedDisplayNickname(RequestedNickname);
+    PlayerState->SetDisplayNickname(
+        NormalizedNickname.IsEmpty()
+            ? ResolveUniqueDefaultDisplayNickname(PlayerState)
+            : NormalizedNickname);
 }
 
 bool APvPArenaGameMode::ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const
@@ -660,6 +685,41 @@ int32 APvPArenaGameMode::CountReadyPlayers() const
     }
 
     return ReadyPlayers;
+}
+
+FString APvPArenaGameMode::ResolveUniqueDefaultDisplayNickname(const APvPArenaPlayerState* ExcludedPlayerState) const
+{
+    const AGameStateBase* BaseGameState = GameState;
+    int32 CandidateIndex = 1;
+
+    while (true)
+    {
+        const FString CandidateNickname = BuildDefaultDisplayNickname(CandidateIndex++);
+        bool bNameAlreadyInUse = false;
+
+        if (BaseGameState)
+        {
+            for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+            {
+                const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+                if (!PvPPlayerState || PvPPlayerState == ExcludedPlayerState)
+                {
+                    continue;
+                }
+
+                if (PvPPlayerState->GetDisplayNickname().Equals(CandidateNickname, ESearchCase::CaseSensitive))
+                {
+                    bNameAlreadyInUse = true;
+                    break;
+                }
+            }
+        }
+
+        if (!bNameAlreadyInUse)
+        {
+            return CandidateNickname;
+        }
+    }
 }
 
 void APvPArenaGameMode::ResetAllMatchStats()

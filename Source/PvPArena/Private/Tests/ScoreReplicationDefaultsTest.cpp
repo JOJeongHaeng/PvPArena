@@ -22,5 +22,6 @@ bool FScoreDefaultsTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Match deaths default"), PlayerState->GetMatchDeaths(), 0);
     TestEqual(TEXT("Round wins default"), PlayerState->GetRoundWins(), 0);
     TestFalse(TEXT("Ready default"), PlayerState->IsReadyForLobbyStart());
+    TestEqual(TEXT("Display nickname default"), PlayerState->GetDisplayNickname(), FString());
     return true;
 }

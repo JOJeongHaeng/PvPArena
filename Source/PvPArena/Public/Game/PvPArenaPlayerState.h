@@ -18,11 +18,15 @@ public:
     bool IsReadyForLobbyStart() const { return bReadyForLobbyStart; }
     int32 GetKills() const { return GetRoundKills(); }
     int32 GetDeaths() const { return GetRoundDeaths(); }
+    const FString& GetDisplayNickname() const { return DisplayNickname; }
+
+    static FString BuildNormalizedDisplayNickname(const FString& RawNickname);
 
     void AddKill();
     void AddDeath();
     void AddRoundWin();
     void SetReadyForLobbyStart(bool bNewReady);
+    void SetDisplayNickname(const FString& NewNickname);
     void ResetRoundStats();
     void ResetMatchStats();
 
@@ -47,4 +51,7 @@ private:
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
     bool bReadyForLobbyStart = false;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Identity")
+    FString DisplayNickname;
 };

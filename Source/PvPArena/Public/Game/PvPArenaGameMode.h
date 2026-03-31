@@ -35,6 +35,8 @@ public:
     int32 GetRoundEndDelaySeconds() const { return RoundEndDelaySeconds; }
     float GetRespawnInvulnerabilitySeconds() const { return RespawnInvulnerabilitySeconds; }
 
+    static FString BuildDefaultDisplayNickname(int32 PlayerIndex);
+
     UFUNCTION(BlueprintCallable, Category = "Match")
     void RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlayerState* Victim);
 
@@ -71,6 +73,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandleLobbyReadyStateChanged(APvPArenaPlayerState* PlayerState, bool bReadyForStart);
 
+    UFUNCTION(BlueprintCallable, Category = "Match")
+    void HandleLobbyDisplayNicknameChanged(APvPArenaPlayerState* PlayerState, const FString& RequestedNickname);
+
     UFUNCTION(BlueprintPure, Category = "Match")
     bool ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const;
 
@@ -104,6 +109,7 @@ private:
     APvPArenaPlayerState* ResolveRoundWinnerFromScores() const;
     int32 CountConnectedPlayers() const;
     int32 CountReadyPlayers() const;
+    FString ResolveUniqueDefaultDisplayNickname(const APvPArenaPlayerState* ExcludedPlayerState = nullptr) const;
     void ResetAllMatchStats();
     void OnMatchEndSecondElapsed();
     void OnRoundResetSecondElapsed();

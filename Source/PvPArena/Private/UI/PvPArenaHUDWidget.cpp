@@ -37,6 +37,7 @@ const TCHAR* GameplayBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Ba
 const TCHAR* HostTravelMapPath = TEXT("/Game/PvPArena/Maps/PvPArena_TestMap?listen");
 const TCHAR* DefaultJoinAddressHint = TEXT("123.45.67.89:7777");
 const FIntPoint DefaultWindowedResolution(1280, 720);
+constexpr float DefaultRangedCrosshairVerticalOffset = -24.0f;
 }
 
 UPvPArenaHUDWidget::UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer)
@@ -145,6 +146,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
 
     StatusPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusPanel"));
+    CountdownPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CountdownPanel"));
     InfoPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InfoPanel"));
     AnnouncementPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("AnnouncementPanel"));
     LobbyPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyPanel"));
@@ -152,6 +154,8 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     MatchResultPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MatchResultPanel"));
     SettingsPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SettingsPanel"));
     StatusBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusBox"));
+    StatusCardsBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("StatusCardsBox"));
+    CountdownBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CountdownBox"));
     InfoBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("InfoBox"));
     AnnouncementBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("AnnouncementBox"));
     LobbyBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyBox"));
@@ -161,8 +165,14 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     SettingsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SettingsBox"));
     LobbyKeyboardCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyKeyboardCard"));
     LobbyMouseCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyMouseCard"));
+    HealthCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HealthCard"));
+    SprintCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SprintCard"));
+    RangedCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCard"));
     LobbyKeyboardCardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyKeyboardCardBox"));
     LobbyMouseCardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyMouseCardBox"));
+    HealthCardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("HealthCardBox"));
+    SprintCardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SprintCardBox"));
+    RangedCardBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RangedCardBox"));
     HealthBarSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("HealthBarSizeBox"));
     HealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("HealthBar"));
     SprintBarSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("SprintBarSizeBox"));
@@ -192,6 +202,8 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     MatchResultTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchResultTitleText"));
     MatchResultSummaryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchResultSummaryText"));
     ConnectionStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionStatusText"));
+    LobbyNicknameTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LobbyNicknameTextBox"));
+    LobbyPlayerListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyPlayerListBox"));
     SettingsTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsTitleText"));
     SettingsDisplayModeLabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsDisplayModeLabelText"));
     SettingsResolutionLabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsResolutionLabelText"));
@@ -223,14 +235,18 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     RangedCrosshairHorizontalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairHorizontalLine"));
     RangedCrosshairVerticalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairVerticalLine"));
 
-    if (!RootOverlay || !StatusPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !StatusBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !LobbyKeyboardCard || !LobbyMouseCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
+    if (!RootOverlay || !StatusPanel || !CountdownPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !StatusCardsBox || !CountdownBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !LobbyKeyboardCard || !LobbyMouseCard || !HealthCard || !SprintCard || !RangedCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthCardBox || !SprintCardBox || !RangedCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !LobbyNicknameTextBox || !LobbyPlayerListBox || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
     {
         return;
     }
 
-    StatusPanel->SetContent(StatusBox);
-    StatusPanel->SetPadding(FMargin(18.0f, 16.0f, 18.0f, 16.0f));
+    StatusPanel->SetContent(StatusCardsBox);
+    StatusPanel->SetPadding(FMargin(20.0f, 14.0f, 20.0f, 14.0f));
     StatusPanel->SetBrushColor(FLinearColor(0.03f, 0.05f, 0.08f, 0.78f));
+
+    CountdownPanel->SetContent(CountdownBox);
+    CountdownPanel->SetPadding(FMargin(20.0f, 10.0f, 20.0f, 10.0f));
+    CountdownPanel->SetBrushColor(FLinearColor(0.03f, 0.05f, 0.08f, 0.78f));
 
     InfoPanel->SetContent(InfoBox);
     InfoPanel->SetPadding(FMargin(18.0f, 16.0f, 18.0f, 16.0f));
@@ -262,6 +278,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     SettingsPanel->SetVisibility(ESlateVisibility::Collapsed);
 
     UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
+    UOverlaySlot* CountdownBoxSlot = RootOverlay->AddChildToOverlay(CountdownPanel);
     UOverlaySlot* InfoBoxSlot = RootOverlay->AddChildToOverlay(InfoPanel);
     UOverlaySlot* AnnouncementBoxSlot = RootOverlay->AddChildToOverlay(AnnouncementPanel);
     UOverlaySlot* LobbyBoxSlot = RootOverlay->AddChildToOverlay(LobbyPanel);
@@ -272,9 +289,16 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
 
     if (StatusBoxSlot)
     {
-        StatusBoxSlot->SetHorizontalAlignment(HAlign_Right);
-        StatusBoxSlot->SetVerticalAlignment(VAlign_Top);
-        StatusBoxSlot->SetPadding(FMargin(0.0f, 40.0f, 40.0f, 0.0f));
+        StatusBoxSlot->SetHorizontalAlignment(HAlign_Center);
+        StatusBoxSlot->SetVerticalAlignment(VAlign_Bottom);
+        StatusBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 44.0f));
+    }
+
+    if (CountdownBoxSlot)
+    {
+        CountdownBoxSlot->SetHorizontalAlignment(HAlign_Center);
+        CountdownBoxSlot->SetVerticalAlignment(VAlign_Top);
+        CountdownBoxSlot->SetPadding(FMargin(0.0f, 28.0f, 0.0f, 0.0f));
     }
 
     if (InfoBoxSlot)
@@ -329,8 +353,21 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     RangedCrosshairVerticalBox->SetHeightOverride(18.0f);
     RangedCrosshairVerticalBox->SetContent(RangedCrosshairVerticalLine);
 
+    HealthCard->SetContent(HealthCardBox);
+    HealthCard->SetPadding(FMargin(16.0f, 12.0f, 16.0f, 12.0f));
+    HealthCard->SetBrushColor(FLinearColor(0.03f, 0.05f, 0.08f, 0.84f));
+    SprintCard->SetContent(SprintCardBox);
+    SprintCard->SetPadding(FMargin(16.0f, 12.0f, 16.0f, 12.0f));
+    SprintCard->SetBrushColor(FLinearColor(0.03f, 0.05f, 0.08f, 0.84f));
+    RangedCard->SetContent(RangedCardBox);
+    RangedCard->SetPadding(FMargin(16.0f, 12.0f, 16.0f, 12.0f));
+    RangedCard->SetBrushColor(FLinearColor(0.03f, 0.05f, 0.08f, 0.84f));
+
     UOverlaySlot* HorizontalCrosshairSlot = RangedCrosshairOverlay->AddChildToOverlay(RangedCrosshairHorizontalBox);
     UOverlaySlot* VerticalCrosshairSlot = RangedCrosshairOverlay->AddChildToOverlay(RangedCrosshairVerticalBox);
+    UHorizontalBoxSlot* HealthCardSlot = StatusCardsBox->AddChildToHorizontalBox(HealthCard);
+    UHorizontalBoxSlot* SprintCardSlot = StatusCardsBox->AddChildToHorizontalBox(SprintCard);
+    UHorizontalBoxSlot* RangedCardSlot = StatusCardsBox->AddChildToHorizontalBox(RangedCard);
     if (HorizontalCrosshairSlot)
     {
         HorizontalCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
@@ -343,6 +380,21 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         VerticalCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
         VerticalCrosshairSlot->SetVerticalAlignment(VAlign_Center);
         VerticalCrosshairSlot->SetPadding(FMargin(0.0f, -9.0f, 0.0f, -9.0f));
+    }
+
+    if (HealthCardSlot)
+    {
+        HealthCardSlot->SetPadding(FMargin(0.0f, 0.0f, 10.0f, 0.0f));
+    }
+
+    if (SprintCardSlot)
+    {
+        SprintCardSlot->SetPadding(FMargin(10.0f, 0.0f, 10.0f, 0.0f));
+    }
+
+    if (RangedCardSlot)
+    {
+        RangedCardSlot->SetPadding(FMargin(10.0f, 0.0f, 0.0f, 0.0f));
     }
 
     HealthBarSizeBox->SetWidthOverride(280.0f);
@@ -363,21 +415,23 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     SprintBar->SetFillColorAndOpacity(FLinearColor(0.95f, 0.82f, 0.15f, 1.0f));
     RangedCooldownBar->SetPercent(1.0f);
     RangedCooldownBar->SetFillColorAndOpacity(FLinearColor(0.2f, 0.75f, 1.0f, 1.0f));
-    UVerticalBoxSlot* HealthBarSlot = StatusBox->AddChildToVerticalBox(HealthBarSizeBox);
-    UVerticalBoxSlot* HealthTextSlot = StatusBox->AddChildToVerticalBox(HealthText);
-    UVerticalBoxSlot* SprintBarSlot = StatusBox->AddChildToVerticalBox(SprintBarSizeBox);
-    UVerticalBoxSlot* SprintTextSlot = StatusBox->AddChildToVerticalBox(SprintText);
-    UVerticalBoxSlot* RangedCooldownBarSlot = StatusBox->AddChildToVerticalBox(RangedCooldownBarSizeBox);
-    UVerticalBoxSlot* RangedCooldownTextSlot = StatusBox->AddChildToVerticalBox(RangedCooldownText);
+    UVerticalBoxSlot* HealthBarSlot = HealthCardBox->AddChildToVerticalBox(HealthBarSizeBox);
+    UVerticalBoxSlot* HealthTextSlot = HealthCardBox->AddChildToVerticalBox(HealthText);
+    UVerticalBoxSlot* SprintBarSlot = SprintCardBox->AddChildToVerticalBox(SprintBarSizeBox);
+    UVerticalBoxSlot* SprintTextSlot = SprintCardBox->AddChildToVerticalBox(SprintText);
+    UVerticalBoxSlot* RangedCooldownBarSlot = RangedCardBox->AddChildToVerticalBox(RangedCooldownBarSizeBox);
+    UVerticalBoxSlot* RangedCooldownTextSlot = RangedCardBox->AddChildToVerticalBox(RangedCooldownText);
+    UVerticalBoxSlot* TimerTextSlot = CountdownBox->AddChildToVerticalBox(TimerText);
     UVerticalBoxSlot* RoundScoreTextSlot = InfoBox->AddChildToVerticalBox(RoundScoreText);
     UVerticalBoxSlot* MatchScoreTextSlot = InfoBox->AddChildToVerticalBox(MatchScoreText);
-    UVerticalBoxSlot* TimerTextSlot = InfoBox->AddChildToVerticalBox(TimerText);
     UVerticalBoxSlot* RoundStateTextSlot = InfoBox->AddChildToVerticalBox(RoundStateText);
     UVerticalBoxSlot* ResultTextSlot = AnnouncementBox->AddChildToVerticalBox(ResultText);
     UVerticalBoxSlot* NextRoundTextSlot = AnnouncementBox->AddChildToVerticalBox(NextRoundText);
     UVerticalBoxSlot* LobbyTitleTextSlot = LobbyBox->AddChildToVerticalBox(LobbyTitleText);
     UVerticalBoxSlot* LobbyStatusTextSlot = LobbyBox->AddChildToVerticalBox(LobbyStatusText);
     UVerticalBoxSlot* ConnectionStatusTextSlot = LobbyBox->AddChildToVerticalBox(ConnectionStatusText);
+    UVerticalBoxSlot* LobbyNicknameTextBoxSlot = LobbyBox->AddChildToVerticalBox(LobbyNicknameTextBox);
+    UVerticalBoxSlot* LobbyPlayerListBoxSlot = LobbyBox->AddChildToVerticalBox(LobbyPlayerListBox);
     UVerticalBoxSlot* JoinAddressTextBoxSlot = LobbyBox->AddChildToVerticalBox(JoinAddressTextBox);
     UVerticalBoxSlot* HostMatchButtonSlot = LobbyBox->AddChildToVerticalBox(HostMatchButton);
     UVerticalBoxSlot* JoinByIpButtonSlot = LobbyBox->AddChildToVerticalBox(JoinByIpButton);
@@ -559,6 +613,22 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     ConnectionStatusText->SetFont(FSlateFontInfo(ConnectionStatusText->GetFont().FontObject, 16, ConnectionStatusText->GetFont().TypefaceFontName));
     ConnectionStatusText->SetText(FText::FromString(TEXT("Network: Ready to host or join")));
 
+    if (LobbyNicknameTextBoxSlot)
+    {
+        LobbyNicknameTextBoxSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+        LobbyNicknameTextBoxSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    LobbyNicknameTextBox->SetMinDesiredWidth(250.0f);
+    LobbyNicknameTextBox->SetHintText(FText::FromString(TEXT("Nickname")));
+    LobbyNicknameTextBox->SetText(FText::GetEmpty());
+    LobbyNicknameTextBox->OnTextCommitted.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyNicknameTextCommitted);
+
+    if (LobbyPlayerListBoxSlot)
+    {
+        LobbyPlayerListBoxSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 4.0f));
+        LobbyPlayerListBoxSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
     if (JoinAddressTextBoxSlot)
     {
         JoinAddressTextBoxSlot->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f));
@@ -607,7 +677,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsKeyboardSprintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.86f, 0.35f, 1.0f)));
     LobbyControlsKeyboardSprintText->SetFont(FSlateFontInfo(LobbyControlsKeyboardSprintText->GetFont().FontObject, 17, LobbyControlsKeyboardSprintText->GetFont().TypefaceFontName));
-    LobbyControlsKeyboardSprintText->SetText(FText::FromString(TEXT("[ Shift ]   Sprint")));
+    LobbyControlsKeyboardSprintText->SetText(FText::FromString(TEXT("[ Shift ]   Dash")));
 
     if (LobbyControlsMouseTitleTextSlot)
     {
@@ -835,15 +905,15 @@ void UPvPArenaHUDWidget::BuildSprintDisplayState(const APvPArenaCharacter* Chara
     if (!Character)
     {
         OutSprintPercent = 0.0f;
-        OutSprintLabel = TEXT("Sprint: --");
+        OutSprintLabel = TEXT("Dash: --");
         return;
     }
 
     OutSprintPercent = Character->GetSprintEnergyAlpha();
     OutSprintLabel = FString::Printf(
-        TEXT("Sprint: %.1fs %s"),
+        TEXT("Dash: %.1fs %s"),
         Character->GetCurrentSprintEnergySeconds(),
-        Character->IsSprinting() ? TEXT("(Boost)") : TEXT("(Charging)"));
+        Character->IsSprinting() ? TEXT("(Active)") : TEXT("(Charging)"));
 }
 
 void UPvPArenaHUDWidget::BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel)
@@ -862,11 +932,29 @@ void UPvPArenaHUDWidget::BuildRangedCooldownDisplayState(const UPvPCombatCompone
         : FString(TEXT("Ranged: Ready"));
 }
 
-ESlateVisibility UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(const APvPArenaCharacter* Character)
+ESlateVisibility UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(
+    const APvPArenaCharacter* Character,
+    const APvPArenaGameState* GameState)
 {
-    return Character && Character->IsRangedChargeInputHeld()
+    return Character
+        && GameState
+        && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
         ? ESlateVisibility::Visible
         : ESlateVisibility::Collapsed;
+}
+
+float UPvPArenaHUDWidget::BuildRangedCrosshairVerticalOffsetState(
+    const APvPArenaCharacter* Character,
+    const APvPArenaGameState* GameState)
+{
+    if (BuildRangedCrosshairVisibilityState(Character, GameState) != ESlateVisibility::Visible)
+    {
+        return 0.0f;
+    }
+
+    return Character && Character->IsRangedChargeInputHeld()
+        ? 0.0f
+        : DefaultRangedCrosshairVerticalOffset;
 }
 
 FString UPvPArenaHUDWidget::BuildBackgroundMusicAssetPathForMatchPhase(uint8 MatchPhaseValue)
@@ -881,6 +969,42 @@ FString UPvPArenaHUDWidget::BuildBackgroundMusicAssetPathForMatchPhase(uint8 Mat
     default:
         return FString(NonCombatBackgroundMusicPath);
     }
+}
+
+TArray<FString> UPvPArenaHUDWidget::BuildLobbyParticipantLabels(const APvPArenaGameState* GameState)
+{
+    TArray<FString> ParticipantLabels;
+    if (!GameState)
+    {
+        return ParticipantLabels;
+    }
+
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (!PvPPlayerState)
+        {
+            continue;
+        }
+
+        ParticipantLabels.Add(
+            PvPPlayerState->GetDisplayNickname().IsEmpty()
+                ? FString(TEXT("Player"))
+                : PvPPlayerState->GetDisplayNickname());
+    }
+
+    return ParticipantLabels;
+}
+
+FString UPvPArenaHUDWidget::BuildLobbyNicknameTextBoxValue(const FString& DraftNickname, const FString& ReplicatedNickname)
+{
+    const FString NormalizedDraft = APvPArenaPlayerState::BuildNormalizedDisplayNickname(DraftNickname);
+    if (!NormalizedDraft.IsEmpty())
+    {
+        return NormalizedDraft;
+    }
+
+    return APvPArenaPlayerState::BuildNormalizedDisplayNickname(ReplicatedNickname);
 }
 
 void UPvPArenaHUDWidget::RefreshBackgroundMusic(const APvPArenaGameState* GameState)
@@ -975,12 +1099,13 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         RangedCooldownText->SetText(FText::FromString(RangedCooldownLabel));
     }
 
-    if (const APvPArenaPlayerState* PvPPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>())
+    const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
+    if (LocalPlayerState)
     {
         if (RoundScoreText)
         {
             RoundScoreText->SetText(FText::FromString(
-                FString::Printf(TEXT("Round K / D: %d / %d"), PvPPlayerState->GetRoundKills(), PvPPlayerState->GetRoundDeaths())));
+                FString::Printf(TEXT("Round K / D: %d / %d"), LocalPlayerState->GetRoundKills(), LocalPlayerState->GetRoundDeaths())));
         }
 
         if (MatchScoreText)
@@ -988,10 +1113,10 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
             MatchScoreText->SetText(FText::FromString(
                 FString::Printf(
                     TEXT("Rounds: %d / %d | Match K / D: %d / %d"),
-                    PvPPlayerState->GetRoundWins(),
+                    LocalPlayerState->GetRoundWins(),
                     PvPGameState ? PvPGameState->GetRoundWinsToWin() : 2,
-                    PvPPlayerState->GetMatchKills(),
-                    PvPPlayerState->GetMatchDeaths())));
+                    LocalPlayerState->GetMatchKills(),
+                    LocalPlayerState->GetMatchDeaths())));
         }
     }
 
@@ -1082,6 +1207,20 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         {
             LobbyStatusText->SetText(FText::FromString(bIsLobby ? GetLobbyStatusText(PlayerController, PvPGameState) : FString()));
         }
+
+        if (LobbyNicknameTextBox && LocalPlayerState && !LobbyNicknameTextBox->HasKeyboardFocus())
+        {
+            const FString DesiredNickname = BuildLobbyNicknameTextBoxValue(FString(), LocalPlayerState->GetDisplayNickname());
+            const FString CurrentNickname = LobbyNicknameTextBox->GetText().ToString();
+            if (!DesiredNickname.Equals(CurrentNickname, ESearchCase::CaseSensitive))
+            {
+                bUpdatingLobbyNicknameText = true;
+                LobbyNicknameTextBox->SetText(FText::FromString(DesiredNickname));
+                bUpdatingLobbyNicknameText = false;
+            }
+        }
+
+        RefreshLobbyParticipantList(PvPGameState);
 
         if (LobbyReadyButton)
         {
@@ -1183,6 +1322,22 @@ void UPvPArenaHUDWidget::HandleJoinByIpButtonClicked()
         ? TravelCommand.Mid(AddressStartIndex + 1)
         : TravelCommand;
     ExecuteTravelCommand(TravelCommand, FString::Printf(TEXT("Network: Joining %s"), *PendingAddress));
+}
+
+void UPvPArenaHUDWidget::HandleLobbyNicknameTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod)
+{
+    if (bUpdatingLobbyNicknameText || CommitMethod == ETextCommit::Default)
+    {
+        return;
+    }
+
+    APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(GetOwningPlayer());
+    if (!PvPPlayerController)
+    {
+        return;
+    }
+
+    PvPPlayerController->SubmitLobbyNickname(NewText.ToString());
 }
 
 FString UPvPArenaHUDWidget::BuildHostTravelCommand() const
@@ -1466,7 +1621,41 @@ void UPvPArenaHUDWidget::RefreshCrosshairVisibility()
 
     const APlayerController* PlayerController = GetOwningPlayer();
     const APvPArenaCharacter* Character = PlayerController ? Cast<APvPArenaCharacter>(PlayerController->GetPawn()) : nullptr;
-    RangedCrosshairOverlay->SetVisibility(BuildRangedCrosshairVisibilityState(Character));
+    const APvPArenaGameState* GameState = GetWorld() ? GetWorld()->GetGameState<APvPArenaGameState>() : nullptr;
+    RangedCrosshairOverlay->SetVisibility(BuildRangedCrosshairVisibilityState(Character, GameState));
+    RangedCrosshairOverlay->SetRenderTranslation(FVector2D(
+        0.0f,
+        BuildRangedCrosshairVerticalOffsetState(Character, GameState)));
+}
+
+void UPvPArenaHUDWidget::RefreshLobbyParticipantList(const APvPArenaGameState* GameState)
+{
+    if (!LobbyPlayerListBox || !WidgetTree)
+    {
+        return;
+    }
+
+    LobbyPlayerListBox->ClearChildren();
+
+    for (const FString& ParticipantLabel : BuildLobbyParticipantLabels(GameState))
+    {
+        UTextBlock* ParticipantText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+        if (!ParticipantText)
+        {
+            continue;
+        }
+
+        ParticipantText->SetText(FText::FromString(ParticipantLabel));
+        ParticipantText->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.96f, 1.0f, 1.0f)));
+        ParticipantText->SetFont(FSlateFontInfo(ParticipantText->GetFont().FontObject, 16, ParticipantText->GetFont().TypefaceFontName));
+        ParticipantText->SetShadowOffset(FVector2D(1.0f, 1.0f));
+
+        UVerticalBoxSlot* ParticipantSlot = LobbyPlayerListBox->AddChildToVerticalBox(ParticipantText);
+        if (ParticipantSlot)
+        {
+            ParticipantSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+        }
+    }
 }
 
 FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const

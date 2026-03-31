@@ -23,5 +23,10 @@ public class PvPArena : ModuleRules
             "Slate",
             "SlateCore"
         });
+
+        if (Target.bBuildEditor)
+        {
+            PrivateDependencyModuleNames.Add("UnrealEd");
+        }
     }
 }
