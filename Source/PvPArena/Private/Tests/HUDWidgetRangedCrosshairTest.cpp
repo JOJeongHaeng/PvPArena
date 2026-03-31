@@ -1,4 +1,5 @@
 #include "Misc/AutomationTest.h"
+#include "Game/PvPArenaGameState.h"
 #include "Player/PvPArenaCharacter.h"
 #include "UI/PvPArenaHUDWidget.h"
 
@@ -18,23 +19,58 @@ bool FHUDWidgetRangedCrosshairTest::RunTest(const FString& Parameters)
     }
 
     TestEqual(
-        TEXT("Crosshair should start hidden before ranged charge"),
+        TEXT("Crosshair should stay hidden without match state"),
         UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(Character),
         ESlateVisibility::Collapsed);
-
-    TestTrue(TEXT("Ranged charge should begin for crosshair visibility test"), Character->BeginRangedCharge(0.0f));
-    TestTrue(TEXT("Charge begin should mark input as held"), Character->IsRangedChargeInputHeld());
     TestEqual(
-        TEXT("Crosshair should show while ranged charge input is held"),
-        UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(Character),
+        TEXT("Crosshair should not offset while hidden without match state"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVerticalOffsetState(Character),
+        0.0f);
+
+    APvPArenaGameState* GameState = NewObject<APvPArenaGameState>();
+    TestNotNull(TEXT("GameState should be created"), GameState);
+
+    if (!GameState)
+    {
+        return false;
+    }
+
+    GameState->SetMatchPhase(EPvPAMatchPhase::Playing);
+    TestEqual(
+        TEXT("Crosshair should show throughout active match play"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(Character, GameState),
         ESlateVisibility::Visible);
-
-    TestFalse(TEXT("Early release should cancel ranged charge"), Character->ReleaseRangedCharge(0.1f));
-    TestFalse(TEXT("Release should clear held input immediately"), Character->IsRangedChargeInputHeld());
     TestEqual(
-        TEXT("Crosshair should hide immediately once ranged charge input is released"),
-        UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(Character),
+        TEXT("Crosshair should shift upward during default play"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVerticalOffsetState(Character, GameState),
+        -24.0f);
+
+    const bool bChargeStarted = Character->BeginRangedCharge(0.0f);
+    TestTrue(TEXT("Character should enter ranged charge for aim-state HUD checks"), bChargeStarted);
+    TestEqual(
+        TEXT("Crosshair should return to the center while right-click aim is held"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVerticalOffsetState(Character, GameState),
+        0.0f);
+
+    GameState->SetMatchPhase(EPvPAMatchPhase::Lobby);
+    TestEqual(
+        TEXT("Crosshair should stay hidden in the lobby"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(Character, GameState),
         ESlateVisibility::Collapsed);
+    TestEqual(
+        TEXT("Crosshair should not keep an offset when hidden in the lobby"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVerticalOffsetState(Character, GameState),
+        0.0f);
+
+    GameState->SetMatchPhase(EPvPAMatchPhase::MatchEnd);
+    TestEqual(
+        TEXT("Crosshair should hide again once the match ends"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(Character, GameState),
+        ESlateVisibility::Collapsed);
+    TestEqual(
+        TEXT("Crosshair should reset its visual offset once the match ends"),
+        UPvPArenaHUDWidget::BuildRangedCrosshairVerticalOffsetState(Character, GameState),
+        0.0f);
 
     return true;
 }

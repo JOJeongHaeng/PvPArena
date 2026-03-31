@@ -13,6 +13,7 @@ class UNiagaraSystem;
 class UPvPCombatComponent;
 class USpringArmComponent;
 class USoundBase;
+class UWidgetComponent;
 
 enum class ERangedHitNotifyHandling : uint8
 {
@@ -51,9 +52,16 @@ public:
     bool IsRangedReleaseCommitted() const { return bRangedReleaseCommitted; }
     bool IsRangedChargeInputHeld() const { return bRangedChargeInputHeld; }
     float GetRangedAimCameraBlendAlpha() const { return RangedAimCameraBlendAlpha; }
+    UWidgetComponent* GetOverheadStatusWidgetComponent() const { return OverheadStatusWidgetComponent; }
     bool ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const;
     bool GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const;
     void ApplyAudioSettings(float InMasterVolume, float InSfxVolume);
+    static bool BuildOverheadWidgetVisibleState(
+        bool bHasLocalViewController,
+        bool bIsLocallyControlledCharacter,
+        bool bIsTargetInFrontOfCamera,
+        bool bHasBlockingHit,
+        bool bHitOwningCharacter);
     static ERangedHitNotifyHandling ResolveRangedHitNotifyHandling(
         bool bHasAuthority,
         bool bIsLocallyControlled,
@@ -120,6 +128,7 @@ protected:
     virtual void BeginPlay() override;
     virtual void PossessedBy(AController* NewController) override;
     virtual void OnRep_Controller() override;
+    virtual void OnRep_PlayerState() override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
@@ -162,7 +171,19 @@ private:
     void SetDeathInputSuppressed(bool bSuppressInput);
     void RefreshSprintMovementSpeed();
     bool CanSprint() const;
+    bool TryActivateSprintDash();
+    FVector ResolveSprintDashDirection() const;
+    void ApplySprintDashVelocity(const FVector& DashDirection);
+    float ResolveSprintDashTargetYaw() const;
+    bool UpdatePendingSprintDash(float DeltaSeconds);
     void TryApplyInputMappingContext();
+    void RefreshOverheadStatusWidget();
+    FName ResolveOverheadWidgetSocketName() const;
+    void RefreshOverheadWidgetAttachment();
+    void RefreshOverheadWidgetFacing();
+    void RefreshOverheadWidgetVisibility();
+    bool ShouldShowOverheadWidgetForLocalView(const APlayerController* LocalPlayerController) const;
+    FVector ResolveOverheadWidgetViewTarget() const;
 
     UFUNCTION(Server, Reliable)
     void ServerHandleMeleeAttackHitNotify();
@@ -251,6 +272,18 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.1"))
     float SprintRechargeRate = 0.75f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.1"))
+    float SprintDashDistance = 1800.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.0"))
+    float SprintActiveDurationSeconds = 0.15f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.0"))
+    float SprintDashTurnInterpSpeed = 720.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.0"))
+    float SprintDashYawToleranceDegrees = 6.0f;
+
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     FName RangedAttackStartSectionName = TEXT("Start");
 
@@ -308,6 +341,15 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "Movement")
     float BaseWalkSpeed = 0.0f;
 
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float SprintActiveTimeRemaining = 0.0f;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    bool bPendingSprintDash = false;
+
+    UPROPERTY(VisibleAnywhere, Category = "Movement")
+    float PendingSprintDashTargetYaw = 0.0f;
+
     UPROPERTY(VisibleAnywhere, Category = "Combat")
     FVector CachedRangedAttackAimOrigin = FVector::ZeroVector;
 
@@ -334,6 +376,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "Audio")
     TObjectPtr<UAudioComponent> RangedAttackAudioComponent;
+
+    UPROPERTY(VisibleAnywhere, Category = "UI")
+    TObjectPtr<UWidgetComponent> OverheadStatusWidgetComponent;
 
     UPROPERTY(Transient)
     TObjectPtr<USpringArmComponent> RangedAimSpringArm;

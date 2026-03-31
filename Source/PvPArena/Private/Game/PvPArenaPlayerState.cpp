@@ -2,6 +2,13 @@
 
 #include "Net/UnrealNetwork.h"
 
+FString APvPArenaPlayerState::BuildNormalizedDisplayNickname(const FString& RawNickname)
+{
+    FString NormalizedNickname = RawNickname;
+    NormalizedNickname.TrimStartAndEndInline();
+    return NormalizedNickname;
+}
+
 void APvPArenaPlayerState::AddKill()
 {
     ++RoundKills;
@@ -22,6 +29,11 @@ void APvPArenaPlayerState::AddRoundWin()
 void APvPArenaPlayerState::SetReadyForLobbyStart(bool bNewReady)
 {
     bReadyForLobbyStart = bNewReady;
+}
+
+void APvPArenaPlayerState::SetDisplayNickname(const FString& NewNickname)
+{
+    DisplayNickname = BuildNormalizedDisplayNickname(NewNickname);
 }
 
 void APvPArenaPlayerState::ResetRoundStats()
@@ -49,4 +61,5 @@ void APvPArenaPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
     DOREPLIFETIME(APvPArenaPlayerState, MatchDeaths);
     DOREPLIFETIME(APvPArenaPlayerState, RoundWins);
     DOREPLIFETIME(APvPArenaPlayerState, bReadyForLobbyStart);
+    DOREPLIFETIME(APvPArenaPlayerState, DisplayNickname);
 }

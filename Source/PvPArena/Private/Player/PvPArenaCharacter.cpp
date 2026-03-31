@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/AudioComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Combat/PvPCombatComponent.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputSubsystems.h"
@@ -14,6 +15,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Engine/World.h"
 #include "InputCoreTypes.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -21,6 +23,8 @@
 #include "PvPArena.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
+#include "UI/PvPArenaOverheadStatusWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "UObject/ConstructorHelpers.h"
 
 APvPArenaCharacter::APvPArenaCharacter()
@@ -30,6 +34,7 @@ APvPArenaCharacter::APvPArenaCharacter()
     CombatComponent = CreateDefaultSubobject<UPvPCombatComponent>(TEXT("CombatComponent"));
     MeleeAttackAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("MeleeAttackAudioComponent"));
     RangedAttackAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("RangedAttackAudioComponent"));
+    OverheadStatusWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadStatusWidgetComponent"));
 
     if (MeleeAttackAudioComponent)
     {
@@ -41,6 +46,20 @@ APvPArenaCharacter::APvPArenaCharacter()
     {
         RangedAttackAudioComponent->SetupAttachment(GetRootComponent());
         RangedAttackAudioComponent->SetAutoActivate(false);
+    }
+
+    static ConstructorHelpers::FClassFinder<UUserWidget> OverheadStatusWidgetClassFinder(
+        TEXT("/Game/PvPArena/UI/WBP_OverheadStatus"));
+
+    if (OverheadStatusWidgetComponent)
+    {
+        OverheadStatusWidgetComponent->SetupAttachment(GetMesh(), ResolveOverheadWidgetSocketName());
+        OverheadStatusWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+        OverheadStatusWidgetComponent->SetUsingAbsoluteRotation(true);
+        const TSubclassOf<UUserWidget> OverheadWidgetClass = OverheadStatusWidgetClassFinder.Succeeded()
+            ? TSubclassOf<UUserWidget>(OverheadStatusWidgetClassFinder.Class)
+            : TSubclassOf<UUserWidget>(UPvPArenaOverheadStatusWidget::StaticClass());
+        OverheadStatusWidgetComponent->SetWidgetClass(OverheadWidgetClass);
     }
 
     static ConstructorHelpers::FObjectFinder<UAnimationAsset> DeathAnimationFinder(
@@ -110,16 +129,20 @@ void APvPArenaCharacter::Tick(float DeltaSeconds)
     RefreshRangedAttackAimFromCrosshair();
     UpdateRangedAttackFacing(DeltaSeconds);
     UpdateRangedAimCameraOffset(DeltaSeconds);
+    RefreshOverheadWidgetFacing();
+    RefreshOverheadWidgetVisibility();
 }
 
 void APvPArenaCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    RefreshOverheadWidgetAttachment();
     CurrentSprintEnergySeconds = FMath::Clamp(CurrentSprintEnergySeconds, 0.0f, SprintDurationSeconds);
     RefreshSprintMovementSpeed();
     RefreshAttackAudioVolumes();
     SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
+    RefreshOverheadStatusWidget();
 }
 
 void APvPArenaCharacter::PossessedBy(AController* NewController)
@@ -127,6 +150,7 @@ void APvPArenaCharacter::PossessedBy(AController* NewController)
     Super::PossessedBy(NewController);
     SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
+    RefreshOverheadStatusWidget();
 }
 
 void APvPArenaCharacter::OnRep_Controller()
@@ -134,6 +158,13 @@ void APvPArenaCharacter::OnRep_Controller()
     Super::OnRep_Controller();
     SetDeathInputSuppressed(bIsDead);
     TryApplyInputMappingContext();
+    RefreshOverheadStatusWidget();
+}
+
+void APvPArenaCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+    RefreshOverheadStatusWidget();
 }
 
 void APvPArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -154,6 +185,7 @@ void APvPArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void APvPArenaCharacter::OnRep_CurrentHealth()
 {
     CurrentHealth = FMath::Clamp(CurrentHealth, 0.0f, MaxHealth);
+    RefreshOverheadStatusWidget();
 }
 
 void APvPArenaCharacter::OnRep_IsDead()
@@ -214,13 +246,184 @@ void APvPArenaCharacter::TryApplyInputMappingContext()
     InputSubsystem->AddMappingContext(DefaultInputMappingContext, 0);
 }
 
-void APvPArenaCharacter::BeginSprintInput()
+void APvPArenaCharacter::RefreshOverheadStatusWidget()
 {
-    bSprintInputHeld = true;
-    if (bSprintDepletedLocked)
+    if (!OverheadStatusWidgetComponent)
     {
         return;
     }
+
+    OverheadStatusWidgetComponent->InitWidget();
+
+    UUserWidget* UserWidget = OverheadStatusWidgetComponent->GetUserWidgetObject();
+    UPvPArenaOverheadStatusWidget* OverheadWidget = Cast<UPvPArenaOverheadStatusWidget>(UserWidget);
+    if (!OverheadWidget)
+    {
+        UE_LOG(
+            LogPvPArena,
+            Warning,
+            TEXT("RefreshOverheadStatusWidget: cast failed. ComponentWidgetClass=%s RuntimeWidgetClass=%s"),
+            *GetNameSafe(OverheadStatusWidgetComponent->GetWidgetClass()),
+            *GetNameSafe(UserWidget ? UserWidget->GetClass() : nullptr));
+        return;
+    }
+
+    OverheadWidget->SetObservedCharacter(this);
+    OverheadWidget->RefreshFromCharacter(this);
+}
+
+bool APvPArenaCharacter::BuildOverheadWidgetVisibleState(
+    bool bHasLocalViewController,
+    bool bIsLocallyControlledCharacter,
+    bool bIsTargetInFrontOfCamera,
+    bool bHasBlockingHit,
+    bool bHitOwningCharacter)
+{
+    if (!bHasLocalViewController)
+    {
+        return true;
+    }
+
+    if (!bIsTargetInFrontOfCamera)
+    {
+        return false;
+    }
+
+    if (!bHasBlockingHit)
+    {
+        return true;
+    }
+
+    return bIsLocallyControlledCharacter || bHitOwningCharacter;
+}
+
+FName APvPArenaCharacter::ResolveOverheadWidgetSocketName() const
+{
+    static const FName OverheadSocketName(TEXT("overheadsocket"));
+    return OverheadSocketName;
+}
+
+void APvPArenaCharacter::RefreshOverheadWidgetAttachment()
+{
+    if (!OverheadStatusWidgetComponent || !GetMesh())
+    {
+        return;
+    }
+
+    OverheadStatusWidgetComponent->AttachToComponent(
+        GetMesh(),
+        FAttachmentTransformRules::KeepRelativeTransform,
+        ResolveOverheadWidgetSocketName());
+}
+
+void APvPArenaCharacter::RefreshOverheadWidgetFacing()
+{
+    if (!OverheadStatusWidgetComponent || OverheadStatusWidgetComponent->GetWidgetSpace() != EWidgetSpace::World)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    const APlayerController* LocalPlayerController = World->GetFirstPlayerController();
+    const APlayerCameraManager* CameraManager = LocalPlayerController ? LocalPlayerController->PlayerCameraManager : nullptr;
+    if (!CameraManager)
+    {
+        return;
+    }
+
+    const FVector WidgetLocation = OverheadStatusWidgetComponent->GetComponentLocation();
+    FVector ToCamera = CameraManager->GetCameraLocation() - WidgetLocation;
+    ToCamera.Z = 0.0f;
+
+    if (ToCamera.IsNearlyZero())
+    {
+        return;
+    }
+
+    OverheadStatusWidgetComponent->SetWorldRotation(ToCamera.Rotation());
+}
+
+void APvPArenaCharacter::RefreshOverheadWidgetVisibility()
+{
+    if (!OverheadStatusWidgetComponent)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    const APlayerController* LocalPlayerController = World ? World->GetFirstPlayerController() : nullptr;
+    const bool bShouldShow = ShouldShowOverheadWidgetForLocalView(LocalPlayerController);
+    OverheadStatusWidgetComponent->SetVisibility(bShouldShow, true);
+}
+
+bool APvPArenaCharacter::ShouldShowOverheadWidgetForLocalView(const APlayerController* LocalPlayerController) const
+{
+    if (!OverheadStatusWidgetComponent)
+    {
+        return false;
+    }
+
+    const bool bHasLocalViewController = LocalPlayerController != nullptr;
+    if (!bHasLocalViewController)
+    {
+        return BuildOverheadWidgetVisibleState(false, IsLocallyControlled(), true, false, false);
+    }
+
+    const APlayerCameraManager* CameraManager = LocalPlayerController->PlayerCameraManager;
+    if (!CameraManager)
+    {
+        return BuildOverheadWidgetVisibleState(false, IsLocallyControlled(), true, false, false);
+    }
+
+    const FVector CameraLocation = CameraManager->GetCameraLocation();
+    const FVector ViewTarget = ResolveOverheadWidgetViewTarget();
+    const FVector ToTarget = ViewTarget - CameraLocation;
+    const FVector CameraForward = CameraManager->GetCameraRotation().Vector();
+    const bool bIsTargetInFrontOfCamera = FVector::DotProduct(CameraForward, ToTarget.GetSafeNormal()) > 0.0f;
+
+    FHitResult VisibilityHit;
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PvPArenaCharacterOverheadVisibilityTrace), false, LocalPlayerController->GetPawn());
+    QueryParams.AddIgnoredActor(this);
+    QueryParams.AddIgnoredActor(LocalPlayerController->GetPawn());
+
+    const bool bHasBlockingHit = GetWorld()->LineTraceSingleByChannel(
+        VisibilityHit,
+        CameraLocation,
+        ViewTarget,
+        ECC_Visibility,
+        QueryParams);
+
+    const bool bHitOwningCharacter = VisibilityHit.GetActor() == this || VisibilityHit.GetComponent() == GetMesh();
+
+    return BuildOverheadWidgetVisibleState(
+        true,
+        IsLocallyControlled(),
+        bIsTargetInFrontOfCamera,
+        bHasBlockingHit,
+        bHitOwningCharacter);
+}
+
+FVector APvPArenaCharacter::ResolveOverheadWidgetViewTarget() const
+{
+    const USkeletalMeshComponent* MeshComponent = GetMesh();
+    if (MeshComponent)
+    {
+        return MeshComponent->GetSocketLocation(ResolveOverheadWidgetSocketName());
+    }
+
+    return GetActorLocation();
+}
+
+void APvPArenaCharacter::BeginSprintInput()
+{
+    bSprintInputHeld = true;
+
+    TryActivateSprintDash();
 
     if (!HasAuthority())
     {
@@ -231,8 +434,6 @@ void APvPArenaCharacter::BeginSprintInput()
 void APvPArenaCharacter::EndSprintInput()
 {
     bSprintInputHeld = false;
-    bSprintActive = false;
-    RefreshSprintMovementSpeed();
 
     if (!HasAuthority())
     {
@@ -244,32 +445,33 @@ void APvPArenaCharacter::UpdateSprintState(float DeltaSeconds)
 {
     if (DeltaSeconds <= 0.0f)
     {
-        RefreshSprintMovementSpeed();
         return;
     }
 
-    const bool bCanSprintNow = CanSprint();
-    if (bSprintInputHeld && !bSprintDepletedLocked && bCanSprintNow && CurrentSprintEnergySeconds > 0.0f)
+    if (UpdatePendingSprintDash(DeltaSeconds))
     {
-        bSprintActive = true;
-        CurrentSprintEnergySeconds = FMath::Max(0.0f, CurrentSprintEnergySeconds - DeltaSeconds);
-        if (CurrentSprintEnergySeconds <= 0.0f)
-        {
-            bSprintActive = false;
-            bSprintDepletedLocked = true;
-        }
+        return;
+    }
+
+    if (SprintActiveTimeRemaining > 0.0f)
+    {
+        SprintActiveTimeRemaining = FMath::Max(0.0f, SprintActiveTimeRemaining - DeltaSeconds);
+        bSprintActive = SprintActiveTimeRemaining > 0.0f;
     }
     else
     {
         bSprintActive = false;
-        CurrentSprintEnergySeconds = FMath::Min(SprintDurationSeconds, CurrentSprintEnergySeconds + (DeltaSeconds * SprintRechargeRate));
-        if (CurrentSprintEnergySeconds >= SprintDurationSeconds)
-        {
-            bSprintDepletedLocked = false;
-        }
     }
 
-    RefreshSprintMovementSpeed();
+    if (!bPendingSprintDash && !bSprintActive && CurrentSprintEnergySeconds < SprintDurationSeconds)
+    {
+        CurrentSprintEnergySeconds = FMath::Min(SprintDurationSeconds, CurrentSprintEnergySeconds + (DeltaSeconds * SprintRechargeRate));
+    }
+
+    if (CurrentSprintEnergySeconds >= SprintDurationSeconds)
+    {
+        bSprintDepletedLocked = false;
+    }
 }
 
 void APvPArenaCharacter::PlayDeathAnimation()
@@ -888,6 +1090,7 @@ void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* Instigator
     }
 
     CurrentHealth = FMath::Clamp(CurrentHealth - Damage, 0.0f, MaxHealth);
+    RefreshOverheadStatusWidget();
     if (CurrentHealth <= 0.0f)
     {
         bIsDead = true;
@@ -1141,12 +1344,104 @@ void APvPArenaCharacter::RefreshSprintMovementSpeed()
         BaseWalkSpeed = MoveComp->MaxWalkSpeed;
     }
 
-    MoveComp->MaxWalkSpeed = bSprintActive ? BaseWalkSpeed * SprintSpeedMultiplier : BaseWalkSpeed;
+    MoveComp->MaxWalkSpeed = BaseWalkSpeed;
 }
 
 bool APvPArenaCharacter::CanSprint() const
 {
     return !bIsDead && !bAttackMovementSuppressed && GetCharacterMovement() != nullptr;
+}
+
+bool APvPArenaCharacter::TryActivateSprintDash()
+{
+    if (bSprintDepletedLocked
+        || !CanSprint()
+        || CurrentSprintEnergySeconds < SprintDurationSeconds)
+    {
+        return false;
+    }
+
+    const float TargetYaw = ResolveSprintDashTargetYaw();
+    const float DeltaYaw = FMath::Abs(FRotator::NormalizeAxis(TargetYaw - GetActorRotation().Yaw));
+    if (DeltaYaw > SprintDashYawToleranceDegrees)
+    {
+        bPendingSprintDash = true;
+        PendingSprintDashTargetYaw = TargetYaw;
+        bSprintActive = false;
+        SprintActiveTimeRemaining = 0.0f;
+        return true;
+    }
+
+    const FVector DashDirection = ResolveSprintDashDirection();
+    ApplySprintDashVelocity(DashDirection);
+    CurrentSprintEnergySeconds = 0.0f;
+    bSprintDepletedLocked = true;
+    bSprintActive = true;
+    SprintActiveTimeRemaining = SprintActiveDurationSeconds;
+    bPendingSprintDash = false;
+    return true;
+}
+
+FVector APvPArenaCharacter::ResolveSprintDashDirection() const
+{
+    const float DashYaw = Controller
+        ? Controller->GetControlRotation().Yaw
+        : GetActorRotation().Yaw;
+    return FRotationMatrix(FRotator(0.0f, DashYaw, 0.0f)).GetUnitAxis(EAxis::X);
+}
+
+void APvPArenaCharacter::ApplySprintDashVelocity(const FVector& DashDirection)
+{
+    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+    if (!MoveComp)
+    {
+        return;
+    }
+
+    if (BaseWalkSpeed <= 0.0f)
+    {
+        BaseWalkSpeed = MoveComp->MaxWalkSpeed;
+    }
+
+    const FVector DashVelocity = DashDirection.GetSafeNormal2D() * SprintDashDistance;
+    MoveComp->Velocity.X = DashVelocity.X;
+    MoveComp->Velocity.Y = DashVelocity.Y;
+}
+
+float APvPArenaCharacter::ResolveSprintDashTargetYaw() const
+{
+    return Controller
+        ? Controller->GetControlRotation().Yaw
+        : GetActorRotation().Yaw;
+}
+
+bool APvPArenaCharacter::UpdatePendingSprintDash(float DeltaSeconds)
+{
+    if (!bPendingSprintDash)
+    {
+        return false;
+    }
+
+    const float TargetYaw = PendingSprintDashTargetYaw;
+    const float NewYaw = FMath::FixedTurn(
+        GetActorRotation().Yaw,
+        TargetYaw,
+        DeltaSeconds * SprintDashTurnInterpSpeed);
+    SetActorRotation(FRotator(0.0f, NewYaw, 0.0f));
+
+    const float RemainingYaw = FMath::Abs(FRotator::NormalizeAxis(TargetYaw - NewYaw));
+    if (RemainingYaw > SprintDashYawToleranceDegrees)
+    {
+        return false;
+    }
+
+    bPendingSprintDash = false;
+    ApplySprintDashVelocity(ResolveSprintDashDirection());
+    CurrentSprintEnergySeconds = 0.0f;
+    bSprintDepletedLocked = true;
+    bSprintActive = true;
+    SprintActiveTimeRemaining = SprintActiveDurationSeconds;
+    return true;
 }
 
 void APvPArenaCharacter::ServerTryMeleeAttack_Implementation()
@@ -1220,10 +1515,9 @@ void APvPArenaCharacter::ServerHandleRangedAttackHitNotify_Implementation(bool b
 void APvPArenaCharacter::ServerSetSprintInputHeld_Implementation(bool bNewSprintInputHeld)
 {
     bSprintInputHeld = bNewSprintInputHeld;
-    if (!bSprintInputHeld)
+    if (bSprintInputHeld)
     {
-        bSprintActive = false;
-        RefreshSprintMovementSpeed();
+        TryActivateSprintDash();
     }
 }
 

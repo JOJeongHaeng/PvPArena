@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Types/SlateEnums.h"
 #include "PvPArenaHUDWidget.generated.h"
 
 class UProgressBar;
@@ -34,7 +35,14 @@ public:
     static void BuildHealthDisplayState(const class APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel);
     static void BuildSprintDisplayState(const class APvPArenaCharacter* Character, float& OutSprintPercent, FString& OutSprintLabel);
     static void BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel);
-    static ESlateVisibility BuildRangedCrosshairVisibilityState(const class APvPArenaCharacter* Character);
+    static ESlateVisibility BuildRangedCrosshairVisibilityState(
+        const class APvPArenaCharacter* Character,
+        const class APvPArenaGameState* GameState = nullptr);
+    static float BuildRangedCrosshairVerticalOffsetState(
+        const class APvPArenaCharacter* Character,
+        const class APvPArenaGameState* GameState = nullptr);
+    static TArray<FString> BuildLobbyParticipantLabels(const class APvPArenaGameState* GameState);
+    static FString BuildLobbyNicknameTextBoxValue(const FString& DraftNickname, const FString& ReplicatedNickname);
     static FString BuildBackgroundMusicAssetPathForMatchPhase(uint8 MatchPhaseValue);
 
     UFUNCTION()
@@ -51,6 +59,9 @@ private:
 
     UFUNCTION()
     void HandleJoinByIpButtonClicked();
+
+    UFUNCTION()
+    void HandleLobbyNicknameTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod);
 
     UFUNCTION()
     FString BuildHostTravelCommand() const;
@@ -90,6 +101,7 @@ private:
 
     void BuildWidgetTree();
     void RefreshWidgetData();
+    void RefreshLobbyParticipantList(const class APvPArenaGameState* GameState);
     void RefreshCrosshairVisibility();
     void RefreshBackgroundMusic(const class APvPArenaGameState* GameState);
     void ApplyLobbyInputMode(class APlayerController* PlayerController, bool bEnableLobbyInput);
@@ -115,6 +127,9 @@ private:
     TObjectPtr<UBorder> StatusPanel;
 
     UPROPERTY(Transient)
+    TObjectPtr<UBorder> CountdownPanel;
+
+    UPROPERTY(Transient)
     TObjectPtr<UBorder> InfoPanel;
 
     UPROPERTY(Transient)
@@ -134,6 +149,12 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> StatusBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UHorizontalBox> StatusCardsBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> CountdownBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> InfoBox;
@@ -163,10 +184,28 @@ private:
     TObjectPtr<UBorder> LobbyMouseCard;
 
     UPROPERTY(Transient)
+    TObjectPtr<UBorder> HealthCard;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UBorder> SprintCard;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UBorder> RangedCard;
+
+    UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> LobbyKeyboardCardBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> LobbyMouseCardBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> HealthCardBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> SprintCardBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> RangedCardBox;
 
     UPROPERTY(Transient)
     TObjectPtr<USizeBox> HealthBarSizeBox;
@@ -254,6 +293,12 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> ConnectionStatusText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UEditableTextBox> LobbyNicknameTextBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> LobbyPlayerListBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> SettingsTitleText;
@@ -360,6 +405,7 @@ private:
     FTimerHandle RefreshTimerHandle;
     bool bLobbyInputModeActive = false;
     bool bSettingsMenuOpen = false;
+    bool bUpdatingLobbyNicknameText = false;
     float MasterVolume = 1.0f;
     float BackgroundMusicVolume = 1.0f;
     float SfxVolume = 1.0f;

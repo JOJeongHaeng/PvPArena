@@ -62,6 +62,17 @@ void APvPArenaPlayerController::ToggleLobbyReady()
     ServerSetLobbyReady(bNewReady);
 }
 
+void APvPArenaPlayerController::SubmitLobbyNickname(const FString& Nickname)
+{
+    if (HasAuthority())
+    {
+        ServerSubmitLobbyNickname_Implementation(Nickname);
+        return;
+    }
+
+    ServerSubmitLobbyNickname(Nickname);
+}
+
 void APvPArenaPlayerController::ServerRequestLobbyMatchStart_Implementation()
 {
     APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
@@ -83,6 +94,18 @@ void APvPArenaPlayerController::ServerSetLobbyReady_Implementation(bool bReadyFo
     }
 
     PvPGameMode->HandleLobbyReadyStateChanged(PvPPlayerState, bReadyForStart);
+}
+
+void APvPArenaPlayerController::ServerSubmitLobbyNickname_Implementation(const FString& Nickname)
+{
+    APvPArenaPlayerState* PvPPlayerState = GetPlayerState<APvPArenaPlayerState>();
+    APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
+    if (!PvPPlayerState || !PvPGameMode)
+    {
+        return;
+    }
+
+    PvPGameMode->HandleLobbyDisplayNicknameChanged(PvPPlayerState, Nickname);
 }
 
 void APvPArenaPlayerController::HandleToggleSettingsMenu()

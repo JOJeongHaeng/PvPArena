@@ -39,9 +39,10 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
 
     UOverlay* RootOverlay = Cast<UOverlay>(WidgetTree->RootWidget);
     TestNotNull(TEXT("HUD widget should build an overlay root"), RootOverlay);
-    TestEqual(TEXT("HUD root should contain gauge, info, lobby, lobby controls, result, announcement, crosshair, and settings layers"), RootOverlay ? RootOverlay->GetChildrenCount() : 0, 8);
+    TestEqual(TEXT("HUD root should contain gauge, countdown, info, lobby, lobby controls, result, announcement, crosshair, and settings layers"), RootOverlay ? RootOverlay->GetChildrenCount() : 0, 9);
 
     UBorder* StatusPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("StatusPanel")));
+    UBorder* CountdownPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("CountdownPanel")));
     UBorder* InfoPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("InfoPanel")));
     UBorder* AnnouncementPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("AnnouncementPanel")));
     UBorder* LobbyPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyPanel")));
@@ -49,15 +50,23 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     UBorder* SettingsPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("SettingsPanel")));
     UBorder* LobbyKeyboardCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyKeyboardCard")));
     UBorder* LobbyMouseCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("LobbyMouseCard")));
-    UVerticalBox* StatusBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("StatusBox")));
+    UHorizontalBox* StatusCardsBox = Cast<UHorizontalBox>(WidgetTree->FindWidget(TEXT("StatusCardsBox")));
+    UBorder* HealthCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("HealthCard")));
+    UBorder* SprintCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("SprintCard")));
+    UBorder* RangedCard = Cast<UBorder>(WidgetTree->FindWidget(TEXT("RangedCard")));
+    UVerticalBox* HealthCardBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("HealthCardBox")));
+    UVerticalBox* SprintCardBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("SprintCardBox")));
+    UVerticalBox* RangedCardBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("RangedCardBox")));
     UVerticalBox* InfoBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("InfoBox")));
     UVerticalBox* AnnouncementBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("AnnouncementBox")));
     UVerticalBox* LobbyBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("LobbyBox")));
     UVerticalBox* LobbyControlsBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("LobbyControlsBox")));
+    UVerticalBox* LobbyPlayerListBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("LobbyPlayerListBox")));
     UHorizontalBox* LobbyControlsCardsBox = Cast<UHorizontalBox>(WidgetTree->FindWidget(TEXT("LobbyControlsCardsBox")));
     UVerticalBox* LobbyKeyboardCardBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("LobbyKeyboardCardBox")));
     UVerticalBox* LobbyMouseCardBox = Cast<UVerticalBox>(WidgetTree->FindWidget(TEXT("LobbyMouseCardBox")));
     TestNotNull(TEXT("StatusPanel should exist"), StatusPanel);
+    TestNotNull(TEXT("CountdownPanel should exist"), CountdownPanel);
     TestNotNull(TEXT("InfoPanel should exist"), InfoPanel);
     TestNotNull(TEXT("AnnouncementPanel should exist"), AnnouncementPanel);
     TestNotNull(TEXT("LobbyPanel should exist"), LobbyPanel);
@@ -65,18 +74,29 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("SettingsPanel should exist"), SettingsPanel);
     TestNotNull(TEXT("Lobby keyboard card should exist"), LobbyKeyboardCard);
     TestNotNull(TEXT("Lobby mouse card should exist"), LobbyMouseCard);
-    TestNotNull(TEXT("StatusBox should exist"), StatusBox);
+    TestNotNull(TEXT("StatusCardsBox should exist"), StatusCardsBox);
+    TestNotNull(TEXT("HealthCard should exist"), HealthCard);
+    TestNotNull(TEXT("SprintCard should exist"), SprintCard);
+    TestNotNull(TEXT("RangedCard should exist"), RangedCard);
+    TestNotNull(TEXT("HealthCardBox should exist"), HealthCardBox);
+    TestNotNull(TEXT("SprintCardBox should exist"), SprintCardBox);
+    TestNotNull(TEXT("RangedCardBox should exist"), RangedCardBox);
     TestNotNull(TEXT("InfoBox should exist"), InfoBox);
     TestNotNull(TEXT("AnnouncementBox should exist"), AnnouncementBox);
     TestNotNull(TEXT("LobbyBox should exist"), LobbyBox);
     TestNotNull(TEXT("LobbyControlsBox should exist"), LobbyControlsBox);
+    TestNotNull(TEXT("Lobby player list box should exist"), LobbyPlayerListBox);
     TestNotNull(TEXT("Lobby controls cards box should exist"), LobbyControlsCardsBox);
     TestNotNull(TEXT("Lobby keyboard card box should exist"), LobbyKeyboardCardBox);
     TestNotNull(TEXT("Lobby mouse card box should exist"), LobbyMouseCardBox);
-    TestEqual(TEXT("StatusBox should contain the six gauge HUD rows"), StatusBox ? StatusBox->GetChildrenCount() : 0, 6);
-    TestEqual(TEXT("InfoBox should contain the four match info rows"), InfoBox ? InfoBox->GetChildrenCount() : 0, 4);
+    TestEqual(TEXT("Status card row should contain health, sprint, and ranged cards"), StatusCardsBox ? StatusCardsBox->GetChildrenCount() : 0, 3);
+    TestEqual(TEXT("Health card should contain its bar and label"), HealthCardBox ? HealthCardBox->GetChildrenCount() : 0, 2);
+    TestEqual(TEXT("Sprint card should contain its bar and label"), SprintCardBox ? SprintCardBox->GetChildrenCount() : 0, 2);
+    TestEqual(TEXT("Ranged card should contain its bar and label"), RangedCardBox ? RangedCardBox->GetChildrenCount() : 0, 2);
+    TestEqual(TEXT("InfoBox should contain the three score and round info rows"), InfoBox ? InfoBox->GetChildrenCount() : 0, 3);
     TestEqual(TEXT("AnnouncementBox should contain the two round-end HUD rows"), AnnouncementBox ? AnnouncementBox->GetChildrenCount() : 0, 2);
-    TestEqual(TEXT("Lobby box should contain title, status, connection state, IP entry, host/join actions, and ready button"), LobbyBox ? LobbyBox->GetChildrenCount() : 0, 7);
+    TestEqual(TEXT("Lobby box should contain title, status, connection state, nickname entry, player list, IP entry, host/join actions, and ready button"), LobbyBox ? LobbyBox->GetChildrenCount() : 0, 9);
+    TestTrue(TEXT("Lobby player list should start empty and be populated from player states"), LobbyPlayerListBox && LobbyPlayerListBox->GetChildrenCount() == 0);
     TestEqual(TEXT("Lobby controls box should contain only the controls title and controls cards row"), LobbyControlsBox ? LobbyControlsBox->GetChildrenCount() : 0, 2);
     TestEqual(TEXT("Lobby controls cards row should contain keyboard and mouse cards"), LobbyControlsCardsBox ? LobbyControlsCardsBox->GetChildrenCount() : 0, 2);
     TestEqual(TEXT("Lobby keyboard card should contain title, move, and sprint rows"), LobbyKeyboardCardBox ? LobbyKeyboardCardBox->GetChildrenCount() : 0, 3);
@@ -129,6 +149,7 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     UTextBlock* LobbyControlsMouseMeleeText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("LobbyControlsMouseMeleeText")));
     UTextBlock* LobbyControlsMouseRangedText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("LobbyControlsMouseRangedText")));
     UTextBlock* ConnectionStatusText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("ConnectionStatusText")));
+    UEditableTextBox* LobbyNicknameTextBox = Cast<UEditableTextBox>(WidgetTree->FindWidget(TEXT("LobbyNicknameTextBox")));
     UEditableTextBox* JoinAddressTextBox = Cast<UEditableTextBox>(WidgetTree->FindWidget(TEXT("JoinAddressTextBox")));
     UButton* HostMatchButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("HostMatchButton")));
     UButton* JoinByIpButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("JoinByIpButton")));
@@ -167,6 +188,7 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("LobbyControlsMouseMeleeText should exist"), LobbyControlsMouseMeleeText);
     TestNotNull(TEXT("LobbyControlsMouseRangedText should exist"), LobbyControlsMouseRangedText);
     TestNotNull(TEXT("ConnectionStatusText should exist"), ConnectionStatusText);
+    TestNotNull(TEXT("LobbyNicknameTextBox should exist"), LobbyNicknameTextBox);
     TestNotNull(TEXT("JoinAddressTextBox should exist"), JoinAddressTextBox);
     TestNotNull(TEXT("HostMatchButton should exist"), HostMatchButton);
     TestNotNull(TEXT("JoinByIpButton should exist"), JoinByIpButton);
@@ -205,10 +227,15 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Status panel should use a visible dark backing"),
         StatusPanel && StatusPanel->GetBrushColor().A >= 0.7f);
     UOverlaySlot* StatusPanelSlot = StatusPanel ? Cast<UOverlaySlot>(StatusPanel->Slot) : nullptr;
-    TestTrue(TEXT("Status panel should stay pinned to the upper-right corner"),
+    TestTrue(TEXT("Status panel should stay pinned to the bottom center"),
         StatusPanelSlot
-        && StatusPanelSlot->GetHorizontalAlignment() == HAlign_Right
-        && StatusPanelSlot->GetVerticalAlignment() == VAlign_Top);
+        && StatusPanelSlot->GetHorizontalAlignment() == HAlign_Center
+        && StatusPanelSlot->GetVerticalAlignment() == VAlign_Bottom);
+    UOverlaySlot* CountdownPanelSlot = CountdownPanel ? Cast<UOverlaySlot>(CountdownPanel->Slot) : nullptr;
+    TestTrue(TEXT("Countdown panel should stay pinned to the top center"),
+        CountdownPanelSlot
+        && CountdownPanelSlot->GetHorizontalAlignment() == HAlign_Center
+        && CountdownPanelSlot->GetVerticalAlignment() == VAlign_Top);
     UOverlaySlot* InfoPanelSlot = InfoPanel ? Cast<UOverlaySlot>(InfoPanel->Slot) : nullptr;
     TestTrue(TEXT("Info panel should stay pinned to the upper-left corner"),
         InfoPanelSlot
@@ -233,8 +260,8 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         LobbyMouseCard && LobbyMouseCard->GetBrushColor().A >= 0.85f);
     TestTrue(TEXT("Keyboard controls should describe WASD movement"),
         LobbyControlsKeyboardMoveText && LobbyControlsKeyboardMoveText->GetText().ToString().Contains(TEXT("Move")));
-    TestTrue(TEXT("Keyboard controls should describe Shift sprint"),
-        LobbyControlsKeyboardSprintText && LobbyControlsKeyboardSprintText->GetText().ToString().Contains(TEXT("Sprint")));
+    TestTrue(TEXT("Keyboard controls should describe Shift dash"),
+        LobbyControlsKeyboardSprintText && LobbyControlsKeyboardSprintText->GetText().ToString().Contains(TEXT("Dash")));
     TestTrue(TEXT("Mouse controls should describe melee attack"),
         LobbyControlsMouseMeleeText && LobbyControlsMouseMeleeText->GetText().ToString().Contains(TEXT("Melee Attack")));
     TestTrue(TEXT("Mouse controls should describe ranged charge attack"),
@@ -243,6 +270,8 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         ConnectionStatusText && ConnectionStatusText->Slot && ConnectionStatusText->Slot->Parent == LobbyBox);
     TestTrue(TEXT("Join address text box should sit inside the main lobby panel"),
         JoinAddressTextBox && JoinAddressTextBox->Slot && JoinAddressTextBox->Slot->Parent == LobbyBox);
+    TestTrue(TEXT("Timer text should sit inside the dedicated countdown panel"),
+        TimerText && TimerText->Slot && TimerText->Slot->Parent != InfoBox);
     TestEqual(TEXT("Lobby start button should use the new explicit start label"),
         LobbyReadyButtonText ? LobbyReadyButtonText->GetText().ToString() : FString(),
         FString(TEXT("Start Match")));
