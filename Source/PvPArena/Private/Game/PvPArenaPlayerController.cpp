@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "Game/PvPArenaGameMode.h"
 #include "Game/PvPArenaPlayerState.h"
+#include "GameFramework/SpectatorPawn.h"
 #include "InputCoreTypes.h"
 #include "TimerManager.h"
 #include "UI/PvPArenaHUDWidget.h"
@@ -23,6 +24,12 @@ void APvPArenaPlayerController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
     TryCreateHUDWidget();
+}
+
+void APvPArenaPlayerController::PlayerTick(float DeltaTime)
+{
+    Super::PlayerTick(DeltaTime);
+    UpdateFreeSpectator(DeltaTime);
 }
 
 void APvPArenaPlayerController::SetupInputComponent()
@@ -73,6 +80,28 @@ void APvPArenaPlayerController::SubmitLobbyNickname(const FString& Nickname)
     ServerSubmitLobbyNickname(Nickname);
 }
 
+void APvPArenaPlayerController::RequestLobbyMatchModeChange(EPvPALobbyMatchMode NewLobbyMatchMode)
+{
+    if (HasAuthority())
+    {
+        ServerRequestLobbyMatchModeChange_Implementation(NewLobbyMatchMode);
+        return;
+    }
+
+    ServerRequestLobbyMatchModeChange(NewLobbyMatchMode);
+}
+
+void APvPArenaPlayerController::RequestLobbyTeamSelection(EPvPALobbyTeam NewLobbyTeam)
+{
+    if (HasAuthority())
+    {
+        ServerRequestLobbyTeamSelection_Implementation(NewLobbyTeam);
+        return;
+    }
+
+    ServerRequestLobbyTeamSelection(NewLobbyTeam);
+}
+
 void APvPArenaPlayerController::ServerRequestLobbyMatchStart_Implementation()
 {
     APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
@@ -108,6 +137,49 @@ void APvPArenaPlayerController::ServerSubmitLobbyNickname_Implementation(const F
     PvPGameMode->HandleLobbyDisplayNicknameChanged(PvPPlayerState, Nickname);
 }
 
+void APvPArenaPlayerController::ServerRequestLobbyMatchModeChange_Implementation(EPvPALobbyMatchMode NewLobbyMatchMode)
+{
+    APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
+    if (!PvPGameMode)
+    {
+        return;
+    }
+
+    PvPGameMode->HandleLobbyMatchModeChanged(this, NewLobbyMatchMode);
+}
+
+void APvPArenaPlayerController::ServerRequestLobbyTeamSelection_Implementation(EPvPALobbyTeam NewLobbyTeam)
+{
+    APvPArenaPlayerState* PvPPlayerState = GetPlayerState<APvPArenaPlayerState>();
+    APvPArenaGameMode* PvPGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APvPArenaGameMode>() : nullptr;
+    if (!PvPPlayerState || !PvPGameMode)
+    {
+        return;
+    }
+
+    PvPGameMode->HandleLobbyTeamSelectionChanged(PvPPlayerState, NewLobbyTeam);
+}
+
+void APvPArenaPlayerController::ClientEnterFreeSpectatorMode_Implementation()
+{
+    EnterFreeSpectatorMode();
+}
+
+FRotator APvPArenaPlayerController::BuildFreeSpectatorControlRotation(
+    const FRotator& CurrentRotation,
+    float MouseDeltaX,
+    float MouseDeltaY)
+{
+    FRotator NextRotation = CurrentRotation;
+    NextRotation.Yaw += (MouseDeltaX * FreeSpectatorLookSensitivity);
+    NextRotation.Pitch = FMath::ClampAngle(
+        CurrentRotation.Pitch + (MouseDeltaY * FreeSpectatorLookSensitivity),
+        -89.0f,
+        89.0f);
+    NextRotation.Roll = 0.0f;
+    return NextRotation;
+}
+
 void APvPArenaPlayerController::HandleToggleSettingsMenu()
 {
     UPvPArenaHUDWidget* PvPHUDWidget = Cast<UPvPArenaHUDWidget>(ActiveHUDWidget);
@@ -117,6 +189,117 @@ void APvPArenaPlayerController::HandleToggleSettingsMenu()
     }
 
     PvPHUDWidget->ToggleSettingsMenu();
+}
+
+void APvPArenaPlayerController::EnterFreeSpectatorMode()
+{
+    SetIgnoreMoveInput(false);
+    SetIgnoreLookInput(false);
+
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    StartSpectatingOnly();
+    ChangeState(NAME_Spectating);
+    ClientGotoState(NAME_Spectating);
+    RetryAttachSpectatorViewTarget();
+}
+
+void APvPArenaPlayerController::RetryAttachSpectatorViewTarget()
+{
+    if (!IsLocalController() || !GetWorld())
+    {
+        return;
+    }
+
+    if (ASpectatorPawn* SpawnedSpectatorPawn = GetSpectatorPawn())
+    {
+        if (GetViewTarget() != SpawnedSpectatorPawn)
+        {
+            SetViewTarget(SpawnedSpectatorPawn);
+        }
+
+        if (GetViewTarget() == SpawnedSpectatorPawn)
+        {
+            GetWorldTimerManager().ClearTimer(SpectatorViewRetryTimerHandle);
+            return;
+        }
+    }
+
+    if (!SpectatorViewRetryTimerHandle.IsValid())
+    {
+        GetWorldTimerManager().SetTimer(
+            SpectatorViewRetryTimerHandle,
+            this,
+            &APvPArenaPlayerController::RetryAttachSpectatorViewTarget,
+            0.1f,
+            true);
+    }
+}
+
+void APvPArenaPlayerController::UpdateFreeSpectator(float DeltaTime)
+{
+    if (!IsLocalController() || !IsInState(NAME_Spectating))
+    {
+        return;
+    }
+
+    ASpectatorPawn* FreeSpectatorPawn = GetSpectatorPawn();
+    if (!FreeSpectatorPawn)
+    {
+        return;
+    }
+
+    if (GetViewTarget() != FreeSpectatorPawn)
+    {
+        SetViewTarget(FreeSpectatorPawn);
+        if (GetViewTarget() != FreeSpectatorPawn)
+        {
+            return;
+        }
+    }
+
+    float MouseDeltaX = 0.0f;
+    float MouseDeltaY = 0.0f;
+    GetInputMouseDelta(MouseDeltaX, MouseDeltaY);
+
+    FRotator CurrentControlRotation = GetControlRotation();
+    if (!FMath::IsNearlyZero(MouseDeltaX) || !FMath::IsNearlyZero(MouseDeltaY))
+    {
+        CurrentControlRotation = BuildFreeSpectatorControlRotation(CurrentControlRotation, MouseDeltaX, MouseDeltaY);
+        SetControlRotation(CurrentControlRotation);
+    }
+
+    const FRotator YawOnlyRotation(0.0f, CurrentControlRotation.Yaw, 0.0f);
+    const FVector ForwardDirection = FRotationMatrix(YawOnlyRotation).GetUnitAxis(EAxis::X);
+    const FVector RightDirection = FRotationMatrix(YawOnlyRotation).GetUnitAxis(EAxis::Y);
+
+    float ForwardValue = 0.0f;
+    ForwardValue += IsInputKeyDown(EKeys::W) ? 1.0f : 0.0f;
+    ForwardValue -= IsInputKeyDown(EKeys::S) ? 1.0f : 0.0f;
+
+    float RightValue = 0.0f;
+    RightValue += IsInputKeyDown(EKeys::D) ? 1.0f : 0.0f;
+    RightValue -= IsInputKeyDown(EKeys::A) ? 1.0f : 0.0f;
+
+    float VerticalValue = 0.0f;
+    VerticalValue += IsInputKeyDown(EKeys::E) ? 1.0f : 0.0f;
+    VerticalValue -= IsInputKeyDown(EKeys::Q) ? 1.0f : 0.0f;
+
+    FVector MovementDirection = FVector::ZeroVector;
+    MovementDirection += ForwardDirection * ForwardValue;
+    MovementDirection += RightDirection * RightValue;
+    MovementDirection += FVector::UpVector * VerticalValue;
+
+    if (!MovementDirection.IsNearlyZero())
+    {
+        FreeSpectatorPawn->SetActorLocation(
+            FreeSpectatorPawn->GetActorLocation() + (MovementDirection.GetClampedToMaxSize(1.0f) * FreeSpectatorMoveSpeed * DeltaTime));
+    }
+
+    FreeSpectatorPawn->SetActorRotation(CurrentControlRotation);
 }
 
 void APvPArenaPlayerController::TryCreateHUDWidget()

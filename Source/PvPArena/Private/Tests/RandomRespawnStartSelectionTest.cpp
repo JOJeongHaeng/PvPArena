@@ -17,6 +17,11 @@ public:
     {
         return ChooseRoundStartFromCandidates(CandidateStarts, Player, UsedStarts);
     }
+
+    TArray<AActor*> FilterStartsForPlayer(const TArray<AActor*>& CandidateStarts, const AController* Player) const
+    {
+        return FilterPlayerStartsForPlayer(CandidateStarts, Player);
+    }
 };
 }
 
@@ -93,6 +98,48 @@ bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
         TEXT("Round reset should give different starts to each player when alternatives exist"),
         RoundStartForPlayerTwo,
         RoundStartForPlayerOne);
+
+    APlayerStart* LeftTeamStart = NewObject<APlayerStart>(GetTransientPackage(), TEXT("LeftTeamStart"));
+    APlayerStart* RightTeamStart = NewObject<APlayerStart>(GetTransientPackage(), TEXT("RightTeamStart"));
+    APlayerStart* FreeForAllStart = NewObject<APlayerStart>(GetTransientPackage(), TEXT("FreeForAllStart"));
+    TestNotNull(TEXT("LeftTeamStart should be created"), LeftTeamStart);
+    TestNotNull(TEXT("RightTeamStart should be created"), RightTeamStart);
+    TestNotNull(TEXT("FreeForAllStart should be created"), FreeForAllStart);
+
+    LeftTeamStart->PlayerStartTag = TEXT("TeamLeft");
+    RightTeamStart->PlayerStartTag = TEXT("TeamRight");
+    FreeForAllStart->PlayerStartTag = TEXT("FreeForAll");
+
+    APvPArenaPlayerState* LeftTeamPlayerState = NewObject<APvPArenaPlayerState>(PlayerOne);
+    APvPArenaPlayerState* FreeForAllPlayerState = NewObject<APvPArenaPlayerState>(PlayerTwo);
+    TestNotNull(TEXT("LeftTeam player state should be created"), LeftTeamPlayerState);
+    TestNotNull(TEXT("Free-for-all player state should be created"), FreeForAllPlayerState);
+
+    if (!LeftTeamPlayerState || !FreeForAllPlayerState)
+    {
+        return false;
+    }
+
+    LeftTeamPlayerState->SetLobbyMatchMode(EPvPALobbyMatchMode::TeamVersus);
+    LeftTeamPlayerState->SetLobbyTeam(EPvPALobbyTeam::Left);
+    PlayerOne->PlayerState = LeftTeamPlayerState;
+
+    FreeForAllPlayerState->SetLobbyMatchMode(EPvPALobbyMatchMode::FreeForAll);
+    FreeForAllPlayerState->SetLobbyTeam(EPvPALobbyTeam::None);
+    PlayerTwo->PlayerState = FreeForAllPlayerState;
+
+    TArray<AActor*> TaggedCandidates;
+    TaggedCandidates.Add(LeftTeamStart);
+    TaggedCandidates.Add(RightTeamStart);
+    TaggedCandidates.Add(FreeForAllStart);
+
+    const TArray<AActor*> LeftTeamCandidates = GameMode->FilterStartsForPlayer(TaggedCandidates, PlayerOne);
+    TestEqual(TEXT("Left team players should only consider left-team starts"), LeftTeamCandidates.Num(), 1);
+    TestEqual(TEXT("Left team players should resolve the left-team start"), LeftTeamCandidates[0], static_cast<AActor*>(LeftTeamStart));
+
+    const TArray<AActor*> FreeForAllCandidates = GameMode->FilterStartsForPlayer(TaggedCandidates, PlayerTwo);
+    TestEqual(TEXT("Free-for-all players should only consider free-for-all starts"), FreeForAllCandidates.Num(), 1);
+    TestEqual(TEXT("Free-for-all players should resolve the free-for-all start"), FreeForAllCandidates[0], static_cast<AActor*>(FreeForAllStart));
 
     return true;
 }

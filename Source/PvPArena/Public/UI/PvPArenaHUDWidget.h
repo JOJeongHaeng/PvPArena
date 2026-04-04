@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Game/PvPArenaPlayerState.h"
 #include "Types/SlateEnums.h"
 #include "PvPArenaHUDWidget.generated.h"
 
@@ -44,6 +45,15 @@ public:
     static TArray<FString> BuildLobbyParticipantLabels(const class APvPArenaGameState* GameState);
     static FString BuildLobbyNicknameTextBoxValue(const FString& DraftNickname, const FString& ReplicatedNickname);
     static FString BuildBackgroundMusicAssetPathForMatchPhase(uint8 MatchPhaseValue);
+    static FString BuildMatchScoreSummary(
+        const class APvPArenaPlayerState* LocalPlayerState,
+        const class APvPArenaGameState* GameState);
+    static FString BuildRoundResultLabel(
+        const class APvPArenaPlayerState* LocalPlayerState,
+        const class APvPArenaGameState* GameState);
+    static FString BuildMatchResultLabel(
+        const class APvPArenaPlayerState* LocalPlayerState,
+        const class APvPArenaGameState* GameState);
 
     UFUNCTION()
     void ToggleSettingsMenu();
@@ -51,6 +61,18 @@ public:
 private:
     UFUNCTION()
     void HandleLobbyReadyButtonClicked();
+
+    UFUNCTION()
+    void HandleLobbyFreeForAllModeButtonClicked();
+
+    UFUNCTION()
+    void HandleLobbyTeamVersusModeButtonClicked();
+
+    UFUNCTION()
+    void HandleLobbyLeftTeamButtonClicked();
+
+    UFUNCTION()
+    void HandleLobbyRightTeamButtonClicked();
 
     bool ShouldShowLobbyStartButton(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
 
@@ -107,6 +129,9 @@ private:
     void ApplyLobbyInputMode(class APlayerController* PlayerController, bool bEnableLobbyInput);
     void SetConnectionStatus(const FString& NewStatus);
     bool ExecuteTravelCommand(const FString& TravelCommand, const FString& PendingStatus);
+    FString BuildLobbyTeamListText(const class APvPArenaGameState* GameState, uint8 LobbyTeamValue) const;
+    static FString LobbyMatchModeToString(uint8 LobbyMatchModeValue);
+    static FString LobbyTeamToString(uint8 LobbyTeamValue);
     FString GetLobbyStatusText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetRoundResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
     FString GetMatchResultText(const class APlayerController* PlayerController, const class APvPArenaGameState* GameState) const;
@@ -117,6 +142,8 @@ private:
     static FString BuildWindowModeLabel(int32 WindowModeIndex);
     static FString BuildResolutionLabel(const FIntPoint& Resolution);
     static TArray<FIntPoint> BuildSupportedResolutions();
+    static FString LobbyTeamToDisplayName(EPvPALobbyTeam LobbyTeamValue);
+    static int32 BuildTeamRoundWins(const class APvPArenaGameState* GameState, EPvPALobbyTeam LobbyTeam);
     static FString MatchPhaseToString(uint8 MatchPhaseValue);
     static FString RoundStateToString(uint8 RoundStateValue);
 
@@ -148,6 +175,9 @@ private:
     TObjectPtr<UBorder> SettingsPanel;
 
     UPROPERTY(Transient)
+    TObjectPtr<UBorder> SpectatorHelpPanel;
+
+    UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> StatusBox;
 
     UPROPERTY(Transient)
@@ -176,6 +206,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UVerticalBox> SettingsBox;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UVerticalBox> SpectatorHelpBox;
 
     UPROPERTY(Transient)
     TObjectPtr<UBorder> LobbyKeyboardCard;
@@ -235,9 +268,6 @@ private:
     TObjectPtr<UTextBlock> RangedCooldownText;
 
     UPROPERTY(Transient)
-    TObjectPtr<UTextBlock> RoundScoreText;
-
-    UPROPERTY(Transient)
     TObjectPtr<UTextBlock> MatchScoreText;
 
     UPROPERTY(Transient)
@@ -259,10 +289,46 @@ private:
     TObjectPtr<UTextBlock> LobbyStatusText;
 
     UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyModeStatusText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyTeamStatusText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyLeftTeamListText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyRightTeamListText;
+
+    UPROPERTY(Transient)
     TObjectPtr<UButton> LobbyReadyButton;
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> LobbyReadyButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> LobbyFreeForAllModeButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyFreeForAllModeButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> LobbyTeamVersusModeButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyTeamVersusModeButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> LobbyLeftTeamButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyLeftTeamButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> LobbyRightTeamButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyRightTeamButtonText;
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> LobbyControlsTitleText;
@@ -335,6 +401,18 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> SettingsQuitButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SpectatorHelpTitleText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SpectatorHelpMoveText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SpectatorHelpLookText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> SpectatorHelpRiseText;
 
     UPROPERTY(Transient)
     TObjectPtr<UEditableTextBox> JoinAddressTextBox;
