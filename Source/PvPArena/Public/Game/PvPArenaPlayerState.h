@@ -4,12 +4,29 @@
 #include "GameFramework/PlayerState.h"
 #include "PvPArenaPlayerState.generated.h"
 
+UENUM(BlueprintType)
+enum class EPvPALobbyMatchMode : uint8
+{
+    FreeForAll,
+    TeamVersus
+};
+
+UENUM(BlueprintType)
+enum class EPvPALobbyTeam : uint8
+{
+    None,
+    Left,
+    Right
+};
+
 UCLASS()
 class PVPARENA_API APvPArenaPlayerState : public APlayerState
 {
     GENERATED_BODY()
 
 public:
+    EPvPALobbyMatchMode GetLobbyMatchMode() const { return LobbyMatchMode; }
+    EPvPALobbyTeam GetLobbyTeam() const { return LobbyTeam; }
     int32 GetRoundKills() const { return RoundKills; }
     int32 GetRoundDeaths() const { return RoundDeaths; }
     int32 GetMatchKills() const { return MatchKills; }
@@ -27,6 +44,9 @@ public:
     void AddRoundWin();
     void SetReadyForLobbyStart(bool bNewReady);
     void SetDisplayNickname(const FString& NewNickname);
+    void SetLobbyMatchMode(EPvPALobbyMatchMode NewLobbyMatchMode);
+    void SetLobbyTeam(EPvPALobbyTeam NewLobbyTeam);
+    void ResetLobbyStateForModeChange(EPvPALobbyMatchMode NewLobbyMatchMode);
     void ResetRoundStats();
     void ResetMatchStats();
 
@@ -54,4 +74,10 @@ private:
 
     UPROPERTY(Replicated, VisibleAnywhere, Category = "Identity")
     FString DisplayNickname;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
+    EPvPALobbyMatchMode LobbyMatchMode = EPvPALobbyMatchMode::FreeForAll;
+
+    UPROPERTY(Replicated, VisibleAnywhere, Category = "Match")
+    EPvPALobbyTeam LobbyTeam = EPvPALobbyTeam::None;
 };

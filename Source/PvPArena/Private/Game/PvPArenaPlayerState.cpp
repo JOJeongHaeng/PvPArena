@@ -36,6 +36,23 @@ void APvPArenaPlayerState::SetDisplayNickname(const FString& NewNickname)
     DisplayNickname = BuildNormalizedDisplayNickname(NewNickname);
 }
 
+void APvPArenaPlayerState::SetLobbyMatchMode(EPvPALobbyMatchMode NewLobbyMatchMode)
+{
+    LobbyMatchMode = NewLobbyMatchMode;
+}
+
+void APvPArenaPlayerState::SetLobbyTeam(EPvPALobbyTeam NewLobbyTeam)
+{
+    LobbyTeam = NewLobbyTeam;
+}
+
+void APvPArenaPlayerState::ResetLobbyStateForModeChange(EPvPALobbyMatchMode NewLobbyMatchMode)
+{
+    bReadyForLobbyStart = false;
+    LobbyMatchMode = NewLobbyMatchMode;
+    LobbyTeam = EPvPALobbyTeam::None;
+}
+
 void APvPArenaPlayerState::ResetRoundStats()
 {
     RoundKills = 0;
@@ -62,4 +79,6 @@ void APvPArenaPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
     DOREPLIFETIME(APvPArenaPlayerState, RoundWins);
     DOREPLIFETIME(APvPArenaPlayerState, bReadyForLobbyStart);
     DOREPLIFETIME(APvPArenaPlayerState, DisplayNickname);
+    DOREPLIFETIME(APvPArenaPlayerState, LobbyMatchMode);
+    DOREPLIFETIME(APvPArenaPlayerState, LobbyTeam);
 }

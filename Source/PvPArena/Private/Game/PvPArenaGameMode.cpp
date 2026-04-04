@@ -5,8 +5,11 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
+#include "GameFramework/SpectatorPawn.h"
 #include "Player/PvPArenaCharacter.h"
+#include "Player/PvPArenaSpectatorPawn.h"
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -18,6 +21,65 @@ APvPArenaGameMode::APvPArenaGameMode()
     PlayerStateClass = APvPArenaPlayerState::StaticClass();
     PlayerControllerClass = APvPArenaPlayerController::StaticClass();
     HUDClass = AHUD::StaticClass();
+    SpectatorClass = APvPArenaSpectatorPawn::StaticClass();
+}
+
+namespace
+{
+bool MatchesSpawnMarker(const FString& Identifier, const TCHAR* Marker)
+{
+    return Identifier.Contains(Marker, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+}
+
+bool IsBlueTeamSpawnIdentifier(const FString& Identifier)
+{
+    return MatchesSpawnMarker(Identifier, TEXT("TeamLeft"))
+        || MatchesSpawnMarker(Identifier, TEXT("BluePlayerStart"))
+        || MatchesSpawnMarker(Identifier, TEXT("TeamBlue"));
+}
+
+bool IsRedTeamSpawnIdentifier(const FString& Identifier)
+{
+    return MatchesSpawnMarker(Identifier, TEXT("TeamRight"))
+        || MatchesSpawnMarker(Identifier, TEXT("RedPlayerStart"))
+        || MatchesSpawnMarker(Identifier, TEXT("TeamRed"));
+}
+
+bool IsFreeForAllSpawnIdentifier(const FString& Identifier)
+{
+    return MatchesSpawnMarker(Identifier, TEXT("FreeForAll"))
+        || MatchesSpawnMarker(Identifier, TEXT("FFA"))
+        || (MatchesSpawnMarker(Identifier, TEXT("PlayerStart"))
+            && !IsBlueTeamSpawnIdentifier(Identifier)
+            && !IsRedTeamSpawnIdentifier(Identifier));
+}
+
+FString ResolvePlayerStartIdentifier(const APlayerStart* PlayerStart)
+{
+    if (!PlayerStart)
+    {
+        return FString();
+    }
+
+    if (!PlayerStart->PlayerStartTag.IsNone())
+    {
+        return PlayerStart->PlayerStartTag.ToString();
+    }
+
+    for (const FName& ActorTag : PlayerStart->Tags)
+    {
+        if (!ActorTag.IsNone())
+        {
+            return ActorTag.ToString();
+        }
+    }
+
+#if WITH_EDITOR
+    return PlayerStart->GetActorLabel();
+#else
+    return PlayerStart->GetName();
+#endif
+}
 }
 
 FString APvPArenaGameMode::BuildDefaultDisplayNickname(int32 PlayerIndex)
@@ -32,15 +94,53 @@ void APvPArenaGameMode::BeginPlay()
     EnterLobbyPhase(true);
 }
 
+void APvPArenaGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
+{
+    Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
+
+    if (!ErrorMessage.IsEmpty())
+    {
+        return;
+    }
+
+    if (CountConnectedPlayers() >= MaximumLobbyPlayers)
+    {
+        ErrorMessage = TEXT("Lobby is full.");
+    }
+}
+
 void APvPArenaGameMode::PostLogin(APlayerController* NewPlayer)
 {
     Super::PostLogin(NewPlayer);
 
-    APvPArenaPlayerState* PlayerState = NewPlayer ? NewPlayer->GetPlayerState<APvPArenaPlayerState>() : nullptr;
-    if (PlayerState && PlayerState->GetDisplayNickname().IsEmpty())
+    APvPArenaPlayerState* NewPlayerState = NewPlayer ? Cast<APvPArenaPlayerState>(NewPlayer->PlayerState) : nullptr;
+    if (!NewPlayerState)
     {
-        PlayerState->SetDisplayNickname(ResolveUniqueDefaultDisplayNickname(PlayerState));
+        return;
     }
+
+    if (NewPlayerState->GetDisplayNickname().IsEmpty())
+    {
+        NewPlayerState->SetDisplayNickname(ResolveUniqueDefaultDisplayNickname(NewPlayerState));
+    }
+
+    EPvPALobbyMatchMode CurrentLobbyMatchMode = EPvPALobbyMatchMode::FreeForAll;
+    if (const AGameStateBase* BaseGameState = GameState)
+    {
+        for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+        {
+            const APvPArenaPlayerState* ExistingPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+            if (!ExistingPlayerState || ExistingPlayerState == NewPlayerState)
+            {
+                continue;
+            }
+
+            CurrentLobbyMatchMode = ExistingPlayerState->GetLobbyMatchMode();
+            break;
+        }
+    }
+
+    ApplyLobbyModeChangeToPlayerState(NewPlayerState, CurrentLobbyMatchMode);
 }
 
 void APvPArenaGameMode::Logout(AController* Exiting)
@@ -57,6 +157,7 @@ AActor* APvPArenaGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
     TArray<AActor*> CandidateStarts;
     UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), CandidateStarts);
+    CandidateStarts = FilterPlayerStartsForPlayer(CandidateStarts, Player);
 
     if (AActor* ChosenStart = ChooseRespawnStartForPlayer(CandidateStarts, Player))
     {
@@ -89,12 +190,42 @@ void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlay
         Killer->AddKill();
     }
 
+    if (GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        const EPvPALobbyTeam VictimTeam = Victim ? Victim->GetLobbyTeam() : EPvPALobbyTeam::None;
+        if (VictimTeam == EPvPALobbyTeam::Left || VictimTeam == EPvPALobbyTeam::Right)
+        {
+            const int32 RemainingVictimTeamAlivePlayers = CountAlivePlayersOnLobbyTeam(VictimTeam);
+            if (RemainingVictimTeamAlivePlayers <= 0)
+            {
+                bHasWinner = true;
+                const EPvPALobbyTeam WinningTeam = VictimTeam == EPvPALobbyTeam::Left
+                    ? EPvPALobbyTeam::Right
+                    : EPvPALobbyTeam::Left;
+                AwardRoundWinners(
+                    GatherPlayersOnLobbyTeam(WinningTeam),
+                    ResolveRepresentingPlayerForTeam(WinningTeam));
+            }
+        }
+        return;
+    }
+
     const EPvPARoundState CurrentRoundState = PvPGameState ? PvPGameState->GetRoundState() : EPvPARoundState::Playing;
     const int32 KillerKills = Killer ? Killer->GetKills() : 0;
+    if (CurrentRoundState == EPvPARoundState::SuddenDeath)
+    {
+        if (APvPArenaPlayerState* UniqueLeader = ResolveRoundWinnerFromScores())
+        {
+            bHasWinner = true;
+            BeginMatchEndPhase(UniqueLeader);
+        }
+        return;
+    }
+
     if (Killer && ShouldEndRoundOnKill(CurrentRoundState, KillerKills))
     {
         bHasWinner = true;
-        AwardRoundWin(Killer);
+        BeginMatchEndPhase(Killer);
     }
 
     (void)RespawnDelaySeconds;
@@ -102,13 +233,20 @@ void APvPArenaGameMode::RegisterKill(APvPArenaPlayerState* Killer, APvPArenaPlay
 
 EPvPARoundState APvPArenaGameMode::ResolveRoundTimeout(int32 PlayerOneScore, int32 PlayerTwoScore)
 {
-    if (PlayerOneScore == PlayerTwoScore)
-    {
-        bHasWinner = false;
-        return EPvPARoundState::SuddenDeath;
-    }
-
     bHasWinner = true;
+    return ResolveFreeForAllRoundTimeoutState(PlayerOneScore == PlayerTwoScore);
+}
+
+EPvPARoundState APvPArenaGameMode::ResolveFreeForAllRoundTimeoutState(bool bHasTieForLead) const
+{
+    (void)bHasTieForLead;
+    return EPvPARoundState::RoundEnd;
+}
+
+EPvPARoundState APvPArenaGameMode::ResolveTeamVersusRoundTimeoutState(int32 LeftTeamAlivePlayers, int32 RightTeamAlivePlayers) const
+{
+    (void)LeftTeamAlivePlayers;
+    (void)RightTeamAlivePlayers;
     return EPvPARoundState::RoundEnd;
 }
 
@@ -124,12 +262,24 @@ bool APvPArenaGameMode::ShouldEndRoundOnKill(EPvPARoundState CurrentRoundState, 
 
 bool APvPArenaGameMode::ShouldEndMatchOnRoundWin(int32 RoundWins) const
 {
-    return RoundWins >= IterationRoundWinsToWinDefault;
+    return ShouldEndMatchOnRoundWinState(RoundWins, false);
+}
+
+bool APvPArenaGameMode::ShouldEndMatchOnRoundWinState(int32 HighestRoundWins, bool bHasTieAtHighestRoundWins) const
+{
+    return HighestRoundWins >= IterationRoundWinsToWinDefault && !bHasTieAtHighestRoundWins;
 }
 
 EPvPAMatchPhase APvPArenaGameMode::ResolveMatchPhaseAfterRoundWin(int32 RoundWins) const
 {
-    return ShouldEndMatchOnRoundWin(RoundWins) ? EPvPAMatchPhase::MatchEnd : EPvPAMatchPhase::Playing;
+    return ResolveMatchPhaseAfterRoundWinState(RoundWins, false);
+}
+
+EPvPAMatchPhase APvPArenaGameMode::ResolveMatchPhaseAfterRoundWinState(int32 HighestRoundWins, bool bHasTieAtHighestRoundWins) const
+{
+    return ShouldEndMatchOnRoundWinState(HighestRoundWins, bHasTieAtHighestRoundWins)
+        ? EPvPAMatchPhase::MatchEnd
+        : EPvPAMatchPhase::Playing;
 }
 
 bool APvPArenaGameMode::ShouldContinueToNextRoundAfterRoundWin(int32 RoundWins) const
@@ -137,9 +287,19 @@ bool APvPArenaGameMode::ShouldContinueToNextRoundAfterRoundWin(int32 RoundWins) 
     return ResolveMatchPhaseAfterRoundWin(RoundWins) == EPvPAMatchPhase::Playing;
 }
 
-bool APvPArenaGameMode::IsReadyToStartMatch(int32 ConnectedPlayers, int32 ReadyPlayers) const
+bool APvPArenaGameMode::IsReadyToStartMatch(EPvPALobbyMatchMode LobbyMatchMode, int32 ConnectedPlayers, int32 LeftTeamPlayers, int32 RightTeamPlayers) const
 {
-    return ConnectedPlayers >= MinimumPlayersToStartMatch;
+    if (ConnectedPlayers < MinimumPlayersToStartMatch || ConnectedPlayers > MaximumLobbyPlayers)
+    {
+        return false;
+    }
+
+    if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus)
+    {
+        return LeftTeamPlayers > 0 && RightTeamPlayers > 0;
+    }
+
+    return true;
 }
 
 bool APvPArenaGameMode::CanLobbyHostStartMatch(bool bRequestingControllerHasAuthority, int32 ConnectedPlayers) const
@@ -160,7 +320,17 @@ void APvPArenaGameMode::RequestLobbyMatchStart(AController* RequestingController
         return;
     }
 
-    if (!CanLobbyHostStartMatch(RequestingController && RequestingController->HasAuthority(), CountConnectedPlayers()))
+    const int32 ConnectedPlayers = CountConnectedPlayers();
+    if (!CanLobbyHostStartMatch(RequestingController && RequestingController->HasAuthority(), ConnectedPlayers))
+    {
+        return;
+    }
+
+    if (!IsReadyToStartMatch(
+            GetLobbyMatchMode(),
+            ConnectedPlayers,
+            CountPlayersOnLobbyTeam(EPvPALobbyTeam::Left),
+            CountPlayersOnLobbyTeam(EPvPALobbyTeam::Right)))
     {
         return;
     }
@@ -192,9 +362,80 @@ void APvPArenaGameMode::HandleLobbyDisplayNicknameChanged(APvPArenaPlayerState* 
             : NormalizedNickname);
 }
 
+void APvPArenaGameMode::HandleLobbyMatchModeChanged(AController* RequestingController, EPvPALobbyMatchMode NewLobbyMatchMode)
+{
+    if (!RequestingController || !RequestingController->HasAuthority())
+    {
+        return;
+    }
+
+    if (AGameStateBase* BaseGameState = GameState)
+    {
+        for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+        {
+            ApplyLobbyModeChangeToPlayerState(Cast<APvPArenaPlayerState>(PlayerState), NewLobbyMatchMode);
+        }
+    }
+}
+
+void APvPArenaGameMode::HandleLobbyTeamSelectionChanged(APvPArenaPlayerState* PlayerState, EPvPALobbyTeam NewLobbyTeam)
+{
+    if (!PlayerState || GetLobbyMatchMode() != EPvPALobbyMatchMode::TeamVersus)
+    {
+        return;
+    }
+
+    PlayerState->SetLobbyTeam(NewLobbyTeam);
+}
+
+void APvPArenaGameMode::ApplyLobbyModeChangeToPlayerState(APvPArenaPlayerState* PlayerState, EPvPALobbyMatchMode NewLobbyMatchMode) const
+{
+    if (!PlayerState)
+    {
+        return;
+    }
+
+    PlayerState->ResetLobbyStateForModeChange(NewLobbyMatchMode);
+}
+
 bool APvPArenaGameMode::ShouldScheduleRespawnAfterElimination(bool bHasVictimController) const
 {
-    return bHasVictimController && !bHasWinner;
+    const APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    return ShouldScheduleRespawnAfterEliminationForMode(
+        GetLobbyMatchMode(),
+        bHasVictimController,
+        bHasWinner,
+        PvPGameState ? PvPGameState->GetRoundState() : EPvPARoundState::Playing);
+}
+
+bool APvPArenaGameMode::ShouldScheduleRespawnAfterEliminationForMode(
+    EPvPALobbyMatchMode LobbyMatchMode,
+    bool bHasVictimController,
+    bool bRoundAlreadyHasWinner,
+    EPvPARoundState CurrentRoundState) const
+{
+    if (!bHasVictimController || bRoundAlreadyHasWinner)
+    {
+        return false;
+    }
+
+    return LobbyMatchMode != EPvPALobbyMatchMode::TeamVersus && CurrentRoundState != EPvPARoundState::SuddenDeath;
+}
+
+bool APvPArenaGameMode::ShouldEnterSpectatingAfterEliminationForMode(
+    EPvPALobbyMatchMode LobbyMatchMode,
+    bool bHasVictimController,
+    bool bRoundAlreadyHasWinner,
+    EPvPARoundState CurrentRoundState) const
+{
+    return !ShouldScheduleRespawnAfterEliminationForMode(
+            LobbyMatchMode,
+            bHasVictimController,
+            bRoundAlreadyHasWinner,
+            CurrentRoundState)
+        && bHasVictimController
+        && !bRoundAlreadyHasWinner
+        && (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus || CurrentRoundState == EPvPARoundState::SuddenDeath);
 }
 
 AActor* APvPArenaGameMode::ChooseRespawnStartFromCandidates(const TArray<AActor*>& CandidateStarts, const AActor* PreviousStart) const
@@ -226,6 +467,53 @@ AActor* APvPArenaGameMode::ChooseRespawnStartForPlayer(const TArray<AActor*>& Ca
     }
 
     return ChosenStart;
+}
+
+TArray<AActor*> APvPArenaGameMode::FilterPlayerStartsForPlayer(const TArray<AActor*>& CandidateStarts, const AController* Player) const
+{
+    const APvPArenaPlayerState* PlayerState = Player ? Cast<APvPArenaPlayerState>(Player->PlayerState) : nullptr;
+    if (!PlayerState)
+    {
+        return CandidateStarts;
+    }
+
+    TArray<AActor*> FilteredStarts;
+    FilteredStarts.Reserve(CandidateStarts.Num());
+
+    for (AActor* CandidateStart : CandidateStarts)
+    {
+        const APlayerStart* PlayerStart = Cast<APlayerStart>(CandidateStart);
+        if (!PlayerStart)
+        {
+            continue;
+        }
+
+        const FString Identifier = ResolvePlayerStartIdentifier(PlayerStart);
+        bool bMatches = false;
+
+        if (PlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+        {
+            if (PlayerState->GetLobbyTeam() == EPvPALobbyTeam::Left)
+            {
+                bMatches = IsBlueTeamSpawnIdentifier(Identifier);
+            }
+            else if (PlayerState->GetLobbyTeam() == EPvPALobbyTeam::Right)
+            {
+                bMatches = IsRedTeamSpawnIdentifier(Identifier);
+            }
+        }
+        else
+        {
+            bMatches = IsFreeForAllSpawnIdentifier(Identifier);
+        }
+
+        if (bMatches)
+        {
+            FilteredStarts.Add(CandidateStart);
+        }
+    }
+
+    return FilteredStarts.IsEmpty() ? CandidateStarts : FilteredStarts;
 }
 
 AActor* APvPArenaGameMode::ChooseRoundStartFromCandidates(const TArray<AActor*>& CandidateStarts, AController* Player, const TSet<TObjectKey<AActor>>& UsedStarts) const
@@ -318,7 +606,7 @@ void APvPArenaGameMode::HandleRoundReset()
     {
         PvPGameState->SetMatchPhase(EPvPAMatchPhase::Playing);
         PvPGameState->SetRoundState(EPvPARoundState::Playing);
-        PvPGameState->SetRemainingRoundTimeSeconds(RoundDurationSeconds);
+        PvPGameState->SetRemainingRoundTimeSeconds(ResolveRoundDurationSecondsForMode(GetLobbyMatchMode()));
         PvPGameState->SetRemainingRoundEndTimeSeconds(0);
         PvPGameState->SetRemainingMatchEndTimeSeconds(0);
         PvPGameState->SetRoundWinner(nullptr);
@@ -351,7 +639,8 @@ void APvPArenaGameMode::ResetAllPlayersForNextRound()
             ExistingPawn->Destroy();
         }
 
-        if (AActor* RoundStart = ChooseRoundStartFromCandidates(CandidateStarts, Controller, UsedRoundStartSpots))
+        const TArray<AActor*> CandidateStartsForPlayer = FilterPlayerStartsForPlayer(CandidateStarts, Controller);
+        if (AActor* RoundStart = ChooseRoundStartFromCandidates(CandidateStartsForPlayer, Controller, UsedRoundStartSpots))
         {
             UsedRoundStartSpots.Add(RoundStart);
             RestartPlayerAtPlayerStart(Controller, RoundStart);
@@ -390,37 +679,42 @@ void APvPArenaGameMode::OnRoundSecondElapsed()
         return;
     }
 
-    int32 ScoreA = 0;
-    int32 ScoreB = 0;
-    if (AGameStateBase* BaseGameState = GameState)
+    if (GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
     {
-        int32 Index = 0;
-        for (APlayerState* PlayerState : BaseGameState->PlayerArray)
-        {
-            if (const APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState))
-            {
-                if (Index == 0)
-                {
-                    ScoreA = PvPState->GetKills();
-                }
-                else if (Index == 1)
-                {
-                    ScoreB = PvPState->GetKills();
-                }
-                ++Index;
-            }
-        }
-    }
+        const int32 LeftTeamAlivePlayers = CountAlivePlayersOnLobbyTeam(EPvPALobbyTeam::Left);
+        const int32 RightTeamAlivePlayers = CountAlivePlayersOnLobbyTeam(EPvPALobbyTeam::Right);
+        const EPvPARoundState TimeoutState = ResolveTeamVersusRoundTimeoutState(LeftTeamAlivePlayers, RightTeamAlivePlayers);
+        PvPGameState->SetRoundState(TimeoutState);
 
-    const EPvPARoundState TimeoutState = ResolveRoundTimeout(ScoreA, ScoreB);
-    PvPGameState->SetRoundState(TimeoutState);
-    if (TimeoutState == EPvPARoundState::RoundEnd)
-    {
-        AwardRoundWin(ResolveRoundWinnerFromScores());
+        if (LeftTeamAlivePlayers > RightTeamAlivePlayers)
+        {
+            AwardRoundWinners(GatherPlayersOnLobbyTeam(EPvPALobbyTeam::Left), ResolveRepresentingPlayerForTeam(EPvPALobbyTeam::Left));
+            return;
+        }
+
+        if (RightTeamAlivePlayers > LeftTeamAlivePlayers)
+        {
+            AwardRoundWinners(GatherPlayersOnLobbyTeam(EPvPALobbyTeam::Right), ResolveRepresentingPlayerForTeam(EPvPALobbyTeam::Right));
+            return;
+        }
+
+        TArray<APvPArenaPlayerState*> TiedWinners = GatherPlayersOnLobbyTeam(EPvPALobbyTeam::Left);
+        TiedWinners.Append(GatherPlayersOnLobbyTeam(EPvPALobbyTeam::Right));
+        AwardRoundWinners(TiedWinners, nullptr);
         return;
     }
 
     GetWorldTimerManager().ClearTimer(RoundTimerHandle);
+
+    const TArray<APvPArenaPlayerState*> Leaders = ResolveRoundLeadersFromScores();
+    if (Leaders.Num() == 1)
+    {
+        bHasWinner = true;
+        BeginMatchEndPhase(Leaders[0]);
+        return;
+    }
+
+    EnterFreeForAllSuddenDeath(Leaders);
 }
 
 void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AController* KillerController)
@@ -429,6 +723,54 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
     APvPArenaPlayerState* KillerState = KillerController ? Cast<APvPArenaPlayerState>(KillerController->PlayerState) : nullptr;
 
     RegisterKill(KillerState, VictimState);
+
+    const APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    const EPvPALobbyMatchMode LobbyMatchMode = GetLobbyMatchMode();
+    const EPvPARoundState CurrentRoundState = PvPGameState ? PvPGameState->GetRoundState() : EPvPARoundState::Playing;
+    if (ShouldEnterSpectatingAfterEliminationForMode(
+            LobbyMatchMode,
+            VictimController != nullptr,
+            bHasWinner,
+            CurrentRoundState))
+    {
+        if (APvPArenaCharacter* VictimCharacter = Cast<APvPArenaCharacter>(VictimController->GetPawn()))
+        {
+            const float DeathAnimationDuration = VictimCharacter->GetDeathAnimationDuration();
+            if (DeathAnimationDuration > 0.0f)
+            {
+                FTimerHandle SpectatorTimerHandle;
+                TWeakObjectPtr<AController> VictimControllerWeak = VictimController;
+                GetWorldTimerManager().SetTimer(
+                    SpectatorTimerHandle,
+                    FTimerDelegate::CreateLambda([this, VictimControllerWeak]()
+                    {
+                        if (!VictimControllerWeak.IsValid())
+                        {
+                            return;
+                        }
+
+                        if (APawn* ExistingPawn = VictimControllerWeak->GetPawn())
+                        {
+                            ExistingPawn->Destroy();
+                        }
+
+                        SetControllerSpectating(VictimControllerWeak.Get());
+                    }),
+                    DeathAnimationDuration,
+                    false);
+            }
+            else
+            {
+                VictimCharacter->Destroy();
+                SetControllerSpectating(VictimController);
+            }
+        }
+        else
+        {
+            SetControllerSpectating(VictimController);
+        }
+        return;
+    }
 
     if (!ShouldScheduleRespawnAfterElimination(VictimController != nullptr))
     {
@@ -469,6 +811,16 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
             return;
         }
 
+        const APvPArenaGameState* CurrentGameState = GetGameState<APvPArenaGameState>();
+        if (!ShouldScheduleRespawnAfterEliminationForMode(
+                GetLobbyMatchMode(),
+                true,
+                bHasWinner,
+                CurrentGameState ? CurrentGameState->GetRoundState() : EPvPARoundState::Playing))
+        {
+            return;
+        }
+
         if (APawn* ExistingPawn = VictimControllerWeak->GetPawn())
         {
             ExistingPawn->Destroy();
@@ -501,8 +853,9 @@ void APvPArenaGameMode::EnterLobbyPhase(bool bResetMatchStats)
 
     if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
     {
-        PvPGameState->SetScoreLimit(ScoreLimit);
-        PvPGameState->SetRoundWinsToWin(IterationRoundWinsToWinDefault);
+        const EPvPALobbyMatchMode LobbyMatchMode = GetLobbyMatchMode();
+        PvPGameState->SetScoreLimit(ResolveScoreLimitForMode(LobbyMatchMode));
+        PvPGameState->SetRoundWinsToWin(ResolveRoundWinsToWinForMode(LobbyMatchMode));
         PvPGameState->SetMatchPhase(EPvPAMatchPhase::Lobby);
         PvPGameState->SetRoundState(EPvPARoundState::Playing);
         PvPGameState->SetRemainingRoundTimeSeconds(0);
@@ -545,11 +898,12 @@ void APvPArenaGameMode::StartMatchFlow()
 
     if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
     {
-        PvPGameState->SetScoreLimit(ScoreLimit);
-        PvPGameState->SetRoundWinsToWin(IterationRoundWinsToWinDefault);
+        const EPvPALobbyMatchMode LobbyMatchMode = GetLobbyMatchMode();
+        PvPGameState->SetScoreLimit(ResolveScoreLimitForMode(LobbyMatchMode));
+        PvPGameState->SetRoundWinsToWin(ResolveRoundWinsToWinForMode(LobbyMatchMode));
         PvPGameState->SetMatchPhase(EPvPAMatchPhase::Playing);
         PvPGameState->SetRoundState(EPvPARoundState::Playing);
-        PvPGameState->SetRemainingRoundTimeSeconds(RoundDurationSeconds);
+        PvPGameState->SetRemainingRoundTimeSeconds(ResolveRoundDurationSecondsForMode(LobbyMatchMode));
         PvPGameState->SetRemainingRoundEndTimeSeconds(0);
         PvPGameState->SetRemainingLobbyCountdownSeconds(0);
         PvPGameState->SetRemainingMatchEndTimeSeconds(0);
@@ -610,18 +964,58 @@ void APvPArenaGameMode::AwardRoundWin(APvPArenaPlayerState* RoundWinner)
     BeginRoundEndPhase();
 }
 
+void APvPArenaGameMode::AwardRoundWinners(const TArray<APvPArenaPlayerState*>& RoundWinners, APvPArenaPlayerState* DisplayWinner)
+{
+    if (RoundWinners.IsEmpty())
+    {
+        if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
+        {
+            PvPGameState->SetRoundWinner(nullptr);
+        }
+        BeginRoundEndPhase();
+        return;
+    }
+
+    for (APvPArenaPlayerState* Winner : RoundWinners)
+    {
+        if (Winner)
+        {
+            Winner->AddRoundWin();
+        }
+    }
+
+    if (APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>())
+    {
+        PvPGameState->SetRoundWinner(DisplayWinner);
+    }
+
+    int32 HighestRoundWins = 0;
+    const bool bHasTieAtHighestRoundWins = HasTieAtHighestRoundWins(HighestRoundWins);
+    if (ShouldEndMatchOnRoundWinState(HighestRoundWins, bHasTieAtHighestRoundWins))
+    {
+        BeginMatchEndPhase(ResolveUniqueMatchWinner());
+        return;
+    }
+
+    BeginRoundEndPhase();
+}
+
 APvPArenaPlayerState* APvPArenaGameMode::ResolveRoundWinnerFromScores() const
 {
+    const TArray<APvPArenaPlayerState*> Leaders = ResolveRoundLeadersFromScores();
+    return Leaders.Num() == 1 ? Leaders[0] : nullptr;
+}
+
+TArray<APvPArenaPlayerState*> APvPArenaGameMode::ResolveRoundLeadersFromScores() const
+{
+    TArray<APvPArenaPlayerState*> Leaders;
     const AGameStateBase* BaseGameState = GameState;
     if (!BaseGameState)
     {
-        return nullptr;
+        return Leaders;
     }
 
-    APvPArenaPlayerState* BestPlayerState = nullptr;
     int32 BestKills = TNumericLimits<int32>::Min();
-    bool bTie = false;
-
     for (APlayerState* PlayerState : BaseGameState->PlayerArray)
     {
         APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState);
@@ -634,16 +1028,308 @@ APvPArenaPlayerState* APvPArenaGameMode::ResolveRoundWinnerFromScores() const
         if (RoundKills > BestKills)
         {
             BestKills = RoundKills;
-            BestPlayerState = PvPState;
-            bTie = false;
+            Leaders.Reset();
+            Leaders.Add(PvPState);
         }
         else if (RoundKills == BestKills)
         {
-            bTie = true;
+            Leaders.Add(PvPState);
         }
     }
 
-    return bTie ? nullptr : BestPlayerState;
+    return Leaders;
+}
+
+TArray<APvPArenaPlayerState*> APvPArenaGameMode::GatherPlayersOnLobbyTeam(EPvPALobbyTeam LobbyTeam) const
+{
+    TArray<APvPArenaPlayerState*> TeamPlayers;
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return TeamPlayers;
+    }
+
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (PvPPlayerState && PvPPlayerState->GetLobbyTeam() == LobbyTeam)
+        {
+            TeamPlayers.Add(PvPPlayerState);
+        }
+    }
+
+    return TeamPlayers;
+}
+
+int32 APvPArenaGameMode::CountAlivePlayersOnLobbyTeam(EPvPALobbyTeam LobbyTeam) const
+{
+    if (!GetWorld())
+    {
+        return 0;
+    }
+
+    int32 AlivePlayers = 0;
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        const AController* Controller = It->Get();
+        const APvPArenaPlayerState* PlayerState = Controller ? Cast<APvPArenaPlayerState>(Controller->PlayerState) : nullptr;
+        const APvPArenaCharacter* Character = Controller ? Cast<APvPArenaCharacter>(Controller->GetPawn()) : nullptr;
+        if (PlayerState && Character && !Character->IsDead() && PlayerState->GetLobbyTeam() == LobbyTeam)
+        {
+            ++AlivePlayers;
+        }
+    }
+
+    return AlivePlayers;
+}
+
+int32 APvPArenaGameMode::GetTeamRoundWins(EPvPALobbyTeam LobbyTeam) const
+{
+    int32 TeamRoundWins = 0;
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return 0;
+    }
+
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (PvPPlayerState && PvPPlayerState->GetLobbyTeam() == LobbyTeam)
+        {
+            TeamRoundWins = FMath::Max(TeamRoundWins, PvPPlayerState->GetRoundWins());
+        }
+    }
+
+    return TeamRoundWins;
+}
+
+APvPArenaPlayerState* APvPArenaGameMode::ResolveRepresentingPlayerForTeam(EPvPALobbyTeam LobbyTeam) const
+{
+    TArray<APvPArenaPlayerState*> TeamPlayers = GatherPlayersOnLobbyTeam(LobbyTeam);
+    return TeamPlayers.IsEmpty() ? nullptr : TeamPlayers[0];
+}
+
+bool APvPArenaGameMode::HasTieAtHighestRoundWins(int32& OutHighestRoundWins) const
+{
+    OutHighestRoundWins = 0;
+    if (GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        const int32 LeftTeamRoundWins = GetTeamRoundWins(EPvPALobbyTeam::Left);
+        const int32 RightTeamRoundWins = GetTeamRoundWins(EPvPALobbyTeam::Right);
+        OutHighestRoundWins = FMath::Max(LeftTeamRoundWins, RightTeamRoundWins);
+        return LeftTeamRoundWins == RightTeamRoundWins;
+    }
+
+    bool bFoundAnyPlayer = false;
+    bool bHasTie = false;
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return false;
+    }
+
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (!PvPState)
+        {
+            continue;
+        }
+
+        const int32 RoundWins = PvPState->GetRoundWins();
+        if (!bFoundAnyPlayer || RoundWins > OutHighestRoundWins)
+        {
+            OutHighestRoundWins = RoundWins;
+            bFoundAnyPlayer = true;
+            bHasTie = false;
+        }
+        else if (RoundWins == OutHighestRoundWins)
+        {
+            bHasTie = true;
+        }
+    }
+
+    return bHasTie;
+}
+
+APvPArenaPlayerState* APvPArenaGameMode::ResolveUniqueMatchWinner() const
+{
+    if (GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        const int32 LeftTeamRoundWins = GetTeamRoundWins(EPvPALobbyTeam::Left);
+        const int32 RightTeamRoundWins = GetTeamRoundWins(EPvPALobbyTeam::Right);
+        if (LeftTeamRoundWins == RightTeamRoundWins || FMath::Max(LeftTeamRoundWins, RightTeamRoundWins) < ResolveRoundWinsToWinForMode(EPvPALobbyMatchMode::TeamVersus))
+        {
+            return nullptr;
+        }
+
+        return ResolveRepresentingPlayerForTeam(
+            LeftTeamRoundWins > RightTeamRoundWins ? EPvPALobbyTeam::Left : EPvPALobbyTeam::Right);
+    }
+
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return nullptr;
+    }
+
+    APvPArenaPlayerState* MatchWinner = nullptr;
+    int32 HighestRoundWins = 0;
+    bool bFoundAnyPlayer = false;
+    bool bHasTie = false;
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (!PvPState)
+        {
+            continue;
+        }
+
+        if (!bFoundAnyPlayer || PvPState->GetRoundWins() > HighestRoundWins)
+        {
+            HighestRoundWins = PvPState->GetRoundWins();
+            MatchWinner = PvPState;
+            bFoundAnyPlayer = true;
+            bHasTie = false;
+        }
+        else if (PvPState->GetRoundWins() == HighestRoundWins)
+        {
+            bHasTie = true;
+        }
+    }
+
+    return bHasTie || HighestRoundWins < ResolveRoundWinsToWinForMode(EPvPALobbyMatchMode::TeamVersus) ? nullptr : MatchWinner;
+}
+
+int32 APvPArenaGameMode::ResolveScoreLimitForMode(EPvPALobbyMatchMode LobbyMatchMode) const
+{
+    return LobbyMatchMode == EPvPALobbyMatchMode::FreeForAll ? ScoreLimit : ScoreLimit;
+}
+
+int32 APvPArenaGameMode::ResolveRoundDurationSecondsForMode(EPvPALobbyMatchMode LobbyMatchMode) const
+{
+    return LobbyMatchMode == EPvPALobbyMatchMode::FreeForAll
+        ? RoundDurationSeconds
+        : TeamVersusRoundDurationSecondsDefault;
+}
+
+int32 APvPArenaGameMode::ResolveRoundWinsToWinForMode(EPvPALobbyMatchMode LobbyMatchMode) const
+{
+    return LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus ? IterationRoundWinsToWinDefault : 1;
+}
+
+void APvPArenaGameMode::EnterFreeForAllSuddenDeath(const TArray<APvPArenaPlayerState*>& TiedLeaders)
+{
+    APvPArenaGameState* PvPGameState = GetGameState<APvPArenaGameState>();
+    if (!PvPGameState || TiedLeaders.Num() <= 1)
+    {
+        return;
+    }
+
+    bHasWinner = false;
+    PvPGameState->SetRoundState(EPvPARoundState::SuddenDeath);
+    PvPGameState->SetRemainingRoundTimeSeconds(0);
+    PvPGameState->SetRemainingRoundEndTimeSeconds(0);
+    PvPGameState->SetRoundWinner(nullptr);
+    ResetControllersForFreeForAllSuddenDeath(TiedLeaders);
+}
+
+void APvPArenaGameMode::ResetControllersForFreeForAllSuddenDeath(const TArray<APvPArenaPlayerState*>& TiedLeaders)
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    TSet<TObjectKey<APvPArenaPlayerState>> LeaderKeys;
+    for (APvPArenaPlayerState* Leader : TiedLeaders)
+    {
+        if (Leader)
+        {
+            LeaderKeys.Add(Leader);
+        }
+    }
+
+    TSet<TObjectKey<AActor>> UsedRoundStartSpots;
+    TArray<AActor*> CandidateStarts;
+    UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), CandidateStarts);
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        AController* Controller = It->Get();
+        APvPArenaPlayerState* PlayerState = Controller ? Cast<APvPArenaPlayerState>(Controller->PlayerState) : nullptr;
+        if (!Controller || !PlayerState || !LeaderKeys.Contains(PlayerState))
+        {
+            continue;
+        }
+
+        if (APawn* ExistingPawn = Controller->GetPawn())
+        {
+            ExistingPawn->Destroy();
+        }
+
+        if (AActor* RoundStart = ChooseRoundStartFromCandidates(CandidateStarts, Controller, UsedRoundStartSpots))
+        {
+            UsedRoundStartSpots.Add(RoundStart);
+            RestartPlayerAtPlayerStart(Controller, RoundStart);
+        }
+        else
+        {
+            RestartPlayer(Controller);
+        }
+    }
+
+    for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+    {
+        AController* Controller = It->Get();
+        APvPArenaPlayerState* PlayerState = Controller ? Cast<APvPArenaPlayerState>(Controller->PlayerState) : nullptr;
+        if (!Controller || !PlayerState || LeaderKeys.Contains(PlayerState))
+        {
+            continue;
+        }
+
+        if (APawn* ExistingPawn = Controller->GetPawn())
+        {
+            ExistingPawn->Destroy();
+        }
+
+        SetControllerSpectating(Controller);
+    }
+}
+
+void APvPArenaGameMode::SetControllerSpectating(AController* Controller) const
+{
+    if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+    {
+        PlayerController->StartSpectatingOnly();
+        PlayerController->ChangeState(NAME_Spectating);
+        PlayerController->ClientGotoState(NAME_Spectating);
+        if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(PlayerController))
+        {
+            PvPPlayerController->ClientEnterFreeSpectatorMode();
+        }
+    }
+}
+
+EPvPALobbyMatchMode APvPArenaGameMode::GetLobbyMatchMode() const
+{
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return EPvPALobbyMatchMode::FreeForAll;
+    }
+
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (PvPPlayerState)
+        {
+            return PvPPlayerState->GetLobbyMatchMode();
+        }
+    }
+
+    return EPvPALobbyMatchMode::FreeForAll;
 }
 
 int32 APvPArenaGameMode::CountConnectedPlayers() const
@@ -720,6 +1406,27 @@ FString APvPArenaGameMode::ResolveUniqueDefaultDisplayNickname(const APvPArenaPl
             return CandidateNickname;
         }
     }
+}
+
+int32 APvPArenaGameMode::CountPlayersOnLobbyTeam(EPvPALobbyTeam LobbyTeam) const
+{
+    const AGameStateBase* BaseGameState = GameState;
+    if (!BaseGameState)
+    {
+        return 0;
+    }
+
+    int32 TeamPlayers = 0;
+    for (APlayerState* PlayerState : BaseGameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (PvPPlayerState && PvPPlayerState->GetLobbyTeam() == LobbyTeam)
+        {
+            ++TeamPlayers;
+        }
+    }
+
+    return TeamPlayers;
 }
 
 void APvPArenaGameMode::ResetAllMatchStats()

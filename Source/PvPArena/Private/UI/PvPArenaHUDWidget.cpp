@@ -153,6 +153,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyControlsPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyControlsPanel"));
     MatchResultPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MatchResultPanel"));
     SettingsPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SettingsPanel"));
+    SpectatorHelpPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SpectatorHelpPanel"));
     StatusBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusBox"));
     StatusCardsBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("StatusCardsBox"));
     CountdownBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CountdownBox"));
@@ -163,6 +164,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyControlsCardsBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LobbyControlsCardsBox"));
     MatchResultBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MatchResultBox"));
     SettingsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SettingsBox"));
+    SpectatorHelpBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SpectatorHelpBox"));
     LobbyKeyboardCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyKeyboardCard"));
     LobbyMouseCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LobbyMouseCard"));
     HealthCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HealthCard"));
@@ -182,7 +184,6 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     HealthText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HealthText"));
     SprintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SprintText"));
     RangedCooldownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RangedCooldownText"));
-    RoundScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundScoreText"));
     MatchScoreText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MatchScoreText"));
     TimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TimerText"));
     RoundStateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RoundStateText"));
@@ -190,8 +191,20 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     NextRoundText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextRoundText"));
     LobbyTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyTitleText"));
     LobbyStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyStatusText"));
+    LobbyModeStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyModeStatusText"));
+    LobbyTeamStatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyTeamStatusText"));
+    LobbyLeftTeamListText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyLeftTeamListText"));
+    LobbyRightTeamListText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyRightTeamListText"));
     LobbyReadyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyReadyButton"));
     LobbyReadyButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyReadyButtonText"));
+    LobbyFreeForAllModeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyFreeForAllModeButton"));
+    LobbyFreeForAllModeButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyFreeForAllModeButtonText"));
+    LobbyTeamVersusModeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyTeamVersusModeButton"));
+    LobbyTeamVersusModeButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyTeamVersusModeButtonText"));
+    LobbyLeftTeamButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyLeftTeamButton"));
+    LobbyLeftTeamButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyLeftTeamButtonText"));
+    LobbyRightTeamButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyRightTeamButton"));
+    LobbyRightTeamButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyRightTeamButtonText"));
     LobbyControlsTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyControlsTitleText"));
     LobbyControlsKeyboardTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyControlsKeyboardTitleText"));
     LobbyControlsKeyboardMoveText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyControlsKeyboardMoveText"));
@@ -216,6 +229,10 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     SettingsVSyncButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsVSyncButtonText"));
     SettingsResumeButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsResumeButtonText"));
     SettingsQuitButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SettingsQuitButtonText"));
+    SpectatorHelpTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SpectatorHelpTitleText"));
+    SpectatorHelpMoveText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SpectatorHelpMoveText"));
+    SpectatorHelpLookText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SpectatorHelpLookText"));
+    SpectatorHelpRiseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SpectatorHelpRiseText"));
     JoinAddressTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("JoinAddressTextBox"));
     HostMatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HostMatchButton"));
     HostMatchButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HostMatchButtonText"));
@@ -235,7 +252,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     RangedCrosshairHorizontalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairHorizontalLine"));
     RangedCrosshairVerticalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairVerticalLine"));
 
-    if (!RootOverlay || !StatusPanel || !CountdownPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !StatusCardsBox || !CountdownBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !LobbyKeyboardCard || !LobbyMouseCard || !HealthCard || !SprintCard || !RangedCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthCardBox || !SprintCardBox || !RangedCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !RoundScoreText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !LobbyNicknameTextBox || !LobbyPlayerListBox || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
+    if (!RootOverlay || !StatusPanel || !CountdownPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !SpectatorHelpPanel || !StatusCardsBox || !CountdownBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !SpectatorHelpBox || !LobbyKeyboardCard || !LobbyMouseCard || !HealthCard || !SprintCard || !RangedCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthCardBox || !SprintCardBox || !RangedCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyModeStatusText || !LobbyTeamStatusText || !LobbyLeftTeamListText || !LobbyRightTeamListText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyFreeForAllModeButton || !LobbyFreeForAllModeButtonText || !LobbyTeamVersusModeButton || !LobbyTeamVersusModeButtonText || !LobbyLeftTeamButton || !LobbyLeftTeamButtonText || !LobbyRightTeamButton || !LobbyRightTeamButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !LobbyNicknameTextBox || !LobbyPlayerListBox || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !SpectatorHelpTitleText || !SpectatorHelpMoveText || !SpectatorHelpLookText || !SpectatorHelpRiseText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
     {
         return;
     }
@@ -277,6 +294,11 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     SettingsPanel->SetBrushColor(FLinearColor(0.01f, 0.03f, 0.06f, 0.92f));
     SettingsPanel->SetVisibility(ESlateVisibility::Collapsed);
 
+    SpectatorHelpPanel->SetContent(SpectatorHelpBox);
+    SpectatorHelpPanel->SetPadding(FMargin(18.0f, 14.0f, 18.0f, 14.0f));
+    SpectatorHelpPanel->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.08f, 0.82f));
+    SpectatorHelpPanel->SetVisibility(ESlateVisibility::Collapsed);
+
     UOverlaySlot* StatusBoxSlot = RootOverlay->AddChildToOverlay(StatusPanel);
     UOverlaySlot* CountdownBoxSlot = RootOverlay->AddChildToOverlay(CountdownPanel);
     UOverlaySlot* InfoBoxSlot = RootOverlay->AddChildToOverlay(InfoPanel);
@@ -285,6 +307,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     UOverlaySlot* LobbyControlsBoxSlot = RootOverlay->AddChildToOverlay(LobbyControlsPanel);
     UOverlaySlot* MatchResultBoxSlot = RootOverlay->AddChildToOverlay(MatchResultPanel);
     UOverlaySlot* SettingsBoxSlot = RootOverlay->AddChildToOverlay(SettingsPanel);
+    UOverlaySlot* SpectatorHelpBoxSlot = RootOverlay->AddChildToOverlay(SpectatorHelpPanel);
     UOverlaySlot* RangedCrosshairSlot = RootOverlay->AddChildToOverlay(RangedCrosshairOverlay);
 
     if (StatusBoxSlot)
@@ -319,6 +342,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     {
         LobbyBoxSlot->SetHorizontalAlignment(HAlign_Center);
         LobbyBoxSlot->SetVerticalAlignment(VAlign_Center);
+        LobbyBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 180.0f));
     }
 
     if (LobbyControlsBoxSlot)
@@ -338,6 +362,13 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     {
         SettingsBoxSlot->SetHorizontalAlignment(HAlign_Center);
         SettingsBoxSlot->SetVerticalAlignment(VAlign_Center);
+    }
+
+    if (SpectatorHelpBoxSlot)
+    {
+        SpectatorHelpBoxSlot->SetHorizontalAlignment(HAlign_Right);
+        SpectatorHelpBoxSlot->SetVerticalAlignment(VAlign_Bottom);
+        SpectatorHelpBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 24.0f, 120.0f));
     }
 
     if (RangedCrosshairSlot)
@@ -422,19 +453,34 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     UVerticalBoxSlot* RangedCooldownBarSlot = RangedCardBox->AddChildToVerticalBox(RangedCooldownBarSizeBox);
     UVerticalBoxSlot* RangedCooldownTextSlot = RangedCardBox->AddChildToVerticalBox(RangedCooldownText);
     UVerticalBoxSlot* TimerTextSlot = CountdownBox->AddChildToVerticalBox(TimerText);
-    UVerticalBoxSlot* RoundScoreTextSlot = InfoBox->AddChildToVerticalBox(RoundScoreText);
     UVerticalBoxSlot* MatchScoreTextSlot = InfoBox->AddChildToVerticalBox(MatchScoreText);
     UVerticalBoxSlot* RoundStateTextSlot = InfoBox->AddChildToVerticalBox(RoundStateText);
     UVerticalBoxSlot* ResultTextSlot = AnnouncementBox->AddChildToVerticalBox(ResultText);
     UVerticalBoxSlot* NextRoundTextSlot = AnnouncementBox->AddChildToVerticalBox(NextRoundText);
     UVerticalBoxSlot* LobbyTitleTextSlot = LobbyBox->AddChildToVerticalBox(LobbyTitleText);
     UVerticalBoxSlot* LobbyStatusTextSlot = LobbyBox->AddChildToVerticalBox(LobbyStatusText);
-    UVerticalBoxSlot* ConnectionStatusTextSlot = LobbyBox->AddChildToVerticalBox(ConnectionStatusText);
-    UVerticalBoxSlot* LobbyNicknameTextBoxSlot = LobbyBox->AddChildToVerticalBox(LobbyNicknameTextBox);
-    UVerticalBoxSlot* LobbyPlayerListBoxSlot = LobbyBox->AddChildToVerticalBox(LobbyPlayerListBox);
-    UVerticalBoxSlot* JoinAddressTextBoxSlot = LobbyBox->AddChildToVerticalBox(JoinAddressTextBox);
-    UVerticalBoxSlot* HostMatchButtonSlot = LobbyBox->AddChildToVerticalBox(HostMatchButton);
-    UVerticalBoxSlot* JoinByIpButtonSlot = LobbyBox->AddChildToVerticalBox(JoinByIpButton);
+    UHorizontalBox* LobbyMainColumnsBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("LobbyMainColumnsBox"));
+    UVerticalBox* LobbyLeftColumnBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyLeftColumnBox"));
+    UVerticalBox* LobbyCenterColumnBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyCenterColumnBox"));
+    UVerticalBox* LobbyRightColumnBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LobbyRightColumnBox"));
+    if (!LobbyMainColumnsBox || !LobbyLeftColumnBox || !LobbyCenterColumnBox || !LobbyRightColumnBox)
+    {
+        return;
+    }
+    UVerticalBoxSlot* LobbyMainColumnsSlot = LobbyBox->AddChildToVerticalBox(LobbyMainColumnsBox);
+    UHorizontalBoxSlot* LobbyLeftColumnSlot = LobbyMainColumnsBox->AddChildToHorizontalBox(LobbyLeftColumnBox);
+    UHorizontalBoxSlot* LobbyCenterColumnSlot = LobbyMainColumnsBox->AddChildToHorizontalBox(LobbyCenterColumnBox);
+    UHorizontalBoxSlot* LobbyRightColumnSlot = LobbyMainColumnsBox->AddChildToHorizontalBox(LobbyRightColumnBox);
+    UVerticalBoxSlot* LobbyLeftTeamListTextSlot = LobbyLeftColumnBox->AddChildToVerticalBox(LobbyLeftTeamListText);
+    UVerticalBoxSlot* LobbyModeStatusTextSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyModeStatusText);
+    UVerticalBoxSlot* LobbyTeamStatusTextSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyTeamStatusText);
+    UVerticalBoxSlot* LobbyNicknameTextBoxSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyNicknameTextBox);
+    UVerticalBoxSlot* LobbyPlayerListBoxSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyPlayerListBox);
+    UVerticalBoxSlot* ConnectionStatusTextSlot = LobbyCenterColumnBox->AddChildToVerticalBox(ConnectionStatusText);
+    UVerticalBoxSlot* JoinAddressTextBoxSlot = LobbyCenterColumnBox->AddChildToVerticalBox(JoinAddressTextBox);
+    UVerticalBoxSlot* HostMatchButtonSlot = LobbyCenterColumnBox->AddChildToVerticalBox(HostMatchButton);
+    UVerticalBoxSlot* JoinByIpButtonSlot = LobbyCenterColumnBox->AddChildToVerticalBox(JoinByIpButton);
+    UVerticalBoxSlot* LobbyRightTeamListTextSlot = LobbyRightColumnBox->AddChildToVerticalBox(LobbyRightTeamListText);
     UVerticalBoxSlot* LobbyControlsTitleTextSlot = LobbyControlsBox->AddChildToVerticalBox(LobbyControlsTitleText);
     UVerticalBoxSlot* LobbyControlsCardsBoxSlot = LobbyControlsBox->AddChildToVerticalBox(LobbyControlsCardsBox);
     UHorizontalBoxSlot* LobbyKeyboardCardSlot = LobbyControlsCardsBox->AddChildToHorizontalBox(LobbyKeyboardCard);
@@ -448,6 +494,10 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     UVerticalBoxSlot* MatchResultTitleTextSlot = MatchResultBox->AddChildToVerticalBox(MatchResultTitleText);
     UVerticalBoxSlot* MatchResultSummaryTextSlot = MatchResultBox->AddChildToVerticalBox(MatchResultSummaryText);
     UVerticalBoxSlot* SettingsTitleTextSlot = SettingsBox->AddChildToVerticalBox(SettingsTitleText);
+    UVerticalBoxSlot* SpectatorHelpTitleTextSlot = SpectatorHelpBox->AddChildToVerticalBox(SpectatorHelpTitleText);
+    UVerticalBoxSlot* SpectatorHelpMoveTextSlot = SpectatorHelpBox->AddChildToVerticalBox(SpectatorHelpMoveText);
+    UVerticalBoxSlot* SpectatorHelpLookTextSlot = SpectatorHelpBox->AddChildToVerticalBox(SpectatorHelpLookText);
+    UVerticalBoxSlot* SpectatorHelpRiseTextSlot = SpectatorHelpBox->AddChildToVerticalBox(SpectatorHelpRiseText);
     UVerticalBoxSlot* SettingsAudioLabelTextSlot = SettingsBox->AddChildToVerticalBox(SettingsAudioLabelText);
     UVerticalBoxSlot* SettingsMasterVolumeTextSlot = SettingsBox->AddChildToVerticalBox(SettingsMasterVolumeText);
     UVerticalBoxSlot* SettingsMasterVolumeSliderSlot = SettingsBox->AddChildToVerticalBox(SettingsMasterVolumeSlider);
@@ -501,14 +551,6 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     RangedCooldownText->SetColorAndOpacity(FSlateColor(FLinearColor(0.55f, 0.9f, 1.0f, 1.0f)));
     RangedCooldownText->SetFont(FSlateFontInfo(RangedCooldownText->GetFont().FontObject, 18, RangedCooldownText->GetFont().TypefaceFontName));
     RangedCooldownText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-
-    if (RoundScoreTextSlot)
-    {
-        RoundScoreTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
-    }
-    RoundScoreText->SetColorAndOpacity(FSlateColor(FLinearColor::Yellow));
-    RoundScoreText->SetFont(FSlateFontInfo(RoundScoreText->GetFont().FontObject, 18, RoundScoreText->GetFont().TypefaceFontName));
-    RoundScoreText->SetShadowOffset(FVector2D(1.0f, 1.0f));
 
     if (MatchScoreTextSlot)
     {
@@ -576,7 +618,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyReadyButton->SetContent(LobbyReadyButtonText);
     LobbyReadyButton->SetBackgroundColor(FLinearColor(0.15f, 0.55f, 0.82f, 1.0f));
     LobbyReadyButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyReadyButtonClicked);
-    UVerticalBoxSlot* LobbyReadyButtonSlot = LobbyBox->AddChildToVerticalBox(LobbyReadyButton);
+    UVerticalBoxSlot* LobbyReadyButtonSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyReadyButton);
     if (LobbyReadyButtonSlot)
     {
         LobbyReadyButtonSlot->SetPadding(FMargin(0.0f, 18.0f, 0.0f, 0.0f));
@@ -587,6 +629,120 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyReadyButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyReadyButtonText->SetFont(FSlateFontInfo(LobbyReadyButtonText->GetFont().FontObject, 22, LobbyReadyButtonText->GetFont().TypefaceFontName));
     LobbyReadyButtonText->SetText(FText::FromString(TEXT("Start Match")));
+
+    if (LobbyModeStatusTextSlot)
+    {
+        LobbyModeStatusTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    }
+    LobbyModeStatusText->SetJustification(ETextJustify::Center);
+    LobbyModeStatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.85f, 0.4f, 1.0f)));
+    LobbyModeStatusText->SetFont(FSlateFontInfo(LobbyModeStatusText->GetFont().FontObject, 18, LobbyModeStatusText->GetFont().TypefaceFontName));
+
+    if (LobbyTeamStatusTextSlot)
+    {
+        LobbyTeamStatusTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    }
+    LobbyTeamStatusText->SetJustification(ETextJustify::Center);
+    LobbyTeamStatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.94f, 1.0f, 1.0f)));
+    LobbyTeamStatusText->SetFont(FSlateFontInfo(LobbyTeamStatusText->GetFont().FontObject, 18, LobbyTeamStatusText->GetFont().TypefaceFontName));
+
+    if (LobbyLeftTeamListTextSlot)
+    {
+        LobbyLeftTeamListTextSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 4.0f));
+    }
+    if (LobbyMainColumnsSlot)
+    {
+        LobbyMainColumnsSlot->SetPadding(FMargin(0.0f, 12.0f, 0.0f, 12.0f));
+        LobbyMainColumnsSlot->SetHorizontalAlignment(HAlign_Fill);
+    }
+
+    if (LobbyLeftColumnSlot)
+    {
+        LobbyLeftColumnSlot->SetSize(ESlateSizeRule::Fill);
+        LobbyLeftColumnSlot->SetPadding(FMargin(0.0f, 16.0f, 20.0f, 0.0f));
+        LobbyLeftColumnSlot->SetHorizontalAlignment(HAlign_Left);
+        LobbyLeftColumnSlot->SetVerticalAlignment(VAlign_Top);
+    }
+
+    if (LobbyCenterColumnSlot)
+    {
+        LobbyCenterColumnSlot->SetSize(ESlateSizeRule::Fill);
+        LobbyCenterColumnSlot->SetPadding(FMargin(12.0f, 0.0f, 12.0f, 0.0f));
+        LobbyCenterColumnSlot->SetHorizontalAlignment(HAlign_Center);
+        LobbyCenterColumnSlot->SetVerticalAlignment(VAlign_Top);
+    }
+
+    if (LobbyRightColumnSlot)
+    {
+        LobbyRightColumnSlot->SetSize(ESlateSizeRule::Fill);
+        LobbyRightColumnSlot->SetPadding(FMargin(20.0f, 16.0f, 0.0f, 0.0f));
+        LobbyRightColumnSlot->SetHorizontalAlignment(HAlign_Right);
+        LobbyRightColumnSlot->SetVerticalAlignment(VAlign_Top);
+    }
+
+    LobbyLeftTeamListText->SetJustification(ETextJustify::Left);
+    LobbyLeftTeamListText->SetColorAndOpacity(FSlateColor(FLinearColor(0.55f, 0.85f, 1.0f, 1.0f)));
+    LobbyLeftTeamListText->SetFont(FSlateFontInfo(LobbyLeftTeamListText->GetFont().FontObject, 20, LobbyLeftTeamListText->GetFont().TypefaceFontName));
+
+    if (LobbyRightTeamListTextSlot)
+    {
+        LobbyRightTeamListTextSlot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 12.0f));
+    }
+    LobbyRightTeamListText->SetJustification(ETextJustify::Right);
+    LobbyRightTeamListText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.78f, 0.56f, 1.0f)));
+    LobbyRightTeamListText->SetFont(FSlateFontInfo(LobbyRightTeamListText->GetFont().FontObject, 20, LobbyRightTeamListText->GetFont().TypefaceFontName));
+
+    LobbyFreeForAllModeButton->SetContent(LobbyFreeForAllModeButtonText);
+    LobbyFreeForAllModeButton->SetBackgroundColor(FLinearColor(0.1f, 0.42f, 0.78f, 1.0f));
+    LobbyFreeForAllModeButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyFreeForAllModeButtonClicked);
+    if (UVerticalBoxSlot* LobbyFreeForAllModeButtonSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyFreeForAllModeButton))
+    {
+        LobbyFreeForAllModeButtonSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+        LobbyFreeForAllModeButtonSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    LobbyFreeForAllModeButtonText->SetJustification(ETextJustify::Center);
+    LobbyFreeForAllModeButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    LobbyFreeForAllModeButtonText->SetFont(FSlateFontInfo(LobbyFreeForAllModeButtonText->GetFont().FontObject, 18, LobbyFreeForAllModeButtonText->GetFont().TypefaceFontName));
+    LobbyFreeForAllModeButtonText->SetText(FText::FromString(TEXT("Free For All")));
+
+    LobbyTeamVersusModeButton->SetContent(LobbyTeamVersusModeButtonText);
+    LobbyTeamVersusModeButton->SetBackgroundColor(FLinearColor(0.15f, 0.55f, 0.38f, 1.0f));
+    LobbyTeamVersusModeButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyTeamVersusModeButtonClicked);
+    if (UVerticalBoxSlot* LobbyTeamVersusModeButtonSlot = LobbyCenterColumnBox->AddChildToVerticalBox(LobbyTeamVersusModeButton))
+    {
+        LobbyTeamVersusModeButtonSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+        LobbyTeamVersusModeButtonSlot->SetHorizontalAlignment(HAlign_Center);
+    }
+    LobbyTeamVersusModeButtonText->SetJustification(ETextJustify::Center);
+    LobbyTeamVersusModeButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    LobbyTeamVersusModeButtonText->SetFont(FSlateFontInfo(LobbyTeamVersusModeButtonText->GetFont().FontObject, 18, LobbyTeamVersusModeButtonText->GetFont().TypefaceFontName));
+    LobbyTeamVersusModeButtonText->SetText(FText::FromString(TEXT("Team Versus")));
+
+    LobbyLeftTeamButton->SetContent(LobbyLeftTeamButtonText);
+    LobbyLeftTeamButton->SetBackgroundColor(FLinearColor(0.1f, 0.36f, 0.72f, 1.0f));
+    LobbyLeftTeamButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyLeftTeamButtonClicked);
+    if (UVerticalBoxSlot* LobbyLeftTeamButtonSlot = LobbyLeftColumnBox->AddChildToVerticalBox(LobbyLeftTeamButton))
+    {
+        LobbyLeftTeamButtonSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+        LobbyLeftTeamButtonSlot->SetHorizontalAlignment(HAlign_Left);
+    }
+    LobbyLeftTeamButtonText->SetJustification(ETextJustify::Center);
+    LobbyLeftTeamButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    LobbyLeftTeamButtonText->SetFont(FSlateFontInfo(LobbyLeftTeamButtonText->GetFont().FontObject, 18, LobbyLeftTeamButtonText->GetFont().TypefaceFontName));
+    LobbyLeftTeamButtonText->SetText(FText::FromString(TEXT("Join Left Team")));
+
+    LobbyRightTeamButton->SetContent(LobbyRightTeamButtonText);
+    LobbyRightTeamButton->SetBackgroundColor(FLinearColor(0.76f, 0.38f, 0.16f, 1.0f));
+    LobbyRightTeamButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyRightTeamButtonClicked);
+    if (UVerticalBoxSlot* LobbyRightTeamButtonSlot = LobbyRightColumnBox->AddChildToVerticalBox(LobbyRightTeamButton))
+    {
+        LobbyRightTeamButtonSlot->SetPadding(FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+        LobbyRightTeamButtonSlot->SetHorizontalAlignment(HAlign_Right);
+    }
+    LobbyRightTeamButtonText->SetJustification(ETextJustify::Center);
+    LobbyRightTeamButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    LobbyRightTeamButtonText->SetFont(FSlateFontInfo(LobbyRightTeamButtonText->GetFont().FontObject, 18, LobbyRightTeamButtonText->GetFont().TypefaceFontName));
+    LobbyRightTeamButtonText->SetText(FText::FromString(TEXT("Join Right Team")));
 
     if (LobbyControlsTitleTextSlot)
     {
@@ -722,6 +878,34 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     MatchResultSummaryText->SetFont(FSlateFontInfo(MatchResultSummaryText->GetFont().FontObject, 24, MatchResultSummaryText->GetFont().TypefaceFontName));
     MatchResultSummaryText->SetShadowOffset(FVector2D(1.0f, 1.0f));
     MatchResultSummaryText->SetVisibility(ESlateVisibility::Collapsed);
+
+    if (SpectatorHelpTitleTextSlot)
+    {
+        SpectatorHelpTitleTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+    }
+    SpectatorHelpTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.92f, 0.45f, 1.0f)));
+    SpectatorHelpTitleText->SetFont(FSlateFontInfo(SpectatorHelpTitleText->GetFont().FontObject, 20, SpectatorHelpTitleText->GetFont().TypefaceFontName));
+    SpectatorHelpTitleText->SetText(FText::FromString(TEXT("관전 조작")));
+
+    if (SpectatorHelpMoveTextSlot)
+    {
+        SpectatorHelpMoveTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+    }
+    SpectatorHelpMoveText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    SpectatorHelpMoveText->SetFont(FSlateFontInfo(SpectatorHelpMoveText->GetFont().FontObject, 16, SpectatorHelpMoveText->GetFont().TypefaceFontName));
+    SpectatorHelpMoveText->SetText(FText::FromString(TEXT("WASD: 이동")));
+
+    if (SpectatorHelpLookTextSlot)
+    {
+        SpectatorHelpLookTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+    }
+    SpectatorHelpLookText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    SpectatorHelpLookText->SetFont(FSlateFontInfo(SpectatorHelpLookText->GetFont().FontObject, 16, SpectatorHelpLookText->GetFont().TypefaceFontName));
+    SpectatorHelpLookText->SetText(FText::FromString(TEXT("마우스: 시점 회전")));
+
+    SpectatorHelpRiseText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    SpectatorHelpRiseText->SetFont(FSlateFontInfo(SpectatorHelpRiseText->GetFont().FontObject, 16, SpectatorHelpRiseText->GetFont().TypefaceFontName));
+    SpectatorHelpRiseText->SetText(FText::FromString(TEXT("Q / E: 하강 / 상승")));
 
     HostMatchButton->SetContent(HostMatchButtonText);
     HostMatchButton->SetBackgroundColor(FLinearColor(0.18f, 0.52f, 0.34f, 1.0f));
@@ -996,6 +1180,148 @@ TArray<FString> UPvPArenaHUDWidget::BuildLobbyParticipantLabels(const APvPArenaG
     return ParticipantLabels;
 }
 
+int32 UPvPArenaHUDWidget::BuildTeamRoundWins(const APvPArenaGameState* GameState, EPvPALobbyTeam LobbyTeam)
+{
+    if (!GameState)
+    {
+        return 0;
+    }
+
+    int32 TeamRoundWins = 0;
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (PvPPlayerState && PvPPlayerState->GetLobbyTeam() == LobbyTeam)
+        {
+            TeamRoundWins = FMath::Max(TeamRoundWins, PvPPlayerState->GetRoundWins());
+        }
+    }
+
+    return TeamRoundWins;
+}
+
+FString UPvPArenaHUDWidget::LobbyTeamToDisplayName(EPvPALobbyTeam LobbyTeamValue)
+{
+    switch (LobbyTeamValue)
+    {
+    case EPvPALobbyTeam::Left:
+        return TEXT("Blue");
+    case EPvPALobbyTeam::Right:
+        return TEXT("Red");
+    default:
+        return TEXT("None");
+    }
+}
+
+FString UPvPArenaHUDWidget::BuildMatchScoreSummary(
+    const APvPArenaPlayerState* LocalPlayerState,
+    const APvPArenaGameState* GameState)
+{
+    if (!LocalPlayerState)
+    {
+        return FString();
+    }
+
+    if (LocalPlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        const int32 RoundWinsToWin = GameState ? GameState->GetRoundWinsToWin() : 3;
+        return FString::Printf(
+            TEXT("Match Score: Blue %d / %d | Red %d / %d"),
+            BuildTeamRoundWins(GameState, EPvPALobbyTeam::Left),
+            RoundWinsToWin,
+            BuildTeamRoundWins(GameState, EPvPALobbyTeam::Right),
+            RoundWinsToWin);
+    }
+
+    return FString::Printf(
+        TEXT("Match Score: %d / %d | K / D: %d / %d"),
+        LocalPlayerState->GetMatchKills(),
+        GameState ? GameState->GetScoreLimit() : 5,
+        LocalPlayerState->GetMatchKills(),
+        LocalPlayerState->GetMatchDeaths());
+}
+
+FString UPvPArenaHUDWidget::BuildRoundResultLabel(
+    const APvPArenaPlayerState* LocalPlayerState,
+    const APvPArenaGameState* GameState)
+{
+    if (!LocalPlayerState || !GameState)
+    {
+        return TEXT("Unknown");
+    }
+
+    if (LocalPlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        const APvPArenaPlayerState* RoundWinner = GameState->GetRoundWinner();
+        if (!RoundWinner)
+        {
+            return TEXT("Draw");
+        }
+
+        return RoundWinner->GetLobbyTeam() == LocalPlayerState->GetLobbyTeam()
+            ? TEXT("Victory")
+            : TEXT("Defeat");
+    }
+
+    const int32 LocalKills = LocalPlayerState->GetRoundKills();
+    int32 HighestOpponentKills = TNumericLimits<int32>::Min();
+    bool bFoundOpponent = false;
+
+    for (APlayerState* PlayerState : GameState->PlayerArray)
+    {
+        const APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState);
+        if (!PvPState || PvPState == LocalPlayerState)
+        {
+            continue;
+        }
+
+        HighestOpponentKills = FMath::Max(HighestOpponentKills, PvPState->GetRoundKills());
+        bFoundOpponent = true;
+    }
+
+    if (!bFoundOpponent)
+    {
+        return TEXT("Pending");
+    }
+
+    if (LocalKills > HighestOpponentKills)
+    {
+        return TEXT("Victory");
+    }
+
+    if (LocalKills < HighestOpponentKills)
+    {
+        return TEXT("Defeat");
+    }
+
+    return TEXT("Draw");
+}
+
+FString UPvPArenaHUDWidget::BuildMatchResultLabel(
+    const APvPArenaPlayerState* LocalPlayerState,
+    const APvPArenaGameState* GameState)
+{
+    if (!LocalPlayerState || !GameState)
+    {
+        return TEXT("Match Complete");
+    }
+
+    const APvPArenaPlayerState* MatchWinner = GameState->GetMatchWinner();
+    if (!MatchWinner)
+    {
+        return TEXT("Match Complete");
+    }
+
+    if (LocalPlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        return MatchWinner->GetLobbyTeam() == LocalPlayerState->GetLobbyTeam()
+            ? TEXT("Final Victory")
+            : TEXT("Final Defeat");
+    }
+
+    return MatchWinner == LocalPlayerState ? TEXT("Final Victory") : TEXT("Final Defeat");
+}
+
 FString UPvPArenaHUDWidget::BuildLobbyNicknameTextBoxValue(const FString& DraftNickname, const FString& ReplicatedNickname)
 {
     const FString NormalizedDraft = APvPArenaPlayerState::BuildNormalizedDisplayNickname(DraftNickname);
@@ -1102,21 +1428,10 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
     const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
     if (LocalPlayerState)
     {
-        if (RoundScoreText)
-        {
-            RoundScoreText->SetText(FText::FromString(
-                FString::Printf(TEXT("Round K / D: %d / %d"), LocalPlayerState->GetRoundKills(), LocalPlayerState->GetRoundDeaths())));
-        }
-
         if (MatchScoreText)
         {
-            MatchScoreText->SetText(FText::FromString(
-                FString::Printf(
-                    TEXT("Rounds: %d / %d | Match K / D: %d / %d"),
-                    LocalPlayerState->GetRoundWins(),
-                    PvPGameState ? PvPGameState->GetRoundWinsToWin() : 2,
-                    LocalPlayerState->GetMatchKills(),
-                    LocalPlayerState->GetMatchDeaths())));
+            MatchScoreText->SetVisibility(ESlateVisibility::Visible);
+            MatchScoreText->SetText(FText::FromString(BuildMatchScoreSummary(LocalPlayerState, PvPGameState)));
         }
     }
 
@@ -1126,6 +1441,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
             && PvPGameState->GetMatchPhase() == EPvPAMatchPhase::Playing;
         const bool bIsLobby = PvPGameState->GetMatchPhase() == EPvPAMatchPhase::Lobby;
         const bool bIsMatchEnd = PvPGameState->GetMatchPhase() == EPvPAMatchPhase::MatchEnd;
+        const bool bIsSpectating = PlayerController->GetSpectatorPawn() != nullptr && !bIsLobby && !bIsMatchEnd;
 
         ApplyLobbyInputMode(PlayerController, bIsLobby || bSettingsMenuOpen);
 
@@ -1147,6 +1463,11 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         if (MatchResultPanel)
         {
             MatchResultPanel->SetVisibility(bIsMatchEnd ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
+        if (SpectatorHelpPanel)
+        {
+            SpectatorHelpPanel->SetVisibility(bIsSpectating ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
         }
 
         if (TimerText)
@@ -1208,6 +1529,9 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
             LobbyStatusText->SetText(FText::FromString(bIsLobby ? GetLobbyStatusText(PlayerController, PvPGameState) : FString()));
         }
 
+        const EPvPALobbyMatchMode LobbyMatchMode = LocalPlayerState ? LocalPlayerState->GetLobbyMatchMode() : EPvPALobbyMatchMode::FreeForAll;
+        const bool bIsTeamVersus = LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus;
+
         if (LobbyNicknameTextBox && LocalPlayerState && !LobbyNicknameTextBox->HasKeyboardFocus())
         {
             const FString DesiredNickname = BuildLobbyNicknameTextBoxValue(FString(), LocalPlayerState->GetDisplayNickname());
@@ -1222,6 +1546,32 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
         RefreshLobbyParticipantList(PvPGameState);
 
+        if (LobbyModeStatusText)
+        {
+            LobbyModeStatusText->SetText(FText::FromString(
+                bIsLobby ? FString::Printf(TEXT("Mode: %s"), *LobbyMatchModeToString(static_cast<uint8>(LobbyMatchMode))) : FString()));
+        }
+
+        if (LobbyTeamStatusText)
+        {
+            LobbyTeamStatusText->SetText(FText::FromString(
+                bIsLobby
+                    ? FString::Printf(TEXT("Your Team: %s"), LocalPlayerState ? *LobbyTeamToString(static_cast<uint8>(LocalPlayerState->GetLobbyTeam())) : TEXT("None"))
+                    : FString()));
+        }
+
+        if (LobbyLeftTeamListText)
+        {
+            LobbyLeftTeamListText->SetVisibility(bIsLobby && bIsTeamVersus ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+            LobbyLeftTeamListText->SetText(FText::FromString(bIsLobby ? BuildLobbyTeamListText(PvPGameState, static_cast<uint8>(EPvPALobbyTeam::Left)) : FString()));
+        }
+
+        if (LobbyRightTeamListText)
+        {
+            LobbyRightTeamListText->SetVisibility(bIsLobby && bIsTeamVersus ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+            LobbyRightTeamListText->SetText(FText::FromString(bIsLobby ? BuildLobbyTeamListText(PvPGameState, static_cast<uint8>(EPvPALobbyTeam::Right)) : FString()));
+        }
+
         if (LobbyReadyButton)
         {
             LobbyReadyButton->SetVisibility(
@@ -1233,6 +1583,26 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         if (LobbyReadyButtonText)
         {
             LobbyReadyButtonText->SetText(FText::FromString(TEXT("Start Match")));
+        }
+
+        if (LobbyFreeForAllModeButton)
+        {
+            LobbyFreeForAllModeButton->SetVisibility(bIsLobby && PlayerController && PlayerController->HasAuthority() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
+        if (LobbyTeamVersusModeButton)
+        {
+            LobbyTeamVersusModeButton->SetVisibility(bIsLobby && PlayerController && PlayerController->HasAuthority() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
+        if (LobbyLeftTeamButton)
+        {
+            LobbyLeftTeamButton->SetVisibility(bIsLobby && bIsTeamVersus ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
+        if (LobbyRightTeamButton)
+        {
+            LobbyRightTeamButton->SetVisibility(bIsLobby && bIsTeamVersus ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
         }
 
         if (MatchResultTitleText)
@@ -1300,6 +1670,38 @@ void UPvPArenaHUDWidget::HandleLobbyReadyButtonClicked()
     }
 
     PvPPlayerController->RequestLobbyMatchStart();
+}
+
+void UPvPArenaHUDWidget::HandleLobbyFreeForAllModeButtonClicked()
+{
+    if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(GetOwningPlayer()))
+    {
+        PvPPlayerController->RequestLobbyMatchModeChange(EPvPALobbyMatchMode::FreeForAll);
+    }
+}
+
+void UPvPArenaHUDWidget::HandleLobbyTeamVersusModeButtonClicked()
+{
+    if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(GetOwningPlayer()))
+    {
+        PvPPlayerController->RequestLobbyMatchModeChange(EPvPALobbyMatchMode::TeamVersus);
+    }
+}
+
+void UPvPArenaHUDWidget::HandleLobbyLeftTeamButtonClicked()
+{
+    if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(GetOwningPlayer()))
+    {
+        PvPPlayerController->RequestLobbyTeamSelection(EPvPALobbyTeam::Left);
+    }
+}
+
+void UPvPArenaHUDWidget::HandleLobbyRightTeamButtonClicked()
+{
+    if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(GetOwningPlayer()))
+    {
+        PvPPlayerController->RequestLobbyTeamSelection(EPvPALobbyTeam::Right);
+    }
 }
 
 void UPvPArenaHUDWidget::HandleHostMatchButtonClicked()
@@ -1660,49 +2062,9 @@ void UPvPArenaHUDWidget::RefreshLobbyParticipantList(const APvPArenaGameState* G
 
 FString UPvPArenaHUDWidget::GetRoundResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
 {
-    if (!PlayerController || !GameState)
-    {
-        return TEXT("Unknown");
-    }
-
-    const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
-    if (!LocalPlayerState)
-    {
-        return TEXT("Unknown");
-    }
-
-    const int32 LocalKills = LocalPlayerState->GetRoundKills();
-    int32 HighestOpponentKills = TNumericLimits<int32>::Min();
-    bool bFoundOpponent = false;
-
-    for (APlayerState* PlayerState : GameState->PlayerArray)
-    {
-        const APvPArenaPlayerState* PvPState = Cast<APvPArenaPlayerState>(PlayerState);
-        if (!PvPState || PvPState == LocalPlayerState)
-        {
-            continue;
-        }
-
-        HighestOpponentKills = FMath::Max(HighestOpponentKills, PvPState->GetRoundKills());
-        bFoundOpponent = true;
-    }
-
-    if (!bFoundOpponent)
-    {
-        return TEXT("Pending");
-    }
-
-    if (LocalKills > HighestOpponentKills)
-    {
-        return TEXT("Victory");
-    }
-
-    if (LocalKills < HighestOpponentKills)
-    {
-        return TEXT("Defeat");
-    }
-
-    return TEXT("Draw");
+    return BuildRoundResultLabel(
+        PlayerController ? PlayerController->GetPlayerState<APvPArenaPlayerState>() : nullptr,
+        GameState);
 }
 
 bool UPvPArenaHUDWidget::ShouldShowLobbyStartButton(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
@@ -1713,20 +2075,82 @@ bool UPvPArenaHUDWidget::ShouldShowLobbyStartButton(const APlayerController* Pla
     }
 
     int32 ConnectedPlayers = 0;
+    int32 LeftTeamPlayers = 0;
+    int32 RightTeamPlayers = 0;
+    EPvPALobbyMatchMode LobbyMatchMode = EPvPALobbyMatchMode::FreeForAll;
     for (APlayerState* PlayerState : GameState->PlayerArray)
     {
-        if (Cast<APvPArenaPlayerState>(PlayerState))
+        if (const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState))
         {
             ++ConnectedPlayers;
+            LobbyMatchMode = PvPPlayerState->GetLobbyMatchMode();
+            LeftTeamPlayers += PvPPlayerState->GetLobbyTeam() == EPvPALobbyTeam::Left ? 1 : 0;
+            RightTeamPlayers += PvPPlayerState->GetLobbyTeam() == EPvPALobbyTeam::Right ? 1 : 0;
         }
     }
 
-    return PlayerController->HasAuthority() && ConnectedPlayers >= 2;
+    if (!PlayerController->HasAuthority() || ConnectedPlayers < 2)
+    {
+        return false;
+    }
+
+    return LobbyMatchMode == EPvPALobbyMatchMode::FreeForAll || (LeftTeamPlayers > 0 && RightTeamPlayers > 0);
+}
+
+FString UPvPArenaHUDWidget::BuildLobbyTeamListText(const APvPArenaGameState* GameState, uint8 LobbyTeamValue) const
+{
+    const EPvPALobbyTeam LobbyTeam = static_cast<EPvPALobbyTeam>(LobbyTeamValue);
+    TArray<FString> TeamPlayers;
+
+    if (GameState)
+    {
+        for (APlayerState* PlayerState : GameState->PlayerArray)
+        {
+            const APvPArenaPlayerState* PvPPlayerState = Cast<APvPArenaPlayerState>(PlayerState);
+            if (!PvPPlayerState || PvPPlayerState->GetLobbyTeam() != LobbyTeam)
+            {
+                continue;
+            }
+
+            const FString PreferredLabel = !PvPPlayerState->GetDisplayNickname().IsEmpty()
+                ? PvPPlayerState->GetDisplayNickname()
+                : (!PvPPlayerState->GetPlayerName().IsEmpty() ? PvPPlayerState->GetPlayerName() : TEXT("Player"));
+            TeamPlayers.Add(PreferredLabel);
+        }
+    }
+
+    const FString TeamLabel = LobbyTeam == EPvPALobbyTeam::Left ? TEXT("Left Team") : TEXT("Right Team");
+    return TeamPlayers.IsEmpty()
+        ? FString::Printf(TEXT("%s\n- Empty -"), *TeamLabel)
+        : FString::Printf(TEXT("%s\n%s"), *TeamLabel, *FString::Join(TeamPlayers, TEXT("\n")));
+}
+
+FString UPvPArenaHUDWidget::LobbyMatchModeToString(uint8 LobbyMatchModeValue)
+{
+    return static_cast<EPvPALobbyMatchMode>(LobbyMatchModeValue) == EPvPALobbyMatchMode::TeamVersus
+        ? TEXT("Team Versus")
+        : TEXT("Free For All");
+}
+
+FString UPvPArenaHUDWidget::LobbyTeamToString(uint8 LobbyTeamValue)
+{
+    switch (static_cast<EPvPALobbyTeam>(LobbyTeamValue))
+    {
+    case EPvPALobbyTeam::Left:
+        return TEXT("Left");
+    case EPvPALobbyTeam::Right:
+        return TEXT("Right");
+    default:
+        return TEXT("None");
+    }
 }
 
 FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
 {
     int32 ConnectedPlayers = 0;
+    int32 LeftTeamPlayers = 0;
+    int32 RightTeamPlayers = 0;
+    EPvPALobbyMatchMode LobbyMatchMode = EPvPALobbyMatchMode::FreeForAll;
     if (GameState)
     {
         for (APlayerState* PlayerState : GameState->PlayerArray)
@@ -1738,50 +2162,72 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerCo
             }
 
             ++ConnectedPlayers;
+            LobbyMatchMode = PvPPlayerState->GetLobbyMatchMode();
+            LeftTeamPlayers += PvPPlayerState->GetLobbyTeam() == EPvPALobbyTeam::Left ? 1 : 0;
+            RightTeamPlayers += PvPPlayerState->GetLobbyTeam() == EPvPALobbyTeam::Right ? 1 : 0;
         }
     }
 
     if (ConnectedPlayers < 2)
     {
+        if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus)
+        {
+            return FString::Printf(
+                TEXT("Players Connected: %d / %d\nMode: Team Versus\nNeed %d players connected to begin.\nFirst to %d round wins takes the match."),
+                ConnectedPlayers,
+                6,
+                2,
+                GameState ? GameState->GetRoundWinsToWin() : 3);
+        }
+
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nNeed %d players connected to begin.\nFirst to %d round wins takes the match."),
+            TEXT("Players Connected: %d / %d\nMode: Free For All\nNeed %d players connected to begin.\nFirst to %d kills or best score at time wins."),
             ConnectedPlayers,
-            ConnectedPlayers,
+            6,
             2,
-            GameState ? GameState->GetRoundWinsToWin() : 2);
+            GameState ? GameState->GetScoreLimit() : 5);
+    }
+
+    if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus && (LeftTeamPlayers == 0 || RightTeamPlayers == 0))
+    {
+        return FString::Printf(
+            TEXT("Players Connected: %d / %d\nMode: Team Versus\nLeft: %d  Right: %d\nNeed at least 1 player on each team to begin."),
+            ConnectedPlayers,
+            6,
+            LeftTeamPlayers,
+            RightTeamPlayers);
     }
 
     if (PlayerController && PlayerController->HasAuthority())
     {
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nAll players are in. Press Start Match when ready.\nFirst to %d round wins takes the match."),
+            TEXT("Players Connected: %d / %d\nMode: Team Versus\nPress Start Match when ready.\nFirst to %d round wins takes the match."),
             ConnectedPlayers,
+            6,
+            GameState ? GameState->GetRoundWinsToWin() : 3);
+    }
+
+    if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus)
+    {
+        return FString::Printf(
+            TEXT("Players Connected: %d / %d\nMode: Team Versus\nWaiting for the host to start the match.\nFirst to %d round wins takes the match."),
             ConnectedPlayers,
-            GameState ? GameState->GetRoundWinsToWin() : 2);
+            6,
+            GameState ? GameState->GetRoundWinsToWin() : 3);
     }
 
     return FString::Printf(
-        TEXT("Players Connected: %d / %d\nWaiting for the host to start the match.\nFirst to %d round wins takes the match."),
+        TEXT("Players Connected: %d / %d\nMode: Free For All\nWaiting for the host to start the match.\nFirst to %d kills or best score at time wins."),
         ConnectedPlayers,
-        ConnectedPlayers,
-        GameState ? GameState->GetRoundWinsToWin() : 2);
+        6,
+        GameState ? GameState->GetScoreLimit() : 5);
 }
 
 FString UPvPArenaHUDWidget::GetMatchResultText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
 {
-    if (!PlayerController || !GameState)
-    {
-        return TEXT("Match Complete");
-    }
-
-    const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
-    const APvPArenaPlayerState* MatchWinner = GameState->GetMatchWinner();
-    if (!LocalPlayerState || !MatchWinner)
-    {
-        return TEXT("Match Complete");
-    }
-
-    return MatchWinner == LocalPlayerState ? TEXT("Final Victory") : TEXT("Final Defeat");
+    return BuildMatchResultLabel(
+        PlayerController ? PlayerController->GetPlayerState<APvPArenaPlayerState>() : nullptr,
+        GameState);
 }
 
 FString UPvPArenaHUDWidget::GetMatchSummaryText(const APlayerController* PlayerController, const APvPArenaGameState* GameState) const
