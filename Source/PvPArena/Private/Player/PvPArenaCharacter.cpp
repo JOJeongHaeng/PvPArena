@@ -531,7 +531,6 @@ bool APvPArenaCharacter::BeginMeleeAttack(float NowSeconds)
     CombatComponent->MarkMeleeUsed(NowSeconds);
     bMeleeAttackInProgress = true;
     bMeleeAttackHitTriggered = false;
-    SetAttackMovementSuppressed(true);
     return true;
 }
 
@@ -566,10 +565,6 @@ void APvPArenaCharacter::FinishMeleeAttack()
 {
     bMeleeAttackInProgress = false;
     bMeleeAttackHitTriggered = false;
-    if (!bRangedAttackInProgress)
-    {
-        SetAttackMovementSuppressed(false);
-    }
 }
 
 bool APvPArenaCharacter::BeginRangedAttack(float NowSeconds)
@@ -619,8 +614,6 @@ bool APvPArenaCharacter::BeginRangedCharge(float NowSeconds)
     bRangedAttackHitTriggered = false;
     RangedChargeStartTime = NowSeconds;
     ClearCachedRangedAttackAim();
-    StartRangedAttackFacingLock(ResolveRangedAttackTargetYaw());
-    SetAttackMovementSuppressed(true);
     UE_LOG(
         LogPvPArena,
         Log,
@@ -848,10 +841,6 @@ void APvPArenaCharacter::FinishRangedAttack()
     RangedChargeStartTime = 0.0f;
     bRangedAttackFacingLocked = false;
     ClearCachedRangedAttackAim();
-    if (!bMeleeAttackInProgress)
-    {
-        SetAttackMovementSuppressed(false);
-    }
 }
 
 void APvPArenaCharacter::AdvanceAttackFacing(float DeltaSeconds)
@@ -1062,9 +1051,14 @@ void APvPArenaCharacter::StartRangedAttackFacingLock(float TargetYaw)
 
 void APvPArenaCharacter::UpdateRangedAttackFacing(float DeltaSeconds)
 {
-    if (!bRangedAttackInProgress || !bRangedAttackFacingLocked)
+    if (!bMeleeAttackInProgress && !bRangedAttackInProgress)
     {
         return;
+    }
+
+    if (Controller)
+    {
+        RangedAttackTargetYaw = FRotator::NormalizeAxis(Controller->GetControlRotation().Yaw);
     }
 
     const FRotator TargetRotation(0.0f, RangedAttackTargetYaw, 0.0f);
@@ -1474,7 +1468,6 @@ void APvPArenaCharacter::MulticastPlayMeleeAttackMontage_Implementation()
 
     bMeleeAttackInProgress = true;
     bMeleeAttackHitTriggered = false;
-    SetAttackMovementSuppressed(true);
     PlayMeleeAttackMontage();
 }
 
@@ -1532,8 +1525,6 @@ void APvPArenaCharacter::MulticastPlayRangedAttackMontage_Implementation(float T
     bRangedChargeInputHeld = true;
     bRangedReleaseCommitted = false;
     bRangedAttackHitTriggered = false;
-    StartRangedAttackFacingLock(TargetYaw);
-    SetAttackMovementSuppressed(true);
     UE_LOG(
         LogPvPArena,
         Log,

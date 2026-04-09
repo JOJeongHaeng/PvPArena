@@ -49,7 +49,7 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     const FObjectPropertyBase* ControllerProperty = FindFProperty<FObjectPropertyBase>(APawn::StaticClass(), TEXT("Controller"));
     const FObjectPropertyBase* CameraManagerProperty = FindFProperty<FObjectPropertyBase>(APlayerController::StaticClass(), TEXT("PlayerCameraManager"));
     TestNotNull(TEXT("Character should track shared attack movement suppression"), MovementSuppressedProperty);
-    TestNotNull(TEXT("Character should lock ranged facing while attacking"), FacingLockedProperty);
+    TestNotNull(TEXT("Character should expose ranged facing lock state"), FacingLockedProperty);
     TestNotNull(TEXT("Character should track whether ranged charge input is still held"), InputHeldProperty);
     TestNotNull(TEXT("Character should track whether ranged release was committed"), ReleaseCommittedProperty);
     TestNotNull(TEXT("Character should store the ranged target yaw"), FacingTargetYawProperty);
@@ -76,7 +76,7 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("Facing lock should start disabled"), FacingLockedProperty->GetPropertyValue_InContainer(Character));
     TestFalse(TEXT("Ranged aim snapshot should start uncached"), CachedAimProperty->GetPropertyValue_InContainer(Character));
     TestEqual(TEXT("Ranged aim camera blend should start disabled"), CameraBlendAlphaProperty->GetPropertyValue_InContainer(Character), 0.0f);
-    TestEqual(TEXT("Ranged charge minimum hold should now be half a second"), MinimumHoldSecondsProperty->GetPropertyValue_InContainer(Character), 0.5f);
+    TestEqual(TEXT("Ranged charge minimum hold should now be a tenth of a second"), MinimumHoldSecondsProperty->GetPropertyValue_InContainer(Character), 0.1f);
 
     Character->GetCharacterMovement()->SetMovementMode(MOVE_Falling);
     TestFalse(TEXT("Ranged charge should be blocked while airborne"), Character->BeginRangedCharge(0.0f));
@@ -133,17 +133,20 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("Starting a ranged charge should not immediately commit release"), ReleaseCommittedProperty->GetPropertyValue_InContainer(Character));
     TestFalse(TEXT("Starting a ranged charge should not immediately trigger the hit"), Character->HasTriggeredRangedAttackHit());
     TestEqual(TEXT("Ranged charge should record its start time"), ChargeStartTimeProperty->GetPropertyValue_InContainer(Character), 0.0f);
-    TestTrue(TEXT("Starting a ranged charge should suppress movement"), MovementSuppressedProperty->GetPropertyValue_InContainer(Character));
-    TestTrue(TEXT("Starting a ranged charge should lock facing"), FacingLockedProperty->GetPropertyValue_InContainer(Character));
+    TestFalse(TEXT("Starting a ranged charge should not suppress movement"), MovementSuppressedProperty->GetPropertyValue_InContainer(Character));
+    TestFalse(TEXT("Starting a ranged charge should not lock facing anymore"), FacingLockedProperty->GetPropertyValue_InContainer(Character));
 
     Character->AdvanceAttackFacing(0.1f);
+    TestTrue(
+        TEXT("Ranged attack should turn the actor toward controller yaw while active"),
+        FMath::IsNearlyEqual(static_cast<float>(Character->GetActorRotation().Yaw), 0.0f, 0.01f));
     TestTrue(TEXT("Holding ranged charge should push aim camera blend up"), CameraBlendAlphaProperty->GetPropertyValue_InContainer(Character) > 0.0f);
 
     Character->AdvanceAttackFacing(0.1f);
 
     TestFalse(TEXT("A second ranged charge start while active should be blocked"), Character->BeginRangedCharge(0.1f));
 
-    TestFalse(TEXT("Releasing before the threshold should cancel the ranged charge"), Character->ReleaseRangedCharge(0.25f));
+    TestFalse(TEXT("Releasing before the threshold should cancel the ranged charge"), Character->ReleaseRangedCharge(0.05f));
     TestFalse(TEXT("Early release should not commit the ranged attack"), ReleaseCommittedProperty->GetPropertyValue_InContainer(Character));
     TestFalse(TEXT("Early release should not trigger the hit"), Character->HasTriggeredRangedAttackHit());
     Character->AdvanceAttackFacing(0.1f);
@@ -153,7 +156,7 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("Cancel finish should clear ranged in-progress state"), Character->IsRangedAttackInProgress());
 
     TestTrue(TEXT("A new ranged charge should start after cancel"), Character->BeginRangedCharge(2.0f));
-    TestTrue(TEXT("Releasing after the threshold should commit the ranged charge"), Character->ReleaseRangedCharge(3.1f));
+    TestTrue(TEXT("Releasing after the threshold should commit the ranged charge"), Character->ReleaseRangedCharge(2.2f));
     TestTrue(TEXT("Late release should commit the ranged attack"), ReleaseCommittedProperty->GetPropertyValue_InContainer(Character));
     TestTrue(TEXT("Release should cache the current aim snapshot immediately"), CachedAimProperty->GetPropertyValue_InContainer(Character));
     const FVector* ReleaseCachedAimOrigin = CachedAimOriginProperty->ContainerPtrToValuePtr<FVector>(Character);
@@ -204,6 +207,10 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("A fresh ranged release should commit for local notify checks"), Character->ReleaseRangedCharge(11.0f));
     Controller->SetControlRotation(FRotator(0.0f, 160.0f, 0.0f));
     CameraManager->SetActorRotation(FRotator(0.0f, 160.0f, 0.0f));
+    Character->AdvanceAttackFacing(1.0f);
+    TestTrue(
+        TEXT("Committed ranged attack should keep turning toward updated controller yaw"),
+        FMath::IsNearlyEqual(static_cast<float>(Character->GetActorRotation().Yaw), 160.0f, 0.01f));
     Character->HandleRangedAttackHitNotify();
     TestTrue(TEXT("Ranged hit should be marked triggered after notify"), Character->HasTriggeredRangedAttackHit());
     const FVector* CachedAimTarget = CachedAimTargetProperty->ContainerPtrToValuePtr<FVector>(Character);
@@ -215,8 +222,8 @@ bool FRangedAttackTimingTest::RunTest(const FString& Parameters)
     TestFalse(TEXT("Finish should clear ranged in-progress state"), Character->IsRangedAttackInProgress());
     TestFalse(TEXT("Finish should clear ranged hit-triggered state"), Character->HasTriggeredRangedAttackHit());
     TestFalse(TEXT("Finish should clear cached ranged aim snapshot"), CachedAimProperty->GetPropertyValue_InContainer(Character));
-    TestFalse(TEXT("Finish should clear movement suppression"), MovementSuppressedProperty->GetPropertyValue_InContainer(Character));
-    TestFalse(TEXT("Finish should clear facing lock"), FacingLockedProperty->GetPropertyValue_InContainer(Character));
+    TestFalse(TEXT("Finish should leave movement suppression disabled"), MovementSuppressedProperty->GetPropertyValue_InContainer(Character));
+    TestFalse(TEXT("Finish should leave facing lock disabled"), FacingLockedProperty->GetPropertyValue_InContainer(Character));
 
     return true;
 }
