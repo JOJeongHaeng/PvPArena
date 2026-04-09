@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "UObject/SoftObjectPtr.h"
 #include "PvPArenaCharacter.generated.h"
 
 class AController;
@@ -124,6 +125,7 @@ public:
     void ServerReleaseRangedCharge();
 
 protected:
+    virtual void PostInitializeComponents() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void BeginPlay() override;
     virtual void PossessedBy(AController* NewController) override;
@@ -178,6 +180,7 @@ private:
     bool UpdatePendingSprintDash(float DeltaSeconds);
     void TryApplyInputMappingContext();
     void RefreshOverheadStatusWidget();
+    TSubclassOf<class UUserWidget> ResolveOverheadStatusWidgetClass();
     FName ResolveOverheadWidgetSocketName() const;
     void RefreshOverheadWidgetAttachment();
     void RefreshOverheadWidgetFacing();
@@ -379,6 +382,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "UI")
     TObjectPtr<UWidgetComponent> OverheadStatusWidgetComponent;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSoftClassPtr<UUserWidget> OverheadStatusWidgetClass;
 
     UPROPERTY(Transient)
     TObjectPtr<USpringArmComponent> RangedAimSpringArm;
