@@ -1,6 +1,5 @@
 #include "Misc/AutomationTest.h"
 #include "Game/PvPArenaPlayerController.h"
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FPlayerControllerFreeSpectatorTest,
     "PvPArena.PlayerController.FreeSpectator",
@@ -43,5 +42,19 @@ bool FPlayerControllerFreeSpectatorTest::RunTest(const FString& Parameters)
 
     const FRotator ClampedPitch = APvPArenaPlayerController::BuildFreeSpectatorControlRotation(FRotator(-80.0f, 0.0f, 0.0f), 0.0f, -20.0f);
     TestEqual(TEXT("Free spectator pitch should clamp to avoid flipping"), static_cast<double>(ClampedPitch.Pitch), -89.0);
+
+    PlayerController->SetIgnoreMoveInput(true);
+    PlayerController->SetIgnoreLookInput(true);
+    PlayerController->PrepareForRoundRestart();
+
+    TestFalse(TEXT("Round restart preparation should restore move input"), PlayerController->IsMoveInputIgnored());
+    TestFalse(TEXT("Round restart preparation should restore look input"), PlayerController->IsLookInputIgnored());
+
+    PlayerController->SetIgnoreMoveInput(true);
+    PlayerController->SetIgnoreLookInput(true);
+    PlayerController->ClientPrepareForRoundRestart_Implementation();
+
+    TestFalse(TEXT("Client round restart preparation should restore move input"), PlayerController->IsMoveInputIgnored());
+    TestFalse(TEXT("Client round restart preparation should restore look input"), PlayerController->IsLookInputIgnored());
     return true;
 }

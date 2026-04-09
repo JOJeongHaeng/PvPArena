@@ -39,7 +39,7 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
 
     UOverlay* RootOverlay = Cast<UOverlay>(WidgetTree->RootWidget);
     TestNotNull(TEXT("HUD widget should build an overlay root"), RootOverlay);
-    TestEqual(TEXT("HUD root should contain gauge, countdown, info, lobby, lobby controls, result, announcement, spectator help, crosshair, and settings layers"), RootOverlay ? RootOverlay->GetChildrenCount() : 0, 10);
+    TestEqual(TEXT("HUD root should contain gauge, countdown, info, lobby, lobby controls, result, announcement, spectator help, crosshair, settings, and lobby menu layers"), RootOverlay ? RootOverlay->GetChildrenCount() : 0, 11);
 
     UBorder* StatusPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("StatusPanel")));
     UBorder* CountdownPanel = Cast<UBorder>(WidgetTree->FindWidget(TEXT("CountdownPanel")));
@@ -155,6 +155,12 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     UEditableTextBox* JoinAddressTextBox = Cast<UEditableTextBox>(WidgetTree->FindWidget(TEXT("JoinAddressTextBox")));
     UButton* HostMatchButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("HostMatchButton")));
     UButton* JoinByIpButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("JoinByIpButton")));
+    UButton* LobbyMenuButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("LobbyMenuButton")));
+    UTextBlock* LobbyMenuButtonText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("LobbyMenuButtonText")));
+    UTextBlock* HostMatchButtonText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("HostMatchButtonText")));
+    UTextBlock* JoinByIpButtonText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("JoinByIpButtonText")));
+    UTextBlock* SettingsTitleText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("SettingsTitleText")));
+    UTextBlock* LobbyTitleText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("LobbyTitleText")));
     UTextBlock* LobbyReadyButtonText = Cast<UTextBlock>(WidgetTree->FindWidget(TEXT("LobbyReadyButtonText")));
     UButton* SettingsResumeButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingsResumeButton")));
     UButton* SettingsQuitButton = Cast<UButton>(WidgetTree->FindWidget(TEXT("SettingsQuitButton")));
@@ -192,6 +198,12 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("JoinAddressTextBox should exist"), JoinAddressTextBox);
     TestNotNull(TEXT("HostMatchButton should exist"), HostMatchButton);
     TestNotNull(TEXT("JoinByIpButton should exist"), JoinByIpButton);
+    TestNotNull(TEXT("LobbyMenuButton should exist"), LobbyMenuButton);
+    TestNotNull(TEXT("LobbyMenuButtonText should exist"), LobbyMenuButtonText);
+    TestNotNull(TEXT("HostMatchButtonText should exist"), HostMatchButtonText);
+    TestNotNull(TEXT("JoinByIpButtonText should exist"), JoinByIpButtonText);
+    TestNotNull(TEXT("SettingsTitleText should exist"), SettingsTitleText);
+    TestNotNull(TEXT("LobbyTitleText should exist"), LobbyTitleText);
     TestNotNull(TEXT("LobbyReadyButtonText should exist"), LobbyReadyButtonText);
     TestNotNull(TEXT("SettingsResumeButton should exist"), SettingsResumeButton);
     TestNotNull(TEXT("SettingsQuitButton should exist"), SettingsQuitButton);
@@ -258,14 +270,19 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         LobbyKeyboardCard && LobbyKeyboardCard->GetBrushColor().A >= 0.85f);
     TestTrue(TEXT("Lobby mouse card should use a visible dark backing"),
         LobbyMouseCard && LobbyMouseCard->GetBrushColor().A >= 0.85f);
-    TestTrue(TEXT("Keyboard controls should describe WASD movement"),
-        LobbyControlsKeyboardMoveText && LobbyControlsKeyboardMoveText->GetText().ToString().Contains(TEXT("Move")));
-    TestTrue(TEXT("Keyboard controls should describe Shift dash"),
-        LobbyControlsKeyboardSprintText && LobbyControlsKeyboardSprintText->GetText().ToString().Contains(TEXT("Dash")));
-    TestTrue(TEXT("Mouse controls should describe melee attack"),
-        LobbyControlsMouseMeleeText && LobbyControlsMouseMeleeText->GetText().ToString().Contains(TEXT("Melee Attack")));
-    TestTrue(TEXT("Mouse controls should describe ranged charge attack"),
-        LobbyControlsMouseRangedText && LobbyControlsMouseRangedText->GetText().ToString().Contains(TEXT("Ranged Attack (Charge)")));
+    UOverlaySlot* LobbyMenuButtonSlot = LobbyMenuButton ? Cast<UOverlaySlot>(LobbyMenuButton->Slot) : nullptr;
+    TestTrue(TEXT("Lobby menu button should stay pinned to the top-right corner"),
+        LobbyMenuButtonSlot
+        && LobbyMenuButtonSlot->GetHorizontalAlignment() == HAlign_Right
+        && LobbyMenuButtonSlot->GetVerticalAlignment() == VAlign_Top);
+    TestTrue(TEXT("Keyboard controls should describe WASD movement in Korean"),
+        LobbyControlsKeyboardMoveText && LobbyControlsKeyboardMoveText->GetText().ToString().Contains(TEXT("이동")));
+    TestTrue(TEXT("Keyboard controls should describe Shift dash in Korean"),
+        LobbyControlsKeyboardSprintText && LobbyControlsKeyboardSprintText->GetText().ToString().Contains(TEXT("대시")));
+    TestTrue(TEXT("Mouse controls should describe melee attack in Korean"),
+        LobbyControlsMouseMeleeText && LobbyControlsMouseMeleeText->GetText().ToString().Contains(TEXT("근접 공격")));
+    TestTrue(TEXT("Mouse controls should describe ranged charge attack in Korean"),
+        LobbyControlsMouseRangedText && LobbyControlsMouseRangedText->GetText().ToString().Contains(TEXT("원거리 공격")));
     TestTrue(TEXT("Connection status should sit inside the lobby center column"),
         ConnectionStatusText && ConnectionStatusText->Slot && ConnectionStatusText->Slot->Parent == LobbyCenterColumnBox);
     TestTrue(TEXT("Join address text box should sit inside the lobby center column"),
@@ -274,7 +291,22 @@ bool FHUDWidgetLayoutTest::RunTest(const FString& Parameters)
         TimerText && TimerText->Slot && TimerText->Slot->Parent != InfoBox);
     TestEqual(TEXT("Lobby start button should use the new explicit start label"),
         LobbyReadyButtonText ? LobbyReadyButtonText->GetText().ToString() : FString(),
-        FString(TEXT("Start Match")));
+        FString(TEXT("매치 시작")));
+    TestEqual(TEXT("Lobby title should default to Korean"),
+        LobbyTitleText ? LobbyTitleText->GetText().ToString() : FString(),
+        FString(TEXT("로비")));
+    TestEqual(TEXT("Lobby menu button label should default to Korean"),
+        LobbyMenuButtonText ? LobbyMenuButtonText->GetText().ToString() : FString(),
+        FString(TEXT("메뉴")));
+    TestEqual(TEXT("Host button label should default to Korean"),
+        HostMatchButtonText ? HostMatchButtonText->GetText().ToString() : FString(),
+        FString(TEXT("호스트 시작")));
+    TestEqual(TEXT("Join button label should default to Korean"),
+        JoinByIpButtonText ? JoinByIpButtonText->GetText().ToString() : FString(),
+        FString(TEXT("IP로 참가")));
+    TestEqual(TEXT("Settings title should default to Korean"),
+        SettingsTitleText ? SettingsTitleText->GetText().ToString() : FString(),
+        FString(TEXT("설정")));
     TestTrue(TEXT("Join address text box should guide direct IP input"),
         JoinAddressTextBox && JoinAddressTextBox->GetHintText().ToString().Contains(TEXT("7777")));
     return true;

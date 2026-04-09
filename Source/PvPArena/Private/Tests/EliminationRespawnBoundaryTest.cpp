@@ -9,9 +9,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FEliminationRespawnBoundaryTest::RunTest(const FString& Parameters)
 {
     APvPArenaGameMode* GameMode = NewObject<APvPArenaGameMode>();
+    APawn* EliminatedPawn = NewObject<APawn>(GameMode);
+    APawn* RespawnedPawn = NewObject<APawn>(GameMode);
     TestNotNull(TEXT("GameMode should be created"), GameMode);
+    TestNotNull(TEXT("Eliminated pawn should be created"), EliminatedPawn);
+    TestNotNull(TEXT("Respawned pawn should be created"), RespawnedPawn);
 
-    if (!GameMode)
+    if (!GameMode || !EliminatedPawn || !RespawnedPawn)
     {
         return false;
     }
@@ -43,6 +47,12 @@ bool FEliminationRespawnBoundaryTest::RunTest(const FString& Parameters)
     TestFalse(
         TEXT("A finished round should never schedule another respawn regardless of mode"),
         GameMode->ShouldScheduleRespawnAfterEliminationForMode(EPvPALobbyMatchMode::FreeForAll, true, true));
+    TestTrue(
+        TEXT("Delayed spectating should complete while the controller still owns the eliminated pawn"),
+        GameMode->ShouldFinalizeDelayedSpectating(EliminatedPawn, EliminatedPawn));
+    TestFalse(
+        TEXT("Delayed spectating should not destroy a newly respawned pawn from the next round"),
+        GameMode->ShouldFinalizeDelayedSpectating(RespawnedPawn, EliminatedPawn));
 
     GameMode->ResolveRoundTimeout(3, 1);
     TestFalse(

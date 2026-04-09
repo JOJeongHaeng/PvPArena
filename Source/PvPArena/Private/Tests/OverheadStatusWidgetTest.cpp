@@ -1,3 +1,5 @@
+#if WITH_EDITOR
+
 #include "Misc/AutomationTest.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/WidgetComponent.h"
@@ -6,6 +8,7 @@
 #include "Player/PvPArenaCharacter.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "UI/PvPArenaOverheadStatusWidget.h"
+#include "Blueprint/UserWidget.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FOverheadStatusWidgetTest,
@@ -21,6 +24,11 @@ bool FOverheadStatusWidgetTest::RunTest(const FString& Parameters)
     {
         return false;
     }
+
+    TestEqual(
+        TEXT("Overhead widget should disable per-frame ticking and refresh on a timer instead"),
+        Widget->GetDesiredTickFrequency(),
+        EWidgetTickFrequency::Never);
 
     Widget->TakeWidget();
     TestTrue(
@@ -181,3 +189,5 @@ bool FOverheadStatusWidgetTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+#endif

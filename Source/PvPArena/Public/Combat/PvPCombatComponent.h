@@ -42,13 +42,13 @@ private:
     float MeleeCooldownSeconds = 0.8f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
-    float RangedCooldownSeconds = 5.0f;
+    float RangedCooldownSeconds = 3.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MeleeDamage = 25.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
-    float RangedDamage = 20.0f;
+    float RangedDamage = 25.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float MeleeRange = 140.0f;

@@ -15,6 +15,10 @@ bool FHUDWidgetSettingsMenuTest::RunTest(const FString& Parameters)
         FindFProperty<FObjectProperty>(WidgetClass, TEXT("SettingsPanel"));
     TestNotNull(TEXT("HUD widget should expose a settings panel"), SettingsPanelProperty);
 
+    const FObjectProperty* LobbyMenuButtonProperty =
+        FindFProperty<FObjectProperty>(WidgetClass, TEXT("LobbyMenuButton"));
+    TestNotNull(TEXT("HUD widget should expose a lobby menu button"), LobbyMenuButtonProperty);
+
     const FObjectProperty* SettingsResumeButtonProperty =
         FindFProperty<FObjectProperty>(WidgetClass, TEXT("SettingsResumeButton"));
     TestNotNull(TEXT("HUD widget should expose a resume button"), SettingsResumeButtonProperty);
@@ -25,6 +29,9 @@ bool FHUDWidgetSettingsMenuTest::RunTest(const FString& Parameters)
 
     UFunction* ToggleSettingsFunction = WidgetClass->FindFunctionByName(TEXT("ToggleSettingsMenu"));
     TestNotNull(TEXT("HUD widget should expose a settings menu toggle"), ToggleSettingsFunction);
+
+    UFunction* LobbyMenuFunction = WidgetClass->FindFunctionByName(TEXT("HandleLobbyMenuButtonClicked"));
+    TestNotNull(TEXT("HUD widget should expose a lobby menu button handler"), LobbyMenuFunction);
 
     UFunction* ResumeFunction = WidgetClass->FindFunctionByName(TEXT("HandleSettingsResumeButtonClicked"));
     TestNotNull(TEXT("HUD widget should expose a resume handler"), ResumeFunction);
@@ -39,9 +46,11 @@ bool FHUDWidgetSettingsMenuTest::RunTest(const FString& Parameters)
     TestNotNull(TEXT("HUD widget should expose an audio settings apply helper"), ApplyAudioFunction);
 
     return SettingsPanelProperty
+        && LobbyMenuButtonProperty
         && SettingsResumeButtonProperty
         && SettingsQuitButtonProperty
         && ToggleSettingsFunction
+        && LobbyMenuFunction
         && ResumeFunction
         && QuitFunction
         && ApplyDisplayFunction

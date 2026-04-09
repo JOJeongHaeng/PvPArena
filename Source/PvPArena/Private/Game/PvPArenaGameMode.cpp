@@ -438,6 +438,11 @@ bool APvPArenaGameMode::ShouldEnterSpectatingAfterEliminationForMode(
         && (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus || CurrentRoundState == EPvPARoundState::SuddenDeath);
 }
 
+bool APvPArenaGameMode::ShouldFinalizeDelayedSpectating(const APawn* CurrentPawn, const APawn* EliminatedPawn) const
+{
+    return CurrentPawn && EliminatedPawn && CurrentPawn == EliminatedPawn;
+}
+
 AActor* APvPArenaGameMode::ChooseRespawnStartFromCandidates(const TArray<AActor*>& CandidateStarts, const AActor* PreviousStart) const
 {
     if (CandidateStarts.IsEmpty())
@@ -634,6 +639,11 @@ void APvPArenaGameMode::ResetAllPlayersForNextRound()
             continue;
         }
 
+        if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(Controller))
+        {
+            PvPPlayerController->PrepareForRoundRestart();
+        }
+
         if (APawn* ExistingPawn = Controller->GetPawn())
         {
             ExistingPawn->Destroy();
@@ -740,16 +750,23 @@ void APvPArenaGameMode::HandlePlayerEliminated(AController* VictimController, AC
             {
                 FTimerHandle SpectatorTimerHandle;
                 TWeakObjectPtr<AController> VictimControllerWeak = VictimController;
+                TWeakObjectPtr<APawn> EliminatedPawnWeak = VictimCharacter;
                 GetWorldTimerManager().SetTimer(
                     SpectatorTimerHandle,
-                    FTimerDelegate::CreateLambda([this, VictimControllerWeak]()
+                    FTimerDelegate::CreateLambda([this, VictimControllerWeak, EliminatedPawnWeak]()
                     {
-                        if (!VictimControllerWeak.IsValid())
+                        if (!VictimControllerWeak.IsValid() || !EliminatedPawnWeak.IsValid())
                         {
                             return;
                         }
 
-                        if (APawn* ExistingPawn = VictimControllerWeak->GetPawn())
+                        APawn* ExistingPawn = VictimControllerWeak->GetPawn();
+                        if (!ShouldFinalizeDelayedSpectating(ExistingPawn, EliminatedPawnWeak.Get()))
+                        {
+                            return;
+                        }
+
+                        if (ExistingPawn)
                         {
                             ExistingPawn->Destroy();
                         }
@@ -1262,6 +1279,11 @@ void APvPArenaGameMode::ResetControllersForFreeForAllSuddenDeath(const TArray<AP
         if (!Controller || !PlayerState || !LeaderKeys.Contains(PlayerState))
         {
             continue;
+        }
+
+        if (APvPArenaPlayerController* PvPPlayerController = Cast<APvPArenaPlayerController>(Controller))
+        {
+            PvPPlayerController->PrepareForRoundRestart();
         }
 
         if (APawn* ExistingPawn = Controller->GetPawn())

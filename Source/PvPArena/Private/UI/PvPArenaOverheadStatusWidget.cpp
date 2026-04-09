@@ -9,17 +9,56 @@
 #include "Game/PvPArenaPlayerState.h"
 #include "Player/PvPArenaCharacter.h"
 #include "PvPArena.h"
+#include "TimerManager.h"
+#include "UObject/UnrealType.h"
+
+namespace
+{
+constexpr float OverheadRefreshIntervalSeconds = 0.1f;
+
+void SetWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
+{
+    FProperty* TickFrequencyProperty = FindFProperty<FProperty>(UUserWidget::StaticClass(), TEXT("TickFrequency"));
+    FEnumProperty* EnumProperty = CastField<FEnumProperty>(TickFrequencyProperty);
+    if (EnumProperty && Widget)
+    {
+        void* ValuePtr = EnumProperty->ContainerPtrToValuePtr<void>(Widget);
+        EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(ValuePtr, static_cast<int64>(TickMode));
+        Widget->UpdateCanTick();
+    }
+}
+}
+
+UPvPArenaOverheadStatusWidget::UPvPArenaOverheadStatusWidget(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+{
+    SetWidgetTickFrequency(this, EWidgetTickFrequency::Never);
+}
 
 void UPvPArenaOverheadStatusWidget::NativeConstruct()
 {
     Super::NativeConstruct();
     RefreshFromOwningCharacter();
+
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            RefreshTimerHandle,
+            this,
+            &UPvPArenaOverheadStatusWidget::RefreshFromOwningCharacter,
+            OverheadRefreshIntervalSeconds,
+            true);
+    }
 }
 
-void UPvPArenaOverheadStatusWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+void UPvPArenaOverheadStatusWidget::NativeDestruct()
 {
-    Super::NativeTick(MyGeometry, InDeltaTime);
-    RefreshFromOwningCharacter();
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(RefreshTimerHandle);
+    }
+
+    Super::NativeDestruct();
 }
 
 void UPvPArenaOverheadStatusWidget::BuildDisplayState(const APvPArenaCharacter* Character, FString& OutNickname, float& OutHealthPercent)

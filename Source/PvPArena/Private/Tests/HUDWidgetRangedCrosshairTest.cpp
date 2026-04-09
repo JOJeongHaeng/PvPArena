@@ -2,6 +2,7 @@
 #include "Game/PvPArenaGameState.h"
 #include "Player/PvPArenaCharacter.h"
 #include "UI/PvPArenaHUDWidget.h"
+#include "Blueprint/UserWidget.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHUDWidgetRangedCrosshairTest,
@@ -10,10 +11,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FHUDWidgetRangedCrosshairTest::RunTest(const FString& Parameters)
 {
+    UPvPArenaHUDWidget* Widget = NewObject<UPvPArenaHUDWidget>();
+    TestNotNull(TEXT("HUD widget should be created"), Widget);
+    TestEqual(
+        TEXT("HUD widget should disable per-frame ticking and rely on timer-driven refresh"),
+        Widget ? Widget->GetDesiredTickFrequency() : EWidgetTickFrequency::Auto,
+        EWidgetTickFrequency::Never);
+
     APvPArenaCharacter* Character = NewObject<APvPArenaCharacter>();
     TestNotNull(TEXT("Character should be created"), Character);
 
-    if (!Character)
+    if (!Widget || !Character)
     {
         return false;
     }

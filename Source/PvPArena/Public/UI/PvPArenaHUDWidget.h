@@ -32,7 +32,6 @@ public:
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
-    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     static void BuildHealthDisplayState(const class APvPArenaCharacter* Character, float& OutHealthPercent, FString& OutHealthLabel);
     static void BuildSprintDisplayState(const class APvPArenaCharacter* Character, float& OutSprintPercent, FString& OutSprintLabel);
     static void BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel);
@@ -83,13 +82,25 @@ private:
     void HandleJoinByIpButtonClicked();
 
     UFUNCTION()
+    void HandleLobbyMenuButtonClicked();
+
+    UFUNCTION()
     void HandleLobbyNicknameTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod);
 
     UFUNCTION()
     FString BuildHostTravelCommand() const;
 
     UFUNCTION()
+    FString BuildHostTravelMapName() const;
+
+    UFUNCTION()
+    FString BuildHostTravelOptions() const;
+
+    UFUNCTION()
     FString BuildJoinTravelCommand(const FString& JoinAddress) const;
+
+    UFUNCTION()
+    FString BuildJoinTravelAddress(const FString& JoinAddress) const;
 
     UFUNCTION()
     void HandleSettingsResumeButtonClicked();
@@ -128,7 +139,6 @@ private:
     void RefreshBackgroundMusic(const class APvPArenaGameState* GameState);
     void ApplyLobbyInputMode(class APlayerController* PlayerController, bool bEnableLobbyInput);
     void SetConnectionStatus(const FString& NewStatus);
-    bool ExecuteTravelCommand(const FString& TravelCommand, const FString& PendingStatus);
     FString BuildLobbyTeamListText(const class APvPArenaGameState* GameState, uint8 LobbyTeamValue) const;
     static FString LobbyMatchModeToString(uint8 LobbyMatchModeValue);
     static FString LobbyTeamToString(uint8 LobbyTeamValue);
@@ -428,6 +438,12 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UTextBlock> JoinByIpButtonText;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UButton> LobbyMenuButton;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UTextBlock> LobbyMenuButtonText;
 
     UPROPERTY(Transient)
     TObjectPtr<USlider> SettingsMasterVolumeSlider;

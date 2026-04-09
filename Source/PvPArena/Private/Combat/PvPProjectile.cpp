@@ -14,6 +14,8 @@
 APvPProjectile::APvPProjectile()
 {
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = false;
+    SetActorTickEnabled(false);
     bReplicates = true;
     SetReplicateMovement(true);
 
@@ -29,8 +31,8 @@ APvPProjectile::APvPProjectile()
     CollisionComponent->SetNotifyRigidBodyCollision(true);
 
     ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
-    ProjectileMovementComponent->InitialSpeed = 1800.0f;
-    ProjectileMovementComponent->MaxSpeed = 1800.0f;
+    ProjectileMovementComponent->InitialSpeed = 3600.0f;
+    ProjectileMovementComponent->MaxSpeed = 3600.0f;
     ProjectileMovementComponent->ProjectileGravityScale = 0.0f;
     ProjectileMovementComponent->bRotationFollowsVelocity = true;
     ProjectileMovementComponent->bInitialVelocityInLocalSpace = false;
@@ -115,7 +117,7 @@ void APvPProjectile::InitializeProjectile(APvPArenaCharacter* InInstigatorCharac
     SetOwner(InInstigatorCharacter);
     SetInstigator(InInstigatorCharacter);
     SetActorRotation(LaunchDirection.Rotation());
-    PreviousDebugDrawLocation = GetActorLocation();
+    PreviousDebugDrawLocation = bDrawProjectileDebug ? GetActorLocation() : FVector::ZeroVector;
 
     if (CollisionComponent && InInstigatorCharacter)
     {
@@ -128,7 +130,8 @@ void APvPProjectile::BeginPlay()
     Super::BeginPlay();
 
     SetLifeSpan(InitialLifeSeconds);
-    PreviousDebugDrawLocation = GetActorLocation();
+    SetActorTickEnabled(bDrawProjectileDebug);
+    PreviousDebugDrawLocation = bDrawProjectileDebug ? GetActorLocation() : FVector::ZeroVector;
 
     if (CollisionComponent)
     {
