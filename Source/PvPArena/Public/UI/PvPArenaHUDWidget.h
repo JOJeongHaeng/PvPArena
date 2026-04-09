@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Game/PvPArenaPlayerState.h"
+#include "UObject/SoftObjectPtr.h"
 #include "Types/SlateEnums.h"
 #include "PvPArenaHUDWidget.generated.h"
 
@@ -485,10 +486,10 @@ private:
     TObjectPtr<UBorder> RangedCrosshairVerticalLine;
 
     UPROPERTY(EditDefaultsOnly, Category = "Audio")
-    TObjectPtr<USoundBase> NonCombatBackgroundMusic;
+    TSoftObjectPtr<USoundBase> NonCombatBackgroundMusic;
 
     UPROPERTY(EditDefaultsOnly, Category = "Audio")
-    TObjectPtr<USoundBase> GameplayBackgroundMusic;
+    TSoftObjectPtr<USoundBase> GameplayBackgroundMusic;
 
     UPROPERTY(Transient)
     TObjectPtr<UAudioComponent> BackgroundMusicAudioComponent;

@@ -16,7 +16,7 @@ namespace
 {
 constexpr float OverheadRefreshIntervalSeconds = 0.1f;
 
-void SetWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
+void SetOverheadWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
 {
     FProperty* TickFrequencyProperty = FindFProperty<FProperty>(UUserWidget::StaticClass(), TEXT("TickFrequency"));
     FEnumProperty* EnumProperty = CastField<FEnumProperty>(TickFrequencyProperty);
@@ -32,7 +32,7 @@ void SetWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
 UPvPArenaOverheadStatusWidget::UPvPArenaOverheadStatusWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    SetWidgetTickFrequency(this, EWidgetTickFrequency::Never);
+    SetOverheadWidgetTickFrequency(this, EWidgetTickFrequency::Never);
 }
 
 void UPvPArenaOverheadStatusWidget::NativeConstruct()

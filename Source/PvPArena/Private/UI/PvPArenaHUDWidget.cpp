@@ -28,7 +28,6 @@
 #include "Player/PvPArenaCharacter.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
 
@@ -41,7 +40,7 @@ const TCHAR* DefaultJoinAddressHint = TEXT("123.45.67.89:7777");
 const FIntPoint DefaultWindowedResolution(1280, 720);
 constexpr float DefaultRangedCrosshairVerticalOffset = -24.0f;
 
-void SetWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
+void SetHudWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
 {
     FProperty* TickFrequencyProperty = FindFProperty<FProperty>(UUserWidget::StaticClass(), TEXT("TickFrequency"));
     FEnumProperty* EnumProperty = CastField<FEnumProperty>(TickFrequencyProperty);
@@ -57,19 +56,9 @@ void SetWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
 UPvPArenaHUDWidget::UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    SetWidgetTickFrequency(this, EWidgetTickFrequency::Never);
-
-    static ConstructorHelpers::FObjectFinder<USoundBase> NonCombatMusicFinder(NonCombatBackgroundMusicPath);
-    if (NonCombatMusicFinder.Succeeded())
-    {
-        NonCombatBackgroundMusic = NonCombatMusicFinder.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<USoundBase> GameplayMusicFinder(GameplayBackgroundMusicPath);
-    if (GameplayMusicFinder.Succeeded())
-    {
-        GameplayBackgroundMusic = GameplayMusicFinder.Object;
-    }
+    SetHudWidgetTickFrequency(this, EWidgetTickFrequency::Never);
+    NonCombatBackgroundMusic = TSoftObjectPtr<USoundBase>(FSoftObjectPath(NonCombatBackgroundMusicPath));
+    GameplayBackgroundMusic = TSoftObjectPtr<USoundBase>(FSoftObjectPath(GameplayBackgroundMusicPath));
 }
 
 TSharedRef<SWidget> UPvPArenaHUDWidget::RebuildWidget()
@@ -1371,9 +1360,15 @@ void UPvPArenaHUDWidget::RefreshBackgroundMusic(const APvPArenaGameState* GameSt
 
     BackgroundMusicAudioComponent->SetVolumeMultiplier(MasterVolume * BackgroundMusicVolume);
 
-    const USoundBase* DesiredMusic = GameState && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
+    const TSoftObjectPtr<USoundBase>& DesiredMusicAsset = GameState && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
         ? GameplayBackgroundMusic
         : NonCombatBackgroundMusic;
+
+    USoundBase* DesiredMusic = DesiredMusicAsset.Get();
+    if (!DesiredMusic && !DesiredMusicAsset.IsNull())
+    {
+        DesiredMusic = DesiredMusicAsset.LoadSynchronous();
+    }
 
     if (!DesiredMusic)
     {
