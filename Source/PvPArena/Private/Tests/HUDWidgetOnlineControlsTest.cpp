@@ -11,6 +11,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 bool FHUDWidgetOnlineControlsTest::RunTest(const FString& Parameters)
 {
     const UClass* WidgetClass = UPvPArenaHUDWidget::StaticClass();
+    UPvPArenaHUDWidget* HUDWidget = NewObject<UPvPArenaHUDWidget>();
+    TestNotNull(TEXT("HUD widget should be instantiable for travel command verification"), HUDWidget);
 
     const FObjectProperty* ConnectionStatusTextProperty =
         FindFProperty<FObjectProperty>(WidgetClass, TEXT("ConnectionStatusText"));
@@ -59,6 +61,15 @@ bool FHUDWidgetOnlineControlsTest::RunTest(const FString& Parameters)
     UFunction* BuildJoinTravelCommandFunction = WidgetClass->FindFunctionByName(TEXT("BuildJoinTravelCommand"));
     TestNotNull(TEXT("HUD widget should expose a join travel command builder"), BuildJoinTravelCommandFunction);
 
+    UFunction* BuildHostTravelMapNameFunction = WidgetClass->FindFunctionByName(TEXT("BuildHostTravelMapName"));
+    TestNotNull(TEXT("HUD widget should expose a host travel map-name builder"), BuildHostTravelMapNameFunction);
+
+    UFunction* BuildHostTravelOptionsFunction = WidgetClass->FindFunctionByName(TEXT("BuildHostTravelOptions"));
+    TestNotNull(TEXT("HUD widget should expose host travel options for OpenLevel"), BuildHostTravelOptionsFunction);
+
+    UFunction* BuildJoinTravelAddressFunction = WidgetClass->FindFunctionByName(TEXT("BuildJoinTravelAddress"));
+    TestNotNull(TEXT("HUD widget should expose a join travel address builder"), BuildJoinTravelAddressFunction);
+
     const UClass* PlayerControllerClass = APvPArenaPlayerController::StaticClass();
     UFunction* RequestLobbyMatchStartFunction = PlayerControllerClass->FindFunctionByName(TEXT("RequestLobbyMatchStart"));
     TestNotNull(TEXT("Player controller should expose a host-only lobby start request"), RequestLobbyMatchStartFunction);
@@ -69,7 +80,82 @@ bool FHUDWidgetOnlineControlsTest::RunTest(const FString& Parameters)
     UFunction* RequestLobbyTeamSelectionFunction = PlayerControllerClass->FindFunctionByName(TEXT("RequestLobbyTeamSelection"));
     TestNotNull(TEXT("Player controller should expose a lobby team selection request"), RequestLobbyTeamSelectionFunction);
 
-    return ConnectionStatusTextProperty
+    FString HostTravelCommand;
+    if (HUDWidget && BuildHostTravelCommandFunction)
+    {
+        struct FBuildHostTravelCommandParams
+        {
+            FString ReturnValue;
+        };
+
+        FBuildHostTravelCommandParams Params;
+        HUDWidget->ProcessEvent(BuildHostTravelCommandFunction, &Params);
+        HostTravelCommand = Params.ReturnValue;
+    }
+
+    FString HostTravelMapName;
+    if (HUDWidget && BuildHostTravelMapNameFunction)
+    {
+        struct FBuildHostTravelMapNameParams
+        {
+            FString ReturnValue;
+        };
+
+        FBuildHostTravelMapNameParams Params;
+        HUDWidget->ProcessEvent(BuildHostTravelMapNameFunction, &Params);
+        HostTravelMapName = Params.ReturnValue;
+    }
+
+    FString HostTravelOptions;
+    if (HUDWidget && BuildHostTravelOptionsFunction)
+    {
+        struct FBuildHostTravelOptionsParams
+        {
+            FString ReturnValue;
+        };
+
+        FBuildHostTravelOptionsParams Params;
+        HUDWidget->ProcessEvent(BuildHostTravelOptionsFunction, &Params);
+        HostTravelOptions = Params.ReturnValue;
+    }
+
+    FString JoinTravelAddress;
+    if (HUDWidget && BuildJoinTravelAddressFunction)
+    {
+        struct FBuildJoinTravelAddressParams
+        {
+            FString JoinAddress;
+            FString ReturnValue;
+        };
+
+        FBuildJoinTravelAddressParams Params;
+        Params.JoinAddress = TEXT(" 127.0.0.1 ");
+        HUDWidget->ProcessEvent(BuildJoinTravelAddressFunction, &Params);
+        JoinTravelAddress = Params.ReturnValue;
+    }
+
+    TestEqual(
+        TEXT("Host travel command should open the packaged default arena map as a listen server"),
+        HostTravelCommand,
+        FString(TEXT("open /Game/PvPArena/Maps/PvPArena_map?listen")));
+
+    TestEqual(
+        TEXT("Host travel map name should target the packaged default arena map"),
+        HostTravelMapName,
+        FString(TEXT("/Game/PvPArena/Maps/PvPArena_map")));
+
+    TestEqual(
+        TEXT("Host travel options should enable listen-server hosting"),
+        HostTravelOptions,
+        FString(TEXT("listen")));
+
+    TestEqual(
+        TEXT("Join travel address should trim whitespace and default the port"),
+        JoinTravelAddress,
+        FString(TEXT("127.0.0.1:7777")));
+
+    return HUDWidget
+        && ConnectionStatusTextProperty
         && JoinAddressTextBoxProperty
         && LobbyModeStatusTextProperty
         && LobbyLeftTeamListTextProperty
@@ -83,7 +169,14 @@ bool FHUDWidgetOnlineControlsTest::RunTest(const FString& Parameters)
         && RightTeamFunction
         && BuildHostTravelCommandFunction
         && BuildJoinTravelCommandFunction
+        && BuildHostTravelMapNameFunction
+        && BuildHostTravelOptionsFunction
+        && BuildJoinTravelAddressFunction
         && RequestLobbyMatchStartFunction
         && RequestLobbyModeChangeFunction
-        && RequestLobbyTeamSelectionFunction;
+        && RequestLobbyTeamSelectionFunction
+        && HostTravelCommand == TEXT("open /Game/PvPArena/Maps/PvPArena_map?listen")
+        && HostTravelMapName == TEXT("/Game/PvPArena/Maps/PvPArena_map")
+        && HostTravelOptions == TEXT("listen")
+        && JoinTravelAddress == TEXT("127.0.0.1:7777");
 }

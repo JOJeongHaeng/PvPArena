@@ -21,39 +21,44 @@
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "GameFramework/PlayerState.h"
 #include "Combat/PvPCombatComponent.h"
 #include "Player/PvPArenaCharacter.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
 
 namespace
 {
 const TCHAR* NonCombatBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Music_Cue.Starter_Music_Cue");
 const TCHAR* GameplayBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Background_Cue.Starter_Background_Cue");
-const TCHAR* HostTravelMapPath = TEXT("/Game/PvPArena/Maps/PvPArena_TestMap?listen");
+const TCHAR* HostTravelMapPath = TEXT("/Game/PvPArena/Maps/PvPArena_map?listen");
 const TCHAR* DefaultJoinAddressHint = TEXT("123.45.67.89:7777");
 const FIntPoint DefaultWindowedResolution(1280, 720);
 constexpr float DefaultRangedCrosshairVerticalOffset = -24.0f;
+
+void SetHudWidgetTickFrequency(UUserWidget* Widget, EWidgetTickFrequency TickMode)
+{
+    FProperty* TickFrequencyProperty = FindFProperty<FProperty>(UUserWidget::StaticClass(), TEXT("TickFrequency"));
+    FEnumProperty* EnumProperty = CastField<FEnumProperty>(TickFrequencyProperty);
+    if (EnumProperty && Widget)
+    {
+        void* ValuePtr = EnumProperty->ContainerPtrToValuePtr<void>(Widget);
+        EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(ValuePtr, static_cast<int64>(TickMode));
+        Widget->UpdateCanTick();
+    }
+}
 }
 
 UPvPArenaHUDWidget::UPvPArenaHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    static ConstructorHelpers::FObjectFinder<USoundBase> NonCombatMusicFinder(NonCombatBackgroundMusicPath);
-    if (NonCombatMusicFinder.Succeeded())
-    {
-        NonCombatBackgroundMusic = NonCombatMusicFinder.Object;
-    }
-
-    static ConstructorHelpers::FObjectFinder<USoundBase> GameplayMusicFinder(GameplayBackgroundMusicPath);
-    if (GameplayMusicFinder.Succeeded())
-    {
-        GameplayBackgroundMusic = GameplayMusicFinder.Object;
-    }
+    SetHudWidgetTickFrequency(this, EWidgetTickFrequency::Never);
+    NonCombatBackgroundMusic = TSoftObjectPtr<USoundBase>(FSoftObjectPath(NonCombatBackgroundMusicPath));
+    GameplayBackgroundMusic = TSoftObjectPtr<USoundBase>(FSoftObjectPath(GameplayBackgroundMusicPath));
 }
 
 TSharedRef<SWidget> UPvPArenaHUDWidget::RebuildWidget()
@@ -118,12 +123,6 @@ void UPvPArenaHUDWidget::NativeDestruct()
     CurrentBackgroundMusic = nullptr;
 
     Super::NativeDestruct();
-}
-
-void UPvPArenaHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
-{
-    Super::NativeTick(MyGeometry, InDeltaTime);
-    RefreshCrosshairVisibility();
 }
 
 void UPvPArenaHUDWidget::BuildWidgetTree()
@@ -238,6 +237,8 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     HostMatchButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HostMatchButtonText"));
     JoinByIpButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("JoinByIpButton"));
     JoinByIpButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JoinByIpButtonText"));
+    LobbyMenuButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LobbyMenuButton"));
+    LobbyMenuButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LobbyMenuButtonText"));
     SettingsMasterVolumeSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("SettingsMasterVolumeSlider"));
     SettingsBgmVolumeSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("SettingsBgmVolumeSlider"));
     SettingsSfxVolumeSlider = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("SettingsSfxVolumeSlider"));
@@ -252,7 +253,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     RangedCrosshairHorizontalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairHorizontalLine"));
     RangedCrosshairVerticalLine = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RangedCrosshairVerticalLine"));
 
-    if (!RootOverlay || !StatusPanel || !CountdownPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !SpectatorHelpPanel || !StatusCardsBox || !CountdownBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !SpectatorHelpBox || !LobbyKeyboardCard || !LobbyMouseCard || !HealthCard || !SprintCard || !RangedCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthCardBox || !SprintCardBox || !RangedCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyModeStatusText || !LobbyTeamStatusText || !LobbyLeftTeamListText || !LobbyRightTeamListText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyFreeForAllModeButton || !LobbyFreeForAllModeButtonText || !LobbyTeamVersusModeButton || !LobbyTeamVersusModeButtonText || !LobbyLeftTeamButton || !LobbyLeftTeamButtonText || !LobbyRightTeamButton || !LobbyRightTeamButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !LobbyNicknameTextBox || !LobbyPlayerListBox || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !SpectatorHelpTitleText || !SpectatorHelpMoveText || !SpectatorHelpLookText || !SpectatorHelpRiseText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
+    if (!RootOverlay || !StatusPanel || !CountdownPanel || !InfoPanel || !AnnouncementPanel || !LobbyPanel || !LobbyControlsPanel || !MatchResultPanel || !SettingsPanel || !SpectatorHelpPanel || !StatusCardsBox || !CountdownBox || !InfoBox || !AnnouncementBox || !LobbyBox || !LobbyControlsBox || !LobbyControlsCardsBox || !MatchResultBox || !SettingsBox || !SpectatorHelpBox || !LobbyKeyboardCard || !LobbyMouseCard || !HealthCard || !SprintCard || !RangedCard || !LobbyKeyboardCardBox || !LobbyMouseCardBox || !HealthCardBox || !SprintCardBox || !RangedCardBox || !HealthBarSizeBox || !HealthBar || !SprintBarSizeBox || !SprintBar || !RangedCooldownBarSizeBox || !RangedCooldownBar || !HealthText || !SprintText || !RangedCooldownText || !MatchScoreText || !TimerText || !RoundStateText || !ResultText || !NextRoundText || !LobbyTitleText || !LobbyStatusText || !LobbyModeStatusText || !LobbyTeamStatusText || !LobbyLeftTeamListText || !LobbyRightTeamListText || !LobbyReadyButton || !LobbyReadyButtonText || !LobbyFreeForAllModeButton || !LobbyFreeForAllModeButtonText || !LobbyTeamVersusModeButton || !LobbyTeamVersusModeButtonText || !LobbyLeftTeamButton || !LobbyLeftTeamButtonText || !LobbyRightTeamButton || !LobbyRightTeamButtonText || !LobbyControlsTitleText || !LobbyControlsKeyboardTitleText || !LobbyControlsKeyboardMoveText || !LobbyControlsKeyboardSprintText || !LobbyControlsMouseTitleText || !LobbyControlsMouseMeleeText || !LobbyControlsMouseRangedText || !MatchResultTitleText || !MatchResultSummaryText || !ConnectionStatusText || !LobbyNicknameTextBox || !LobbyPlayerListBox || !SettingsTitleText || !SettingsDisplayModeLabelText || !SettingsResolutionLabelText || !SettingsAudioLabelText || !SettingsMasterVolumeText || !SettingsBgmVolumeText || !SettingsSfxVolumeText || !SettingsWindowModeButtonText || !SettingsResolutionButtonText || !SettingsVSyncButtonText || !SettingsResumeButtonText || !SettingsQuitButtonText || !SpectatorHelpTitleText || !SpectatorHelpMoveText || !SpectatorHelpLookText || !SpectatorHelpRiseText || !JoinAddressTextBox || !HostMatchButton || !HostMatchButtonText || !JoinByIpButton || !JoinByIpButtonText || !LobbyMenuButton || !LobbyMenuButtonText || !SettingsMasterVolumeSlider || !SettingsBgmVolumeSlider || !SettingsSfxVolumeSlider || !SettingsWindowModeButton || !SettingsResolutionButton || !SettingsVSyncButton || !SettingsResumeButton || !SettingsQuitButton || !RangedCrosshairOverlay || !RangedCrosshairHorizontalBox || !RangedCrosshairVerticalBox || !RangedCrosshairHorizontalLine || !RangedCrosshairVerticalLine)
     {
         return;
     }
@@ -309,6 +310,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     UOverlaySlot* SettingsBoxSlot = RootOverlay->AddChildToOverlay(SettingsPanel);
     UOverlaySlot* SpectatorHelpBoxSlot = RootOverlay->AddChildToOverlay(SpectatorHelpPanel);
     UOverlaySlot* RangedCrosshairSlot = RootOverlay->AddChildToOverlay(RangedCrosshairOverlay);
+    UOverlaySlot* LobbyMenuButtonSlot = RootOverlay->AddChildToOverlay(LobbyMenuButton);
 
     if (StatusBoxSlot)
     {
@@ -375,6 +377,13 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     {
         RangedCrosshairSlot->SetHorizontalAlignment(HAlign_Center);
         RangedCrosshairSlot->SetVerticalAlignment(VAlign_Center);
+    }
+
+    if (LobbyMenuButtonSlot)
+    {
+        LobbyMenuButtonSlot->SetHorizontalAlignment(HAlign_Right);
+        LobbyMenuButtonSlot->SetVerticalAlignment(VAlign_Top);
+        LobbyMenuButtonSlot->SetPadding(FMargin(0.0f, 28.0f, 32.0f, 0.0f));
     }
 
     RangedCrosshairHorizontalBox->SetWidthOverride(18.0f);
@@ -604,7 +613,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.96f, 1.0f, 1.0f)));
     LobbyTitleText->SetFont(FSlateFontInfo(LobbyTitleText->GetFont().FontObject, 38, LobbyTitleText->GetFont().TypefaceFontName));
     LobbyTitleText->SetShadowOffset(FVector2D(2.0f, 2.0f));
-    LobbyTitleText->SetText(FText::FromString(TEXT("Lobby")));
+    LobbyTitleText->SetText(FText::FromString(TEXT("로비")));
 
     if (LobbyStatusTextSlot)
     {
@@ -628,7 +637,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyReadyButtonText->SetJustification(ETextJustify::Center);
     LobbyReadyButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyReadyButtonText->SetFont(FSlateFontInfo(LobbyReadyButtonText->GetFont().FontObject, 22, LobbyReadyButtonText->GetFont().TypefaceFontName));
-    LobbyReadyButtonText->SetText(FText::FromString(TEXT("Start Match")));
+    LobbyReadyButtonText->SetText(FText::FromString(TEXT("매치 시작")));
 
     if (LobbyModeStatusTextSlot)
     {
@@ -703,7 +712,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyFreeForAllModeButtonText->SetJustification(ETextJustify::Center);
     LobbyFreeForAllModeButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyFreeForAllModeButtonText->SetFont(FSlateFontInfo(LobbyFreeForAllModeButtonText->GetFont().FontObject, 18, LobbyFreeForAllModeButtonText->GetFont().TypefaceFontName));
-    LobbyFreeForAllModeButtonText->SetText(FText::FromString(TEXT("Free For All")));
+    LobbyFreeForAllModeButtonText->SetText(FText::FromString(TEXT("개인전")));
 
     LobbyTeamVersusModeButton->SetContent(LobbyTeamVersusModeButtonText);
     LobbyTeamVersusModeButton->SetBackgroundColor(FLinearColor(0.15f, 0.55f, 0.38f, 1.0f));
@@ -716,7 +725,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyTeamVersusModeButtonText->SetJustification(ETextJustify::Center);
     LobbyTeamVersusModeButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyTeamVersusModeButtonText->SetFont(FSlateFontInfo(LobbyTeamVersusModeButtonText->GetFont().FontObject, 18, LobbyTeamVersusModeButtonText->GetFont().TypefaceFontName));
-    LobbyTeamVersusModeButtonText->SetText(FText::FromString(TEXT("Team Versus")));
+    LobbyTeamVersusModeButtonText->SetText(FText::FromString(TEXT("팀 대전")));
 
     LobbyLeftTeamButton->SetContent(LobbyLeftTeamButtonText);
     LobbyLeftTeamButton->SetBackgroundColor(FLinearColor(0.1f, 0.36f, 0.72f, 1.0f));
@@ -729,7 +738,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyLeftTeamButtonText->SetJustification(ETextJustify::Center);
     LobbyLeftTeamButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyLeftTeamButtonText->SetFont(FSlateFontInfo(LobbyLeftTeamButtonText->GetFont().FontObject, 18, LobbyLeftTeamButtonText->GetFont().TypefaceFontName));
-    LobbyLeftTeamButtonText->SetText(FText::FromString(TEXT("Join Left Team")));
+    LobbyLeftTeamButtonText->SetText(FText::FromString(TEXT("왼쪽 팀 참가")));
 
     LobbyRightTeamButton->SetContent(LobbyRightTeamButtonText);
     LobbyRightTeamButton->SetBackgroundColor(FLinearColor(0.76f, 0.38f, 0.16f, 1.0f));
@@ -742,7 +751,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyRightTeamButtonText->SetJustification(ETextJustify::Center);
     LobbyRightTeamButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     LobbyRightTeamButtonText->SetFont(FSlateFontInfo(LobbyRightTeamButtonText->GetFont().FontObject, 18, LobbyRightTeamButtonText->GetFont().TypefaceFontName));
-    LobbyRightTeamButtonText->SetText(FText::FromString(TEXT("Join Right Team")));
+    LobbyRightTeamButtonText->SetText(FText::FromString(TEXT("오른쪽 팀 참가")));
 
     if (LobbyControlsTitleTextSlot)
     {
@@ -757,7 +766,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     LobbyControlsTitleText->SetJustification(ETextJustify::Center);
     LobbyControlsTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.98f, 1.0f, 1.0f)));
     LobbyControlsTitleText->SetFont(FSlateFontInfo(LobbyControlsTitleText->GetFont().FontObject, 24, LobbyControlsTitleText->GetFont().TypefaceFontName));
-    LobbyControlsTitleText->SetText(FText::FromString(TEXT("Controls")));
+    LobbyControlsTitleText->SetText(FText::FromString(TEXT("조작법")));
 
     if (ConnectionStatusTextSlot)
     {
@@ -767,7 +776,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     ConnectionStatusText->SetJustification(ETextJustify::Center);
     ConnectionStatusText->SetColorAndOpacity(FSlateColor(FLinearColor(0.55f, 0.9f, 1.0f, 1.0f)));
     ConnectionStatusText->SetFont(FSlateFontInfo(ConnectionStatusText->GetFont().FontObject, 16, ConnectionStatusText->GetFont().TypefaceFontName));
-    ConnectionStatusText->SetText(FText::FromString(TEXT("Network: Ready to host or join")));
+    ConnectionStatusText->SetText(FText::FromString(TEXT("네트워크: 참가 준비 완료")));
 
     if (LobbyNicknameTextBoxSlot)
     {
@@ -775,7 +784,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         LobbyNicknameTextBoxSlot->SetHorizontalAlignment(HAlign_Center);
     }
     LobbyNicknameTextBox->SetMinDesiredWidth(250.0f);
-    LobbyNicknameTextBox->SetHintText(FText::FromString(TEXT("Nickname")));
+    LobbyNicknameTextBox->SetHintText(FText::FromString(TEXT("닉네임")));
     LobbyNicknameTextBox->SetText(FText::GetEmpty());
     LobbyNicknameTextBox->OnTextCommitted.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyNicknameTextCommitted);
 
@@ -817,7 +826,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsKeyboardTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.98f, 1.0f, 1.0f)));
     LobbyControlsKeyboardTitleText->SetFont(FSlateFontInfo(LobbyControlsKeyboardTitleText->GetFont().FontObject, 18, LobbyControlsKeyboardTitleText->GetFont().TypefaceFontName));
-    LobbyControlsKeyboardTitleText->SetText(FText::FromString(TEXT("Keyboard")));
+    LobbyControlsKeyboardTitleText->SetText(FText::FromString(TEXT("키보드")));
 
     if (LobbyControlsKeyboardMoveTextSlot)
     {
@@ -825,7 +834,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsKeyboardMoveText->SetColorAndOpacity(FSlateColor(FLinearColor(0.82f, 0.92f, 1.0f, 1.0f)));
     LobbyControlsKeyboardMoveText->SetFont(FSlateFontInfo(LobbyControlsKeyboardMoveText->GetFont().FontObject, 17, LobbyControlsKeyboardMoveText->GetFont().TypefaceFontName));
-    LobbyControlsKeyboardMoveText->SetText(FText::FromString(TEXT("[ W ]\n[ A ] [ S ] [ D ]   Move")));
+    LobbyControlsKeyboardMoveText->SetText(FText::FromString(TEXT("[ W ]\n[ A ] [ S ] [ D ]   이동")));
 
     if (LobbyControlsKeyboardSprintTextSlot)
     {
@@ -833,7 +842,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsKeyboardSprintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.96f, 0.86f, 0.35f, 1.0f)));
     LobbyControlsKeyboardSprintText->SetFont(FSlateFontInfo(LobbyControlsKeyboardSprintText->GetFont().FontObject, 17, LobbyControlsKeyboardSprintText->GetFont().TypefaceFontName));
-    LobbyControlsKeyboardSprintText->SetText(FText::FromString(TEXT("[ Shift ]   Dash")));
+    LobbyControlsKeyboardSprintText->SetText(FText::FromString(TEXT("[ Shift ]   대시")));
 
     if (LobbyControlsMouseTitleTextSlot)
     {
@@ -841,7 +850,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsMouseTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.97f, 0.92f, 1.0f)));
     LobbyControlsMouseTitleText->SetFont(FSlateFontInfo(LobbyControlsMouseTitleText->GetFont().FontObject, 18, LobbyControlsMouseTitleText->GetFont().TypefaceFontName));
-    LobbyControlsMouseTitleText->SetText(FText::FromString(TEXT("Mouse")));
+    LobbyControlsMouseTitleText->SetText(FText::FromString(TEXT("마우스")));
 
     if (LobbyControlsMouseMeleeTextSlot)
     {
@@ -849,7 +858,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsMouseMeleeText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.9f, 0.82f, 1.0f)));
     LobbyControlsMouseMeleeText->SetFont(FSlateFontInfo(LobbyControlsMouseMeleeText->GetFont().FontObject, 17, LobbyControlsMouseMeleeText->GetFont().TypefaceFontName));
-    LobbyControlsMouseMeleeText->SetText(FText::FromString(TEXT("[ LMB ]   Melee Attack")));
+    LobbyControlsMouseMeleeText->SetText(FText::FromString(TEXT("[ LMB ]   근접 공격")));
 
     if (LobbyControlsMouseRangedTextSlot)
     {
@@ -857,7 +866,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     }
     LobbyControlsMouseRangedText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.82f, 0.62f, 1.0f)));
     LobbyControlsMouseRangedText->SetFont(FSlateFontInfo(LobbyControlsMouseRangedText->GetFont().FontObject, 17, LobbyControlsMouseRangedText->GetFont().TypefaceFontName));
-    LobbyControlsMouseRangedText->SetText(FText::FromString(TEXT("[ RMB ]   Ranged Attack (Charge)")));
+    LobbyControlsMouseRangedText->SetText(FText::FromString(TEXT("[ RMB ]   원거리 공격(차지)")));
 
     if (MatchResultTitleTextSlot)
     {
@@ -918,7 +927,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     HostMatchButtonText->SetJustification(ETextJustify::Center);
     HostMatchButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     HostMatchButtonText->SetFont(FSlateFontInfo(HostMatchButtonText->GetFont().FontObject, 18, HostMatchButtonText->GetFont().TypefaceFontName));
-    HostMatchButtonText->SetText(FText::FromString(TEXT("Host Match")));
+    HostMatchButtonText->SetText(FText::FromString(TEXT("호스트 시작")));
 
     JoinByIpButton->SetContent(JoinByIpButtonText);
     JoinByIpButton->SetBackgroundColor(FLinearColor(0.68f, 0.45f, 0.16f, 1.0f));
@@ -931,7 +940,16 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     JoinByIpButtonText->SetJustification(ETextJustify::Center);
     JoinByIpButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     JoinByIpButtonText->SetFont(FSlateFontInfo(JoinByIpButtonText->GetFont().FontObject, 18, JoinByIpButtonText->GetFont().TypefaceFontName));
-    JoinByIpButtonText->SetText(FText::FromString(TEXT("Join By IP")));
+    JoinByIpButtonText->SetText(FText::FromString(TEXT("IP로 참가")));
+
+    LobbyMenuButton->SetContent(LobbyMenuButtonText);
+    LobbyMenuButton->SetBackgroundColor(FLinearColor(0.16f, 0.24f, 0.34f, 0.96f));
+    LobbyMenuButton->SetVisibility(ESlateVisibility::Collapsed);
+    LobbyMenuButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleLobbyMenuButtonClicked);
+    LobbyMenuButtonText->SetJustification(ETextJustify::Center);
+    LobbyMenuButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    LobbyMenuButtonText->SetFont(FSlateFontInfo(LobbyMenuButtonText->GetFont().FontObject, 18, LobbyMenuButtonText->GetFont().TypefaceFontName));
+    LobbyMenuButtonText->SetText(FText::FromString(TEXT("메뉴")));
 
     if (SettingsTitleTextSlot)
     {
@@ -941,7 +959,7 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     SettingsTitleText->SetJustification(ETextJustify::Center);
     SettingsTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.98f, 1.0f, 1.0f)));
     SettingsTitleText->SetFont(FSlateFontInfo(SettingsTitleText->GetFont().FontObject, 30, SettingsTitleText->GetFont().TypefaceFontName));
-    SettingsTitleText->SetText(FText::FromString(TEXT("Settings")));
+    SettingsTitleText->SetText(FText::FromString(TEXT("설정")));
 
     auto ConfigureSettingsLabel = [](UTextBlock* TextBlock, const FString& Text, int32 FontSize)
     {
@@ -959,37 +977,37 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
     {
         SettingsAudioLabelTextSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 8.0f));
     }
-    ConfigureSettingsLabel(SettingsAudioLabelText, TEXT("Audio"), 20);
+    ConfigureSettingsLabel(SettingsAudioLabelText, TEXT("오디오"), 20);
 
     if (SettingsMasterVolumeTextSlot)
     {
         SettingsMasterVolumeTextSlot->SetPadding(FMargin(0.0f, 2.0f, 0.0f, 2.0f));
     }
-    ConfigureSettingsLabel(SettingsMasterVolumeText, TEXT("Master Volume"), 16);
+    ConfigureSettingsLabel(SettingsMasterVolumeText, TEXT("마스터 음량"), 16);
 
     if (SettingsBgmVolumeTextSlot)
     {
         SettingsBgmVolumeTextSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 2.0f));
     }
-    ConfigureSettingsLabel(SettingsBgmVolumeText, TEXT("BGM Volume"), 16);
+    ConfigureSettingsLabel(SettingsBgmVolumeText, TEXT("배경음 음량"), 16);
 
     if (SettingsSfxVolumeTextSlot)
     {
         SettingsSfxVolumeTextSlot->SetPadding(FMargin(0.0f, 8.0f, 0.0f, 2.0f));
     }
-    ConfigureSettingsLabel(SettingsSfxVolumeText, TEXT("SFX Volume"), 16);
+    ConfigureSettingsLabel(SettingsSfxVolumeText, TEXT("효과음 음량"), 16);
 
     if (SettingsDisplayModeLabelTextSlot)
     {
         SettingsDisplayModeLabelTextSlot->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 6.0f));
     }
-    ConfigureSettingsLabel(SettingsDisplayModeLabelText, TEXT("Window Mode"), 20);
+    ConfigureSettingsLabel(SettingsDisplayModeLabelText, TEXT("화면 모드"), 20);
 
     if (SettingsResolutionLabelTextSlot)
     {
         SettingsResolutionLabelTextSlot->SetPadding(FMargin(0.0f, 12.0f, 0.0f, 6.0f));
     }
-    ConfigureSettingsLabel(SettingsResolutionLabelText, TEXT("Resolution"), 20);
+    ConfigureSettingsLabel(SettingsResolutionLabelText, TEXT("해상도"), 20);
 
     SettingsMasterVolumeSlider->SetMinValue(0.0f);
     SettingsMasterVolumeSlider->SetMaxValue(1.0f);
@@ -1021,11 +1039,11 @@ void UPvPArenaHUDWidget::BuildWidgetTree()
         Label->SetText(FText::FromString(Text));
     };
 
-    ConfigureSettingsButton(SettingsWindowModeButton, SettingsWindowModeButtonText, FLinearColor(0.22f, 0.37f, 0.58f, 1.0f), TEXT("Window Mode"));
-    ConfigureSettingsButton(SettingsResolutionButton, SettingsResolutionButtonText, FLinearColor(0.28f, 0.43f, 0.28f, 1.0f), TEXT("Resolution"));
-    ConfigureSettingsButton(SettingsVSyncButton, SettingsVSyncButtonText, FLinearColor(0.45f, 0.36f, 0.18f, 1.0f), TEXT("VSync"));
-    ConfigureSettingsButton(SettingsResumeButton, SettingsResumeButtonText, FLinearColor(0.18f, 0.52f, 0.34f, 1.0f), TEXT("Resume"));
-    ConfigureSettingsButton(SettingsQuitButton, SettingsQuitButtonText, FLinearColor(0.62f, 0.18f, 0.18f, 1.0f), TEXT("Quit To Desktop"));
+    ConfigureSettingsButton(SettingsWindowModeButton, SettingsWindowModeButtonText, FLinearColor(0.22f, 0.37f, 0.58f, 1.0f), TEXT("화면 모드"));
+    ConfigureSettingsButton(SettingsResolutionButton, SettingsResolutionButtonText, FLinearColor(0.28f, 0.43f, 0.28f, 1.0f), TEXT("해상도"));
+    ConfigureSettingsButton(SettingsVSyncButton, SettingsVSyncButtonText, FLinearColor(0.45f, 0.36f, 0.18f, 1.0f), TEXT("수직 동기화"));
+    ConfigureSettingsButton(SettingsResumeButton, SettingsResumeButtonText, FLinearColor(0.18f, 0.52f, 0.34f, 1.0f), TEXT("닫기"));
+    ConfigureSettingsButton(SettingsQuitButton, SettingsQuitButtonText, FLinearColor(0.62f, 0.18f, 0.18f, 1.0f), TEXT("게임 종료"));
 
     SettingsWindowModeButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsWindowModeButtonClicked);
     SettingsResolutionButton->OnClicked.AddDynamic(this, &UPvPArenaHUDWidget::HandleSettingsResolutionButtonClicked);
@@ -1074,14 +1092,14 @@ void UPvPArenaHUDWidget::BuildHealthDisplayState(const APvPArenaCharacter* Chara
     if (!Character)
     {
         OutHealthPercent = 0.0f;
-        OutHealthLabel = TEXT("HP: --");
+        OutHealthLabel = TEXT("체력: --");
         return;
     }
 
     const float MaxHp = FMath::Max(1.0f, Character->GetMaxHealth());
     const float CurrentHp = Character->GetCurrentHealth();
     OutHealthPercent = CurrentHp / MaxHp;
-    OutHealthLabel = FString::Printf(TEXT("HP: %.0f / %.0f"), CurrentHp, MaxHp);
+    OutHealthLabel = FString::Printf(TEXT("체력: %.0f / %.0f"), CurrentHp, MaxHp);
 }
 
 void UPvPArenaHUDWidget::BuildSprintDisplayState(const APvPArenaCharacter* Character, float& OutSprintPercent, FString& OutSprintLabel)
@@ -1089,15 +1107,15 @@ void UPvPArenaHUDWidget::BuildSprintDisplayState(const APvPArenaCharacter* Chara
     if (!Character)
     {
         OutSprintPercent = 0.0f;
-        OutSprintLabel = TEXT("Dash: --");
+        OutSprintLabel = TEXT("대시: --");
         return;
     }
 
     OutSprintPercent = Character->GetSprintEnergyAlpha();
     OutSprintLabel = FString::Printf(
-        TEXT("Dash: %.1fs %s"),
+        TEXT("대시: %.1f초 %s"),
         Character->GetCurrentSprintEnergySeconds(),
-        Character->IsSprinting() ? TEXT("(Active)") : TEXT("(Charging)"));
+        Character->IsSprinting() ? TEXT("(사용 중)") : TEXT("(충전 중)"));
 }
 
 void UPvPArenaHUDWidget::BuildRangedCooldownDisplayState(const UPvPCombatComponent* CombatComponent, float NowSeconds, float& OutCooldownPercent, FString& OutCooldownLabel)
@@ -1105,15 +1123,15 @@ void UPvPArenaHUDWidget::BuildRangedCooldownDisplayState(const UPvPCombatCompone
     if (!CombatComponent)
     {
         OutCooldownPercent = 0.0f;
-        OutCooldownLabel = TEXT("Ranged: --");
+        OutCooldownLabel = TEXT("원거리: --");
         return;
     }
 
     const float RemainingCooldown = CombatComponent->GetRemainingRangedCooldown(NowSeconds);
     OutCooldownPercent = CombatComponent->GetRangedCooldownAlpha(NowSeconds);
     OutCooldownLabel = RemainingCooldown > 0.0f
-        ? FString::Printf(TEXT("Ranged: %.1fs"), RemainingCooldown)
-        : FString(TEXT("Ranged: Ready"));
+        ? FString::Printf(TEXT("원거리: %.1f초"), RemainingCooldown)
+        : FString(TEXT("원거리: 준비 완료"));
 }
 
 ESlateVisibility UPvPArenaHUDWidget::BuildRangedCrosshairVisibilityState(
@@ -1173,7 +1191,7 @@ TArray<FString> UPvPArenaHUDWidget::BuildLobbyParticipantLabels(const APvPArenaG
 
         ParticipantLabels.Add(
             PvPPlayerState->GetDisplayNickname().IsEmpty()
-                ? FString(TEXT("Player"))
+                ? FString(TEXT("플레이어"))
                 : PvPPlayerState->GetDisplayNickname());
     }
 
@@ -1205,11 +1223,11 @@ FString UPvPArenaHUDWidget::LobbyTeamToDisplayName(EPvPALobbyTeam LobbyTeamValue
     switch (LobbyTeamValue)
     {
     case EPvPALobbyTeam::Left:
-        return TEXT("Blue");
+        return TEXT("블루");
     case EPvPALobbyTeam::Right:
-        return TEXT("Red");
+        return TEXT("레드");
     default:
-        return TEXT("None");
+        return TEXT("없음");
     }
 }
 
@@ -1226,7 +1244,7 @@ FString UPvPArenaHUDWidget::BuildMatchScoreSummary(
     {
         const int32 RoundWinsToWin = GameState ? GameState->GetRoundWinsToWin() : 3;
         return FString::Printf(
-            TEXT("Match Score: Blue %d / %d | Red %d / %d"),
+            TEXT("round 점수: 블루 %d / %d | 레드 %d / %d"),
             BuildTeamRoundWins(GameState, EPvPALobbyTeam::Left),
             RoundWinsToWin,
             BuildTeamRoundWins(GameState, EPvPALobbyTeam::Right),
@@ -1234,7 +1252,7 @@ FString UPvPArenaHUDWidget::BuildMatchScoreSummary(
     }
 
     return FString::Printf(
-        TEXT("Match Score: %d / %d | K / D: %d / %d"),
+        TEXT("round 점수: %d / %d | kill / death: %d / %d"),
         LocalPlayerState->GetMatchKills(),
         GameState ? GameState->GetScoreLimit() : 5,
         LocalPlayerState->GetMatchKills(),
@@ -1247,7 +1265,7 @@ FString UPvPArenaHUDWidget::BuildRoundResultLabel(
 {
     if (!LocalPlayerState || !GameState)
     {
-        return TEXT("Unknown");
+        return TEXT("알 수 없음");
     }
 
     if (LocalPlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
@@ -1255,12 +1273,12 @@ FString UPvPArenaHUDWidget::BuildRoundResultLabel(
         const APvPArenaPlayerState* RoundWinner = GameState->GetRoundWinner();
         if (!RoundWinner)
         {
-            return TEXT("Draw");
+            return TEXT("무승부");
         }
 
         return RoundWinner->GetLobbyTeam() == LocalPlayerState->GetLobbyTeam()
-            ? TEXT("Victory")
-            : TEXT("Defeat");
+            ? TEXT("승리")
+            : TEXT("패배");
     }
 
     const int32 LocalKills = LocalPlayerState->GetRoundKills();
@@ -1281,20 +1299,20 @@ FString UPvPArenaHUDWidget::BuildRoundResultLabel(
 
     if (!bFoundOpponent)
     {
-        return TEXT("Pending");
+        return TEXT("대기 중");
     }
 
     if (LocalKills > HighestOpponentKills)
     {
-        return TEXT("Victory");
+        return TEXT("승리");
     }
 
     if (LocalKills < HighestOpponentKills)
     {
-        return TEXT("Defeat");
+        return TEXT("패배");
     }
 
-    return TEXT("Draw");
+    return TEXT("무승부");
 }
 
 FString UPvPArenaHUDWidget::BuildMatchResultLabel(
@@ -1303,23 +1321,23 @@ FString UPvPArenaHUDWidget::BuildMatchResultLabel(
 {
     if (!LocalPlayerState || !GameState)
     {
-        return TEXT("Match Complete");
+        return TEXT("매치 종료");
     }
 
     const APvPArenaPlayerState* MatchWinner = GameState->GetMatchWinner();
     if (!MatchWinner)
     {
-        return TEXT("Match Complete");
+        return TEXT("매치 종료");
     }
 
     if (LocalPlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
     {
         return MatchWinner->GetLobbyTeam() == LocalPlayerState->GetLobbyTeam()
-            ? TEXT("Final Victory")
-            : TEXT("Final Defeat");
+            ? TEXT("최종 승리")
+            : TEXT("최종 패배");
     }
 
-    return MatchWinner == LocalPlayerState ? TEXT("Final Victory") : TEXT("Final Defeat");
+    return MatchWinner == LocalPlayerState ? TEXT("최종 승리") : TEXT("최종 패배");
 }
 
 FString UPvPArenaHUDWidget::BuildLobbyNicknameTextBoxValue(const FString& DraftNickname, const FString& ReplicatedNickname)
@@ -1342,9 +1360,15 @@ void UPvPArenaHUDWidget::RefreshBackgroundMusic(const APvPArenaGameState* GameSt
 
     BackgroundMusicAudioComponent->SetVolumeMultiplier(MasterVolume * BackgroundMusicVolume);
 
-    const USoundBase* DesiredMusic = GameState && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
+    const TSoftObjectPtr<USoundBase>& DesiredMusicAsset = GameState && GameState->GetMatchPhase() == EPvPAMatchPhase::Playing
         ? GameplayBackgroundMusic
         : NonCombatBackgroundMusic;
+
+    USoundBase* DesiredMusic = DesiredMusicAsset.Get();
+    if (!DesiredMusic && !DesiredMusicAsset.IsNull())
+    {
+        DesiredMusic = DesiredMusicAsset.LoadSynchronous();
+    }
 
     if (!DesiredMusic)
     {
@@ -1460,6 +1484,11 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
             LobbyControlsPanel->SetVisibility(bIsLobby ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
         }
 
+        if (LobbyMenuButton)
+        {
+            LobbyMenuButton->SetVisibility(bIsLobby ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
         if (MatchResultPanel)
         {
             MatchResultPanel->SetVisibility(bIsMatchEnd ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -1474,15 +1503,15 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         {
             if (bIsLobby)
             {
-                TimerText->SetText(FText::FromString(TEXT("Time: Waiting")));
+                TimerText->SetText(FText::FromString(TEXT("시간: 대기 중")));
             }
             else if (bIsMatchEnd)
             {
-                TimerText->SetText(FText::FromString(FString::Printf(TEXT("Lobby In: %d"), PvPGameState->GetRemainingMatchEndTimeSeconds())));
+                TimerText->SetText(FText::FromString(FString::Printf(TEXT("로비 복귀까지: %d"), PvPGameState->GetRemainingMatchEndTimeSeconds())));
             }
             else
             {
-                TimerText->SetText(FText::FromString(FString::Printf(TEXT("Time: %d"), PvPGameState->GetRemainingRoundTimeSeconds())));
+                TimerText->SetText(FText::FromString(FString::Printf(TEXT("시간: %d"), PvPGameState->GetRemainingRoundTimeSeconds())));
             }
         }
 
@@ -1490,7 +1519,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         {
             RoundStateText->SetText(FText::FromString(
                 FString::Printf(
-                    TEXT("Phase: %s | Round: %s"),
+                    TEXT("단계: %s | 라운드: %s"),
                     *MatchPhaseToString(static_cast<uint8>(PvPGameState->GetMatchPhase())),
                     *RoundStateToString(static_cast<uint8>(PvPGameState->GetRoundState())))));
         }
@@ -1515,7 +1544,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
             {
                 NextRoundText->SetVisibility(ESlateVisibility::Visible);
                 NextRoundText->SetText(FText::FromString(
-                    FString::Printf(TEXT("Next Round In: %d"), PvPGameState->GetRemainingRoundEndTimeSeconds())));
+                    FString::Printf(TEXT("다음 라운드까지: %d"), PvPGameState->GetRemainingRoundEndTimeSeconds())));
             }
             else
             {
@@ -1549,14 +1578,14 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
         if (LobbyModeStatusText)
         {
             LobbyModeStatusText->SetText(FText::FromString(
-                bIsLobby ? FString::Printf(TEXT("Mode: %s"), *LobbyMatchModeToString(static_cast<uint8>(LobbyMatchMode))) : FString()));
+                bIsLobby ? FString::Printf(TEXT("모드: %s"), *LobbyMatchModeToString(static_cast<uint8>(LobbyMatchMode))) : FString()));
         }
 
         if (LobbyTeamStatusText)
         {
             LobbyTeamStatusText->SetText(FText::FromString(
                 bIsLobby
-                    ? FString::Printf(TEXT("Your Team: %s"), LocalPlayerState ? *LobbyTeamToString(static_cast<uint8>(LocalPlayerState->GetLobbyTeam())) : TEXT("None"))
+                    ? FString::Printf(TEXT("내 팀: %s"), LocalPlayerState ? *LobbyTeamToString(static_cast<uint8>(LocalPlayerState->GetLobbyTeam())) : TEXT("없음"))
                     : FString()));
         }
 
@@ -1582,7 +1611,7 @@ void UPvPArenaHUDWidget::RefreshWidgetData()
 
         if (LobbyReadyButtonText)
         {
-            LobbyReadyButtonText->SetText(FText::FromString(TEXT("Start Match")));
+            LobbyReadyButtonText->SetText(FText::FromString(TEXT("매치 시작")));
         }
 
         if (LobbyFreeForAllModeButton)
@@ -1706,24 +1735,43 @@ void UPvPArenaHUDWidget::HandleLobbyRightTeamButtonClicked()
 
 void UPvPArenaHUDWidget::HandleHostMatchButtonClicked()
 {
-    ExecuteTravelCommand(BuildHostTravelCommand(), TEXT("Network: Hosting match on port 7777"));
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        SetConnectionStatus(TEXT("네트워크: 월드를 찾을 수 없습니다"));
+        return;
+    }
+
+    UGameplayStatics::OpenLevel(
+        World,
+        FName(*BuildHostTravelMapName()),
+        true,
+        BuildHostTravelOptions());
+    SetConnectionStatus(TEXT("네트워크: 7777 포트에서 호스트 시작 중"));
 }
 
 void UPvPArenaHUDWidget::HandleJoinByIpButtonClicked()
 {
-    const FString JoinAddress = JoinAddressTextBox ? JoinAddressTextBox->GetText().ToString() : FString();
-    const FString TravelCommand = BuildJoinTravelCommand(JoinAddress);
-    if (TravelCommand.IsEmpty())
+    const FString JoinAddress = BuildJoinTravelAddress(JoinAddressTextBox ? JoinAddressTextBox->GetText().ToString() : FString());
+    if (JoinAddress.IsEmpty())
     {
-        SetConnectionStatus(TEXT("Network: Enter a host IP address"));
+        SetConnectionStatus(TEXT("네트워크: 호스트 IP 주소를 입력하세요"));
         return;
     }
 
-    const int32 AddressStartIndex = TravelCommand.Find(TEXT(" "));
-    const FString PendingAddress = AddressStartIndex != INDEX_NONE
-        ? TravelCommand.Mid(AddressStartIndex + 1)
-        : TravelCommand;
-    ExecuteTravelCommand(TravelCommand, FString::Printf(TEXT("Network: Joining %s"), *PendingAddress));
+    if (APlayerController* PlayerController = GetOwningPlayer())
+    {
+        PlayerController->ClientTravel(JoinAddress, TRAVEL_Absolute);
+        SetConnectionStatus(FString::Printf(TEXT("네트워크: %s 접속 중"), *JoinAddress));
+        return;
+    }
+
+    SetConnectionStatus(TEXT("네트워크: 플레이어 컨트롤러를 찾을 수 없습니다"));
+}
+
+void UPvPArenaHUDWidget::HandleLobbyMenuButtonClicked()
+{
+    ToggleSettingsMenu();
 }
 
 void UPvPArenaHUDWidget::HandleLobbyNicknameTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod)
@@ -1747,10 +1795,19 @@ FString UPvPArenaHUDWidget::BuildHostTravelCommand() const
     return FString::Printf(TEXT("open %s"), HostTravelMapPath);
 }
 
+FString UPvPArenaHUDWidget::BuildHostTravelMapName() const
+{
+    return FString(TEXT("/Game/PvPArena/Maps/PvPArena_map"));
+}
+
+FString UPvPArenaHUDWidget::BuildHostTravelOptions() const
+{
+    return FString(TEXT("listen"));
+}
+
 FString UPvPArenaHUDWidget::BuildJoinTravelCommand(const FString& JoinAddress) const
 {
-    FString CleanAddress = JoinAddress;
-    CleanAddress.TrimStartAndEndInline();
+    FString CleanAddress = BuildJoinTravelAddress(JoinAddress);
     if (CleanAddress.IsEmpty())
     {
         return FString();
@@ -1767,6 +1824,29 @@ FString UPvPArenaHUDWidget::BuildJoinTravelCommand(const FString& JoinAddress) c
     }
 
     return FString::Printf(TEXT("open %s"), *CleanAddress);
+}
+
+FString UPvPArenaHUDWidget::BuildJoinTravelAddress(const FString& JoinAddress) const
+{
+    FString CleanAddress = JoinAddress;
+    CleanAddress.TrimStartAndEndInline();
+    if (CleanAddress.IsEmpty())
+    {
+        return FString();
+    }
+
+    if (CleanAddress.StartsWith(TEXT("open ")))
+    {
+        CleanAddress.RightChopInline(5, EAllowShrinking::No);
+        CleanAddress.TrimStartAndEndInline();
+    }
+
+    if (!CleanAddress.Contains(TEXT(":")))
+    {
+        CleanAddress += TEXT(":7777");
+    }
+
+    return CleanAddress;
 }
 
 void UPvPArenaHUDWidget::ToggleSettingsMenu()
@@ -1901,33 +1981,33 @@ void UPvPArenaHUDWidget::RefreshSettingsMenuState()
 
     if (SettingsMasterVolumeText)
     {
-        SettingsMasterVolumeText->SetText(FText::FromString(FString::Printf(TEXT("Master Volume: %d%%"), FMath::RoundToInt(MasterVolume * 100.0f))));
+        SettingsMasterVolumeText->SetText(FText::FromString(FString::Printf(TEXT("마스터 음량: %d%%"), FMath::RoundToInt(MasterVolume * 100.0f))));
     }
 
     if (SettingsBgmVolumeText)
     {
-        SettingsBgmVolumeText->SetText(FText::FromString(FString::Printf(TEXT("BGM Volume: %d%%"), FMath::RoundToInt(BackgroundMusicVolume * 100.0f))));
+        SettingsBgmVolumeText->SetText(FText::FromString(FString::Printf(TEXT("배경음 음량: %d%%"), FMath::RoundToInt(BackgroundMusicVolume * 100.0f))));
     }
 
     if (SettingsSfxVolumeText)
     {
-        SettingsSfxVolumeText->SetText(FText::FromString(FString::Printf(TEXT("SFX Volume: %d%%"), FMath::RoundToInt(SfxVolume * 100.0f))));
+        SettingsSfxVolumeText->SetText(FText::FromString(FString::Printf(TEXT("효과음 음량: %d%%"), FMath::RoundToInt(SfxVolume * 100.0f))));
     }
 
     if (SettingsWindowModeButtonText)
     {
-        SettingsWindowModeButtonText->SetText(FText::FromString(FString::Printf(TEXT("Window Mode: %s"), *BuildWindowModeLabel(SelectedWindowModeIndex))));
+        SettingsWindowModeButtonText->SetText(FText::FromString(FString::Printf(TEXT("화면 모드: %s"), *BuildWindowModeLabel(SelectedWindowModeIndex))));
     }
 
     const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
     if (SettingsResolutionButtonText && SupportedResolutions.IsValidIndex(SelectedResolutionIndex))
     {
-        SettingsResolutionButtonText->SetText(FText::FromString(FString::Printf(TEXT("Resolution: %s"), *BuildResolutionLabel(SupportedResolutions[SelectedResolutionIndex]))));
+        SettingsResolutionButtonText->SetText(FText::FromString(FString::Printf(TEXT("해상도: %s"), *BuildResolutionLabel(SupportedResolutions[SelectedResolutionIndex]))));
     }
 
     if (SettingsVSyncButtonText)
     {
-        SettingsVSyncButtonText->SetText(FText::FromString(FString::Printf(TEXT("VSync: %s"), bVSyncEnabled ? TEXT("On") : TEXT("Off"))));
+        SettingsVSyncButtonText->SetText(FText::FromString(FString::Printf(TEXT("수직 동기화: %s"), bVSyncEnabled ? TEXT("켜짐") : TEXT("꺼짐"))));
     }
 }
 
@@ -1954,12 +2034,12 @@ FString UPvPArenaHUDWidget::BuildWindowModeLabel(int32 WindowModeIndex)
     switch (static_cast<EWindowMode::Type>(WindowModeIndex))
     {
     case EWindowMode::Fullscreen:
-        return TEXT("Fullscreen");
+        return TEXT("전체 화면");
     case EWindowMode::WindowedFullscreen:
-        return TEXT("Borderless");
+        return TEXT("전체 창");
     case EWindowMode::Windowed:
     default:
-        return TEXT("Windowed");
+        return TEXT("창 모드");
     }
 }
 
@@ -1992,26 +2072,6 @@ void UPvPArenaHUDWidget::SetConnectionStatus(const FString& NewStatus)
     {
         ConnectionStatusText->SetText(FText::FromString(NewStatus));
     }
-}
-
-bool UPvPArenaHUDWidget::ExecuteTravelCommand(const FString& TravelCommand, const FString& PendingStatus)
-{
-    APlayerController* PlayerController = GetOwningPlayer();
-    if (!PlayerController)
-    {
-        SetConnectionStatus(TEXT("Network: Player controller unavailable"));
-        return false;
-    }
-
-    if (TravelCommand.IsEmpty())
-    {
-        SetConnectionStatus(TEXT("Network: Invalid travel command"));
-        return false;
-    }
-
-    PlayerController->ConsoleCommand(TravelCommand, true);
-    SetConnectionStatus(PendingStatus);
-    return true;
 }
 
 void UPvPArenaHUDWidget::RefreshCrosshairVisibility()
@@ -2114,22 +2174,22 @@ FString UPvPArenaHUDWidget::BuildLobbyTeamListText(const APvPArenaGameState* Gam
 
             const FString PreferredLabel = !PvPPlayerState->GetDisplayNickname().IsEmpty()
                 ? PvPPlayerState->GetDisplayNickname()
-                : (!PvPPlayerState->GetPlayerName().IsEmpty() ? PvPPlayerState->GetPlayerName() : TEXT("Player"));
+                : (!PvPPlayerState->GetPlayerName().IsEmpty() ? PvPPlayerState->GetPlayerName() : TEXT("플레이어"));
             TeamPlayers.Add(PreferredLabel);
         }
     }
 
-    const FString TeamLabel = LobbyTeam == EPvPALobbyTeam::Left ? TEXT("Left Team") : TEXT("Right Team");
+    const FString TeamLabel = LobbyTeam == EPvPALobbyTeam::Left ? TEXT("왼쪽 팀") : TEXT("오른쪽 팀");
     return TeamPlayers.IsEmpty()
-        ? FString::Printf(TEXT("%s\n- Empty -"), *TeamLabel)
+        ? FString::Printf(TEXT("%s\n- 비어 있음 -"), *TeamLabel)
         : FString::Printf(TEXT("%s\n%s"), *TeamLabel, *FString::Join(TeamPlayers, TEXT("\n")));
 }
 
 FString UPvPArenaHUDWidget::LobbyMatchModeToString(uint8 LobbyMatchModeValue)
 {
     return static_cast<EPvPALobbyMatchMode>(LobbyMatchModeValue) == EPvPALobbyMatchMode::TeamVersus
-        ? TEXT("Team Versus")
-        : TEXT("Free For All");
+        ? TEXT("팀 대전")
+        : TEXT("개인전");
 }
 
 FString UPvPArenaHUDWidget::LobbyTeamToString(uint8 LobbyTeamValue)
@@ -2137,11 +2197,11 @@ FString UPvPArenaHUDWidget::LobbyTeamToString(uint8 LobbyTeamValue)
     switch (static_cast<EPvPALobbyTeam>(LobbyTeamValue))
     {
     case EPvPALobbyTeam::Left:
-        return TEXT("Left");
+        return TEXT("왼쪽");
     case EPvPALobbyTeam::Right:
-        return TEXT("Right");
+        return TEXT("오른쪽");
     default:
-        return TEXT("None");
+        return TEXT("없음");
     }
 }
 
@@ -2173,7 +2233,7 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerCo
         if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus)
         {
             return FString::Printf(
-                TEXT("Players Connected: %d / %d\nMode: Team Versus\nNeed %d players connected to begin.\nFirst to %d round wins takes the match."),
+                TEXT("접속 플레이어: %d / %d\n모드: 팀 대전\n시작하려면 %d명 이상 필요합니다.\n%d라운드 선취 시 승리합니다."),
                 ConnectedPlayers,
                 6,
                 2,
@@ -2181,7 +2241,7 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerCo
         }
 
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nMode: Free For All\nNeed %d players connected to begin.\nFirst to %d kills or best score at time wins."),
+            TEXT("접속 플레이어: %d / %d\n모드: 개인전\n시작하려면 %d명 이상 필요합니다.\n%d킬 선취 또는 시간 종료 시 최고 점수가 승리합니다."),
             ConnectedPlayers,
             6,
             2,
@@ -2191,7 +2251,7 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerCo
     if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus && (LeftTeamPlayers == 0 || RightTeamPlayers == 0))
     {
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nMode: Team Versus\nLeft: %d  Right: %d\nNeed at least 1 player on each team to begin."),
+            TEXT("접속 플레이어: %d / %d\n모드: 팀 대전\n왼쪽: %d  오른쪽: %d\n각 팀에 최소 1명씩 있어야 시작할 수 있습니다."),
             ConnectedPlayers,
             6,
             LeftTeamPlayers,
@@ -2201,7 +2261,7 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerCo
     if (PlayerController && PlayerController->HasAuthority())
     {
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nMode: Team Versus\nPress Start Match when ready.\nFirst to %d round wins takes the match."),
+            TEXT("접속 플레이어: %d / %d\n모드: 팀 대전\n준비되면 매치 시작을 누르세요.\n%d라운드 선취 시 승리합니다."),
             ConnectedPlayers,
             6,
             GameState ? GameState->GetRoundWinsToWin() : 3);
@@ -2210,14 +2270,14 @@ FString UPvPArenaHUDWidget::GetLobbyStatusText(const APlayerController* PlayerCo
     if (LobbyMatchMode == EPvPALobbyMatchMode::TeamVersus)
     {
         return FString::Printf(
-            TEXT("Players Connected: %d / %d\nMode: Team Versus\nWaiting for the host to start the match.\nFirst to %d round wins takes the match."),
+            TEXT("접속 플레이어: %d / %d\n모드: 팀 대전\n호스트가 매치를 시작하기를 기다리는 중입니다.\n%d라운드 선취 시 승리합니다."),
             ConnectedPlayers,
             6,
             GameState ? GameState->GetRoundWinsToWin() : 3);
     }
 
     return FString::Printf(
-        TEXT("Players Connected: %d / %d\nMode: Free For All\nWaiting for the host to start the match.\nFirst to %d kills or best score at time wins."),
+        TEXT("접속 플레이어: %d / %d\n모드: 개인전\n호스트가 매치를 시작하기를 기다리는 중입니다.\n%d킬 선취 또는 시간 종료 시 최고 점수가 승리합니다."),
         ConnectedPlayers,
         6,
         GameState ? GameState->GetScoreLimit() : 5);
@@ -2234,13 +2294,13 @@ FString UPvPArenaHUDWidget::GetMatchSummaryText(const APlayerController* PlayerC
 {
     if (!PlayerController || !GameState)
     {
-        return TEXT("Returning to lobby...");
+        return TEXT("로비로 돌아가는 중...");
     }
 
     const APvPArenaPlayerState* LocalPlayerState = PlayerController->GetPlayerState<APvPArenaPlayerState>();
     if (!LocalPlayerState)
     {
-        return TEXT("Returning to lobby...");
+        return TEXT("로비로 돌아가는 중...");
     }
 
     int32 HighestOpponentRoundWins = 0;
@@ -2256,7 +2316,7 @@ FString UPvPArenaHUDWidget::GetMatchSummaryText(const APlayerController* PlayerC
     }
 
     return FString::Printf(
-        TEXT("Final Rounds: %d - %d\nK / D: %d / %d\nReturning to lobby in: %d"),
+        TEXT("최종 라운드: %d - %d\nkill / death: %d / %d\n로비 복귀까지: %d"),
         LocalPlayerState->GetRoundWins(),
         HighestOpponentRoundWins,
         LocalPlayerState->GetMatchKills(),
@@ -2269,13 +2329,13 @@ FString UPvPArenaHUDWidget::RoundStateToString(uint8 RoundStateValue)
     switch (static_cast<EPvPARoundState>(RoundStateValue))
     {
     case EPvPARoundState::Playing:
-        return TEXT("Playing");
+        return TEXT("진행 중");
     case EPvPARoundState::RoundEnd:
-        return TEXT("RoundEnd");
+        return TEXT("라운드 종료");
     case EPvPARoundState::SuddenDeath:
-        return TEXT("SuddenDeath");
+        return TEXT("서든데스");
     default:
-        return TEXT("Unknown");
+        return TEXT("알 수 없음");
     }
 }
 
@@ -2284,12 +2344,12 @@ FString UPvPArenaHUDWidget::MatchPhaseToString(uint8 MatchPhaseValue)
     switch (static_cast<EPvPAMatchPhase>(MatchPhaseValue))
     {
     case EPvPAMatchPhase::Lobby:
-        return TEXT("Lobby");
+        return TEXT("로비");
     case EPvPAMatchPhase::Playing:
-        return TEXT("Playing");
+        return TEXT("진행 중");
     case EPvPAMatchPhase::MatchEnd:
-        return TEXT("MatchEnd");
+        return TEXT("매치 종료");
     default:
-        return TEXT("Unknown");
+        return TEXT("알 수 없음");
     }
 }

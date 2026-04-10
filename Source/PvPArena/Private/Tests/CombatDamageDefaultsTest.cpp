@@ -17,6 +17,7 @@ bool FCombatDamageDefaultsTest::RunTest(const FString& Parameters)
     }
 
     TestEqual(TEXT("Default melee damage"), Combat->GetMeleeDamage(), 25.0f);
-    TestEqual(TEXT("Default ranged damage"), Combat->GetRangedDamage(), 20.0f);
+    TestEqual(TEXT("Default ranged damage"), Combat->GetRangedDamage(), 25.0f);
+    TestEqual(TEXT("Default ranged cooldown"), Combat->GetRangedCooldownSeconds(), 3.0f);
     return true;
 }

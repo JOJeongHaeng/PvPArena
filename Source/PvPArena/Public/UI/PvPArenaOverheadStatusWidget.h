@@ -23,8 +23,9 @@ class PVPARENA_API UPvPArenaOverheadStatusWidget : public UUserWidget
     GENERATED_BODY()
 
 public:
+    UPvPArenaOverheadStatusWidget(const FObjectInitializer& ObjectInitializer);
     virtual void NativeConstruct() override;
-    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+    virtual void NativeDestruct() override;
 
     static void BuildDisplayState(const class APvPArenaCharacter* Character, FString& OutNickname, float& OutHealthPercent);
     static EPvPArenaOverheadRelationship ResolveRelationship(
@@ -48,4 +49,6 @@ private:
 
     UPROPERTY(Transient)
     TWeakObjectPtr<const class APvPArenaCharacter> ObservedCharacter;
+
+    FTimerHandle RefreshTimerHandle;
 };

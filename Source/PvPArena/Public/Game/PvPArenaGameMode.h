@@ -118,6 +118,9 @@ public:
         bool bRoundAlreadyHasWinner,
         EPvPARoundState CurrentRoundState = EPvPARoundState::Playing) const;
 
+    UFUNCTION(BlueprintPure, Category = "Match")
+    bool ShouldFinalizeDelayedSpectating(const APawn* CurrentPawn, const APawn* EliminatedPawn) const;
+
     UFUNCTION(BlueprintCallable, Category = "Match")
     void HandlePlayerEliminated(AController* VictimController, AController* KillerController);
 

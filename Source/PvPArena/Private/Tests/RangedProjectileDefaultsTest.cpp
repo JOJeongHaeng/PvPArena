@@ -74,11 +74,12 @@ bool FRangedProjectileDefaultsTest::RunTest(const FString& Parameters)
         ExpectedImpactEffectPath);
 
     TestTrue(TEXT("Projectile should ignore gravity for a straight magic bolt"), ProjectileMovement && ProjectileMovement->ProjectileGravityScale == 0.0f);
-    TestEqual(TEXT("Projectile should slow down slightly for easier visual tracking"), ProjectileMovement ? ProjectileMovement->InitialSpeed : 0.0f, 1800.0f);
-    TestEqual(TEXT("Projectile max speed should match the lowered initial speed"), ProjectileMovement ? ProjectileMovement->MaxSpeed : 0.0f, 1800.0f);
+    TestEqual(TEXT("Projectile should travel much faster for snappier ranged pressure"), ProjectileMovement ? ProjectileMovement->InitialSpeed : 0.0f, 3600.0f);
+    TestEqual(TEXT("Projectile max speed should match the increased initial speed"), ProjectileMovement ? ProjectileMovement->MaxSpeed : 0.0f, 3600.0f);
     TestTrue(TEXT("Projectile actor should replicate movement so remote clients follow the server path"), Projectile && Projectile->GetIsReplicated() && Projectile->IsReplicatingMovement());
     TestTrue(TEXT("Projectile impact effect RPC should replicate to all clients"), (ImpactMulticastFunction->FunctionFlags & FUNC_NetMulticast) != 0);
     TestTrue(TEXT("Projectile impact effect RPC should be reliable so hit feedback survives projectile destruction"), (ImpactMulticastFunction->FunctionFlags & FUNC_NetReliable) != 0);
+    TestFalse(TEXT("Projectile should start with ticking disabled unless projectile debug drawing is enabled"), Projectile && Projectile->PrimaryActorTick.bStartWithTickEnabled);
     TestFalse(TEXT("Projectile draw-debug should default off so travel visuals stay readable"), DebugEnabledProperty->GetPropertyValue_InContainer(Projectile));
     TestEqual(TEXT("Projectile should keep its debug trail visible briefly"), DebugDurationProperty->GetPropertyValue_InContainer(Projectile), 1.0f);
     TestEqual(TEXT("Projectile should use a readable debug trail thickness"), DebugThicknessProperty->GetPropertyValue_InContainer(Projectile), 1.5f);

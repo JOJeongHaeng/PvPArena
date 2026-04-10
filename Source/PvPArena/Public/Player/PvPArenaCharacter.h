@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "UObject/SoftObjectPtr.h"
 #include "PvPArenaCharacter.generated.h"
 
 class AController;
@@ -124,6 +125,7 @@ public:
     void ServerReleaseRangedCharge();
 
 protected:
+    virtual void PostInitializeComponents() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void BeginPlay() override;
     virtual void PossessedBy(AController* NewController) override;
@@ -178,6 +180,7 @@ private:
     bool UpdatePendingSprintDash(float DeltaSeconds);
     void TryApplyInputMappingContext();
     void RefreshOverheadStatusWidget();
+    TSubclassOf<class UUserWidget> ResolveOverheadStatusWidgetClass();
     FName ResolveOverheadWidgetSocketName() const;
     void RefreshOverheadWidgetAttachment();
     void RefreshOverheadWidgetFacing();
@@ -255,7 +258,7 @@ private:
     FName MeleeAttackSocketName = TEXT("hand_l");
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (ClampMin = "0.1"))
-    float MeleeAttackPlayRate = 2.0f;
+    float MeleeAttackPlayRate = 2.75f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     TObjectPtr<UAnimMontage> RangedAttackMontage;
@@ -360,7 +363,7 @@ private:
     float RangedAttackTurnInterpSpeed = 12.0f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (ClampMin = "0.0"))
-    float RangedChargeMinimumHoldSeconds = 0.5f;
+    float RangedChargeMinimumHoldSeconds = 0.1f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float RangedAimCameraOffsetY = 60.0f;
@@ -379,6 +382,9 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "UI")
     TObjectPtr<UWidgetComponent> OverheadStatusWidgetComponent;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSoftClassPtr<UUserWidget> OverheadStatusWidgetClass;
 
     UPROPERTY(Transient)
     TObjectPtr<USpringArmComponent> RangedAimSpringArm;

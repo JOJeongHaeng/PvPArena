@@ -48,18 +48,14 @@ APvPArenaCharacter::APvPArenaCharacter()
         RangedAttackAudioComponent->SetAutoActivate(false);
     }
 
-    static ConstructorHelpers::FClassFinder<UUserWidget> OverheadStatusWidgetClassFinder(
-        TEXT("/Game/PvPArena/UI/WBP_OverheadStatus"));
+    OverheadStatusWidgetClass = TSoftClassPtr<UUserWidget>(FSoftObjectPath(TEXT("/Game/PvPArena/UI/WBP_OverheadStatus.WBP_OverheadStatus_C")));
 
     if (OverheadStatusWidgetComponent)
     {
         OverheadStatusWidgetComponent->SetupAttachment(GetMesh(), ResolveOverheadWidgetSocketName());
         OverheadStatusWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
         OverheadStatusWidgetComponent->SetUsingAbsoluteRotation(true);
-        const TSubclassOf<UUserWidget> OverheadWidgetClass = OverheadStatusWidgetClassFinder.Succeeded()
-            ? TSubclassOf<UUserWidget>(OverheadStatusWidgetClassFinder.Class)
-            : TSubclassOf<UUserWidget>(UPvPArenaOverheadStatusWidget::StaticClass());
-        OverheadStatusWidgetComponent->SetWidgetClass(OverheadWidgetClass);
+        OverheadStatusWidgetComponent->SetWidgetClass(UPvPArenaOverheadStatusWidget::StaticClass());
     }
 
     static ConstructorHelpers::FObjectFinder<UAnimationAsset> DeathAnimationFinder(
@@ -133,9 +129,16 @@ void APvPArenaCharacter::Tick(float DeltaSeconds)
     RefreshOverheadWidgetVisibility();
 }
 
+void APvPArenaCharacter::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();
+    ResolveOverheadStatusWidgetClass();
+}
+
 void APvPArenaCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    ResolveOverheadStatusWidgetClass();
     RefreshOverheadWidgetAttachment();
     CurrentSprintEnergySeconds = FMath::Clamp(CurrentSprintEnergySeconds, 0.0f, SprintDurationSeconds);
     RefreshSprintMovementSpeed();
@@ -253,6 +256,7 @@ void APvPArenaCharacter::RefreshOverheadStatusWidget()
         return;
     }
 
+    ResolveOverheadStatusWidgetClass();
     OverheadStatusWidgetComponent->InitWidget();
 
     UUserWidget* UserWidget = OverheadStatusWidgetComponent->GetUserWidgetObject();
@@ -270,6 +274,27 @@ void APvPArenaCharacter::RefreshOverheadStatusWidget()
 
     OverheadWidget->SetObservedCharacter(this);
     OverheadWidget->RefreshFromCharacter(this);
+}
+
+TSubclassOf<UUserWidget> APvPArenaCharacter::ResolveOverheadStatusWidgetClass()
+{
+    TSubclassOf<UUserWidget> WidgetClass = OverheadStatusWidgetClass.Get();
+    if (!WidgetClass && !OverheadStatusWidgetClass.IsNull())
+    {
+        WidgetClass = OverheadStatusWidgetClass.LoadSynchronous();
+    }
+
+    if (!WidgetClass)
+    {
+        WidgetClass = UPvPArenaOverheadStatusWidget::StaticClass();
+    }
+
+    if (OverheadStatusWidgetComponent && OverheadStatusWidgetComponent->GetWidgetClass() != WidgetClass)
+    {
+        OverheadStatusWidgetComponent->SetWidgetClass(WidgetClass);
+    }
+
+    return WidgetClass;
 }
 
 bool APvPArenaCharacter::BuildOverheadWidgetVisibleState(
@@ -1051,9 +1076,14 @@ void APvPArenaCharacter::StartRangedAttackFacingLock(float TargetYaw)
 
 void APvPArenaCharacter::UpdateRangedAttackFacing(float DeltaSeconds)
 {
-    if (!bRangedAttackInProgress || !bRangedAttackFacingLocked)
+    if (!bMeleeAttackInProgress && !bRangedAttackInProgress)
     {
         return;
+    }
+
+    if (Controller)
+    {
+        RangedAttackTargetYaw = FRotator::NormalizeAxis(Controller->GetControlRotation().Yaw);
     }
 
     const FRotator TargetRotation(0.0f, RangedAttackTargetYaw, 0.0f);
