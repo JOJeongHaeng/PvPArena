@@ -148,6 +148,12 @@ void APvPArenaCharacter::BeginPlay()
     RefreshOverheadStatusWidget();
 }
 
+void APvPArenaCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    ReleaseAttackAudio();
+    Super::EndPlay(EndPlayReason);
+}
+
 void APvPArenaCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
@@ -1092,13 +1098,6 @@ void APvPArenaCharacter::UpdateRangedAttackFacing(float DeltaSeconds)
 
 void APvPArenaCharacter::ShowMeleeDebug(FVector Start, FVector End, bool bHit)
 {
-    if (HasAuthority())
-    {
-        MulticastDrawMeleeDebug(Start, End, bHit);
-        return;
-    }
-
-    MulticastDrawMeleeDebug_Implementation(Start, End, bHit);
 }
 
 void APvPArenaCharacter::ApplyServerDamage(float Damage, AController* InstigatorController)
@@ -1291,6 +1290,28 @@ void APvPArenaCharacter::RefreshAttackAudioVolumes()
     if (RangedAttackAudioComponent)
     {
         RangedAttackAudioComponent->SetVolumeMultiplier(RangedAttackSoundVolume * CurrentMasterVolume * CurrentSfxVolume);
+    }
+}
+
+void APvPArenaCharacter::ReleaseAttackAudio()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(MeleeAttackAudioTimerHandle);
+    }
+
+    if (MeleeAttackAudioComponent)
+    {
+        MeleeAttackAudioComponent->Stop();
+        MeleeAttackAudioComponent->SetSound(nullptr);
+        MeleeAttackAudioComponent = nullptr;
+    }
+
+    if (RangedAttackAudioComponent)
+    {
+        RangedAttackAudioComponent->Stop();
+        RangedAttackAudioComponent->SetSound(nullptr);
+        RangedAttackAudioComponent = nullptr;
     }
 }
 
@@ -1590,27 +1611,6 @@ void APvPArenaCharacter::MulticastResolveRangedCharge_Implementation(bool bCommi
 
 void APvPArenaCharacter::MulticastDrawMeleeDebug_Implementation(FVector Start, FVector End, bool bHit)
 {
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return;
-    }
-
-    const float DebugDuration = 1.0f;
-    const float DebugRadius = 70.0f;
-    const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
-    DrawDebugCapsule(
-        World,
-        (Start + End) * 0.5f,
-        140.0f * 0.5f,
-        DebugRadius,
-        FRotationMatrix::MakeFromZ((End - Start).GetSafeNormal()).ToQuat(),
-        DebugColor,
-        false,
-        DebugDuration,
-        0,
-        1.5f);
-    DrawDebugSphere(World, End, DebugRadius, 16, DebugColor, false, DebugDuration, 0, 1.0f);
 }
 
 void APvPArenaCharacter::MulticastPlayRangedAttackSound_Implementation()
