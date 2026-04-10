@@ -3,6 +3,7 @@
 #include "Sound/SoundBase.h"
 #include "UI/PvPArenaHUDWidget.h"
 #include "UObject/UnrealType.h"
+#include "UObject/SoftObjectPtr.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHUDWidgetBackgroundMusicTest,
@@ -19,10 +20,10 @@ bool FHUDWidgetBackgroundMusicTest::RunTest(const FString& Parameters)
     const UPvPArenaHUDWidget* Widget = GetDefault<UPvPArenaHUDWidget>();
     TestNotNull(TEXT("HUD widget CDO should exist"), Widget);
 
-    const FObjectProperty* NonCombatMusicProperty =
-        FindFProperty<FObjectProperty>(UPvPArenaHUDWidget::StaticClass(), TEXT("NonCombatBackgroundMusic"));
-    const FObjectProperty* GameplayMusicProperty =
-        FindFProperty<FObjectProperty>(UPvPArenaHUDWidget::StaticClass(), TEXT("GameplayBackgroundMusic"));
+    const FSoftObjectProperty* NonCombatMusicProperty =
+        FindFProperty<FSoftObjectProperty>(UPvPArenaHUDWidget::StaticClass(), TEXT("NonCombatBackgroundMusic"));
+    const FSoftObjectProperty* GameplayMusicProperty =
+        FindFProperty<FSoftObjectProperty>(UPvPArenaHUDWidget::StaticClass(), TEXT("GameplayBackgroundMusic"));
 
     TestNotNull(TEXT("HUD widget should expose a non-combat background music property"), NonCombatMusicProperty);
     TestNotNull(TEXT("HUD widget should expose a gameplay background music property"), GameplayMusicProperty);
@@ -32,18 +33,18 @@ bool FHUDWidgetBackgroundMusicTest::RunTest(const FString& Parameters)
         return false;
     }
 
-    const USoundBase* NonCombatMusic = Cast<USoundBase>(NonCombatMusicProperty->GetObjectPropertyValue_InContainer(Widget));
-    const USoundBase* GameplayMusic = Cast<USoundBase>(GameplayMusicProperty->GetObjectPropertyValue_InContainer(Widget));
+    const FSoftObjectPtr& NonCombatMusic = NonCombatMusicProperty->GetPropertyValue_InContainer(Widget);
+    const FSoftObjectPtr& GameplayMusic = GameplayMusicProperty->GetPropertyValue_InContainer(Widget);
 
-    TestNotNull(TEXT("HUD widget should default to a non-combat background music cue"), NonCombatMusic);
-    TestNotNull(TEXT("HUD widget should default to a gameplay background music cue"), GameplayMusic);
+    TestTrue(TEXT("HUD widget should default to a non-combat background music soft reference"), NonCombatMusic.ToSoftObjectPath().IsValid());
+    TestTrue(TEXT("HUD widget should default to a gameplay background music soft reference"), GameplayMusic.ToSoftObjectPath().IsValid());
     TestEqual(
         TEXT("HUD widget should use the project-owned non-combat music cue"),
-        NonCombatMusic ? NonCombatMusic->GetPathName() : FString(),
+        NonCombatMusic.ToSoftObjectPath().ToString(),
         ExpectedNonCombatMusicPath);
     TestEqual(
         TEXT("HUD widget should use the project-owned gameplay music cue"),
-        GameplayMusic ? GameplayMusic->GetPathName() : FString(),
+        GameplayMusic.ToSoftObjectPath().ToString(),
         ExpectedGameplayMusicPath);
 
     TestEqual(

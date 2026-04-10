@@ -5,6 +5,7 @@
 #include "Game/PvPArenaGameMode.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "GameFramework/SpectatorPawn.h"
+#include "GameFramework/PlayerState.h"
 #include "InputCoreTypes.h"
 #include "TimerManager.h"
 #include "UI/PvPArenaHUDWidget.h"
@@ -23,6 +24,11 @@ void APvPArenaPlayerController::BeginPlay()
 void APvPArenaPlayerController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
+    ApplyRoundRestartPreparation();
+    if (IsLocalController() && InPawn)
+    {
+        SetViewTarget(InPawn);
+    }
     TryCreateHUDWidget();
 }
 
@@ -163,6 +169,54 @@ void APvPArenaPlayerController::ServerRequestLobbyTeamSelection_Implementation(E
 void APvPArenaPlayerController::ClientEnterFreeSpectatorMode_Implementation()
 {
     EnterFreeSpectatorMode();
+}
+
+void APvPArenaPlayerController::ApplyRoundRestartPreparation()
+{
+    SetIgnoreMoveInput(false);
+    SetIgnoreLookInput(false);
+
+    if (GetWorld())
+    {
+        GetWorldTimerManager().ClearTimer(SpectatorViewRetryTimerHandle);
+    }
+}
+
+void APvPArenaPlayerController::PrepareForRoundRestart()
+{
+    ApplyRoundRestartPreparation();
+
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    if (PlayerState)
+    {
+        PlayerState->SetIsSpectator(false);
+        PlayerState->SetIsOnlyASpectator(false);
+    }
+
+    ChangeState(NAME_Playing);
+    ClientGotoState(NAME_Playing);
+    ClientPrepareForRoundRestart();
+    GetWorldTimerManager().ClearTimer(SpectatorViewRetryTimerHandle);
+}
+
+void APvPArenaPlayerController::ClientPrepareForRoundRestart_Implementation()
+{
+    ApplyRoundRestartPreparation();
+    if (PlayerState)
+    {
+        PlayerState->SetIsSpectator(false);
+        PlayerState->SetIsOnlyASpectator(false);
+    }
+    ChangeState(NAME_Playing);
+
+    if (APawn* ControlledPawn = GetPawn())
+    {
+        SetViewTarget(ControlledPawn);
+    }
 }
 
 FRotator APvPArenaPlayerController::BuildFreeSpectatorControlRotation(

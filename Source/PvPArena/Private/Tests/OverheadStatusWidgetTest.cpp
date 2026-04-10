@@ -1,3 +1,5 @@
+#if WITH_EDITOR
+
 #include "Misc/AutomationTest.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/WidgetComponent.h"
@@ -6,6 +8,9 @@
 #include "Player/PvPArenaCharacter.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "UI/PvPArenaOverheadStatusWidget.h"
+#include "Blueprint/UserWidget.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UnrealType.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FOverheadStatusWidgetTest,
@@ -14,13 +19,32 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FOverheadStatusWidgetTest::RunTest(const FString& Parameters)
 {
+    const FString ExpectedOverheadWidgetClassPath =
+        TEXT("/Game/PvPArena/UI/WBP_OverheadStatus.WBP_OverheadStatus_C");
+    const FSoftClassProperty* OverheadWidgetClassProperty =
+        FindFProperty<FSoftClassProperty>(APvPArenaCharacter::StaticClass(), TEXT("OverheadStatusWidgetClass"));
+    TestNotNull(TEXT("Character should expose a soft overhead widget class reference"), OverheadWidgetClassProperty);
+
     UPvPArenaOverheadStatusWidget* Widget = NewObject<UPvPArenaOverheadStatusWidget>();
     TestNotNull(TEXT("Overhead widget should be created"), Widget);
 
-    if (!Widget)
+    if (!OverheadWidgetClassProperty || !Widget)
     {
         return false;
     }
+
+    const APvPArenaCharacter* CharacterDefaults = GetDefault<APvPArenaCharacter>();
+    TestNotNull(TEXT("Character CDO should exist"), CharacterDefaults);
+    const FSoftObjectPtr& OverheadWidgetClassReference = OverheadWidgetClassProperty->GetPropertyValue_InContainer(CharacterDefaults);
+    TestEqual(
+        TEXT("Character should default to the project overhead widget blueprint path"),
+        OverheadWidgetClassReference.ToSoftObjectPath().ToString(),
+        ExpectedOverheadWidgetClassPath);
+
+    TestEqual(
+        TEXT("Overhead widget should disable per-frame ticking and refresh on a timer instead"),
+        Widget->GetDesiredTickFrequency(),
+        EWidgetTickFrequency::Never);
 
     Widget->TakeWidget();
     TestTrue(
@@ -181,3 +205,5 @@ bool FOverheadStatusWidgetTest::RunTest(const FString& Parameters)
 
     return true;
 }
+
+#endif

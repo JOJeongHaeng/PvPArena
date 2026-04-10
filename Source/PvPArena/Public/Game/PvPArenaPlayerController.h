@@ -30,6 +30,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Lobby")
     void SubmitLobbyNickname(const FString& Nickname);
+    UFUNCTION(BlueprintCallable, Category = "Lobby")
     void RequestLobbyMatchModeChange(EPvPALobbyMatchMode NewLobbyMatchMode);
 
     UFUNCTION(BlueprintCallable, Category = "Lobby")
@@ -39,11 +40,19 @@ public:
     void ClientEnterFreeSpectatorMode();
     void ClientEnterFreeSpectatorMode_Implementation();
 
+    UFUNCTION()
+    void PrepareForRoundRestart();
+
+    UFUNCTION(Client, Reliable)
+    void ClientPrepareForRoundRestart();
+    void ClientPrepareForRoundRestart_Implementation();
+
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TSubclassOf<UUserWidget> HUDWidgetClass;
 
 private:
+    void ApplyRoundRestartPreparation();
     void HandleToggleSettingsMenu();
     void EnterFreeSpectatorMode();
     void RetryAttachSpectatorViewTarget();
