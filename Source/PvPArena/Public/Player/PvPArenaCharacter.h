@@ -54,6 +54,8 @@ public:
     bool IsRangedChargeInputHeld() const { return bRangedChargeInputHeld; }
     float GetRangedAimCameraBlendAlpha() const { return RangedAimCameraBlendAlpha; }
     UWidgetComponent* GetOverheadStatusWidgetComponent() const { return OverheadStatusWidgetComponent; }
+    UAudioComponent* GetMeleeAttackAudioComponent() const { return MeleeAttackAudioComponent; }
+    UAudioComponent* GetRangedAttackAudioComponent() const { return RangedAttackAudioComponent; }
     bool ResolveRangedCrosshairAimPoint(FVector& OutAimPoint) const;
     bool GetCachedRangedAttackAim(FVector& OutAimOrigin, FVector& OutAimTarget) const;
     void ApplyAudioSettings(float InMasterVolume, float InSfxVolume);
@@ -128,6 +130,7 @@ protected:
     virtual void PostInitializeComponents() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void PossessedBy(AController* NewController) override;
     virtual void OnRep_Controller() override;
     virtual void OnRep_PlayerState() override;
@@ -164,6 +167,8 @@ private:
     void StopMeleeAttackSound();
     void PlayRangedAttackSound();
     void RefreshAttackAudioVolumes();
+    UFUNCTION()
+    void ReleaseAttackAudio();
     void PlayMeleeAttackEffect();
     bool PlayMeleeAttackMontage();
     bool PlayRangedAttackMontage(FName StartSectionName = NAME_None);

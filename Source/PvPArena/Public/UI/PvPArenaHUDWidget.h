@@ -54,6 +54,10 @@ public:
     static FString BuildMatchResultLabel(
         const class APvPArenaPlayerState* LocalPlayerState,
         const class APvPArenaGameState* GameState);
+    float GetMasterVolume() const { return MasterVolume; }
+    float GetBackgroundMusicVolume() const { return BackgroundMusicVolume; }
+    float GetSfxVolume() const { return SfxVolume; }
+    UAudioComponent* GetBackgroundMusicAudioComponent() const { return BackgroundMusicAudioComponent; }
 
     UFUNCTION()
     void ToggleSettingsMenu();
@@ -132,6 +136,15 @@ private:
 
     UFUNCTION()
     void ApplyAudioSettings();
+
+    UFUNCTION()
+    void LoadPersistentUserSettings();
+
+    UFUNCTION()
+    void SavePersistentUserSettings() const;
+
+    UFUNCTION()
+    void ReleaseBackgroundMusicAudioComponent();
 
     void BuildWidgetTree();
     void RefreshWidgetData();
@@ -501,6 +514,7 @@ private:
     bool bLobbyInputModeActive = false;
     bool bSettingsMenuOpen = false;
     bool bUpdatingLobbyNicknameText = false;
+    bool bIgnoreSettingsControlCallbacks = true;
     float MasterVolume = 1.0f;
     float BackgroundMusicVolume = 1.0f;
     float SfxVolume = 1.0f;

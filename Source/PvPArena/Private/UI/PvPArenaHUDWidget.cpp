@@ -18,11 +18,13 @@
 #include "GameFramework/GameUserSettings.h"
 #include "Engine/World.h"
 #include "Game/PvPArenaGameState.h"
+#include "Game/PvPArenaGameInstance.h"
 #include "Game/PvPArenaPlayerController.h"
 #include "Game/PvPArenaPlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Misc/ConfigCacheIni.h"
 #include "GameFramework/PlayerState.h"
 #include "Combat/PvPCombatComponent.h"
 #include "Player/PvPArenaCharacter.h"
@@ -35,6 +37,10 @@ namespace
 {
 const TCHAR* NonCombatBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Music_Cue.Starter_Music_Cue");
 const TCHAR* GameplayBackgroundMusicPath = TEXT("/Game/PvPArena/Audio/Starter_Background_Cue.Starter_Background_Cue");
+const TCHAR* HUDUserSettingsSection = TEXT("PvPArena.HUDUserSettings");
+const TCHAR* MasterVolumeSettingKey = TEXT("MasterVolume");
+const TCHAR* BackgroundMusicVolumeSettingKey = TEXT("BackgroundMusicVolume");
+const TCHAR* SfxVolumeSettingKey = TEXT("SfxVolume");
 const TCHAR* HostTravelMapPath = TEXT("/Game/PvPArena/Maps/PvPArena_map?listen");
 const TCHAR* DefaultJoinAddressHint = TEXT("123.45.67.89:7777");
 const FIntPoint DefaultWindowedResolution(1280, 720);
@@ -70,6 +76,7 @@ TSharedRef<SWidget> UPvPArenaHUDWidget::RebuildWidget()
 void UPvPArenaHUDWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+    bIgnoreSettingsControlCallbacks = true;
 
     if (!BackgroundMusicAudioComponent && GetWorld())
     {
@@ -85,6 +92,7 @@ void UPvPArenaHUDWidget::NativeConstruct()
     BuildWidgetTree();
     if (UGameUserSettings* GameUserSettings = UGameUserSettings::GetGameUserSettings())
     {
+        GameUserSettings->LoadSettings(false);
         const TArray<FIntPoint> SupportedResolutions = BuildSupportedResolutions();
         const FIntPoint CurrentResolution = GameUserSettings->GetScreenResolution();
         const int32 ResolutionIndex = SupportedResolutions.IndexOfByKey(CurrentResolution);
@@ -93,11 +101,10 @@ void UPvPArenaHUDWidget::NativeConstruct()
         bVSyncEnabled = GameUserSettings->IsVSyncEnabled();
     }
 
-    MasterVolume = 1.0f;
-    BackgroundMusicVolume = 1.0f;
-    SfxVolume = 1.0f;
+    LoadPersistentUserSettings();
     RefreshSettingsMenuState();
     ApplyAudioSettings();
+    bIgnoreSettingsControlCallbacks = false;
     RefreshWidgetData();
     RefreshCrosshairVisibility();
     if (UWorld* World = GetWorld())
@@ -108,19 +115,14 @@ void UPvPArenaHUDWidget::NativeConstruct()
 
 void UPvPArenaHUDWidget::NativeDestruct()
 {
+    bIgnoreSettingsControlCallbacks = true;
+
     if (UWorld* World = GetWorld())
     {
         World->GetTimerManager().ClearTimer(RefreshTimerHandle);
     }
 
-    if (BackgroundMusicAudioComponent)
-    {
-        BackgroundMusicAudioComponent->Stop();
-        BackgroundMusicAudioComponent->UnregisterComponent();
-        BackgroundMusicAudioComponent = nullptr;
-    }
-
-    CurrentBackgroundMusic = nullptr;
+    ReleaseBackgroundMusicAudioComponent();
 
     Super::NativeDestruct();
 }
@@ -1742,6 +1744,12 @@ void UPvPArenaHUDWidget::HandleHostMatchButtonClicked()
         return;
     }
 
+    SavePersistentUserSettings();
+    if (UGameUserSettings* GameUserSettings = UGameUserSettings::GetGameUserSettings())
+    {
+        GameUserSettings->SaveSettings();
+    }
+
     UGameplayStatics::OpenLevel(
         World,
         FName(*BuildHostTravelMapName()),
@@ -1757,6 +1765,12 @@ void UPvPArenaHUDWidget::HandleJoinByIpButtonClicked()
     {
         SetConnectionStatus(TEXT("네트워크: 호스트 IP 주소를 입력하세요"));
         return;
+    }
+
+    SavePersistentUserSettings();
+    if (UGameUserSettings* GameUserSettings = UGameUserSettings::GetGameUserSettings())
+    {
+        GameUserSettings->SaveSettings();
     }
 
     if (APlayerController* PlayerController = GetOwningPlayer())
@@ -1907,19 +1921,37 @@ void UPvPArenaHUDWidget::HandleSettingsVSyncButtonClicked()
 
 void UPvPArenaHUDWidget::HandleMasterVolumeSliderChanged(float NewValue)
 {
+    if (bIgnoreSettingsControlCallbacks)
+    {
+        return;
+    }
+
     MasterVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+    SavePersistentUserSettings();
     ApplyAudioSettings();
 }
 
 void UPvPArenaHUDWidget::HandleBgmVolumeSliderChanged(float NewValue)
 {
+    if (bIgnoreSettingsControlCallbacks)
+    {
+        return;
+    }
+
     BackgroundMusicVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+    SavePersistentUserSettings();
     ApplyAudioSettings();
 }
 
 void UPvPArenaHUDWidget::HandleSfxVolumeSliderChanged(float NewValue)
 {
+    if (bIgnoreSettingsControlCallbacks)
+    {
+        return;
+    }
+
     SfxVolume = FMath::Clamp(NewValue, 0.0f, 1.0f);
+    SavePersistentUserSettings();
     ApplyAudioSettings();
 }
 
@@ -1957,8 +1989,89 @@ void UPvPArenaHUDWidget::ApplyAudioSettings()
     RefreshSettingsMenuState();
 }
 
+void UPvPArenaHUDWidget::LoadPersistentUserSettings()
+{
+    if (UPvPArenaGameInstance* PvPArenaGameInstance = GetGameInstance<UPvPArenaGameInstance>())
+    {
+        PvPArenaGameInstance->LoadUserSettings();
+        MasterVolume = PvPArenaGameInstance->GetMasterVolume();
+        BackgroundMusicVolume = PvPArenaGameInstance->GetBackgroundMusicVolume();
+        SfxVolume = PvPArenaGameInstance->GetSfxVolume();
+        return;
+    }
+
+    MasterVolume = 1.0f;
+    BackgroundMusicVolume = 1.0f;
+    SfxVolume = 1.0f;
+
+    if (!GConfig)
+    {
+        return;
+    }
+
+    float PersistedValue = 1.0f;
+    if (GConfig->GetFloat(HUDUserSettingsSection, MasterVolumeSettingKey, PersistedValue, GGameUserSettingsIni))
+    {
+        MasterVolume = FMath::Clamp(PersistedValue, 0.0f, 1.0f);
+    }
+
+    if (GConfig->GetFloat(HUDUserSettingsSection, BackgroundMusicVolumeSettingKey, PersistedValue, GGameUserSettingsIni))
+    {
+        BackgroundMusicVolume = FMath::Clamp(PersistedValue, 0.0f, 1.0f);
+    }
+
+    if (GConfig->GetFloat(HUDUserSettingsSection, SfxVolumeSettingKey, PersistedValue, GGameUserSettingsIni))
+    {
+        SfxVolume = FMath::Clamp(PersistedValue, 0.0f, 1.0f);
+    }
+
+}
+
+void UPvPArenaHUDWidget::SavePersistentUserSettings() const
+{
+    if (UPvPArenaGameInstance* PvPArenaGameInstance = GetGameInstance<UPvPArenaGameInstance>())
+    {
+        PvPArenaGameInstance->SetAudioSettings(MasterVolume, BackgroundMusicVolume, SfxVolume);
+        PvPArenaGameInstance->SaveUserSettings();
+        return;
+    }
+
+    if (!GConfig)
+    {
+        return;
+    }
+
+    GConfig->SetFloat(HUDUserSettingsSection, MasterVolumeSettingKey, MasterVolume, GGameUserSettingsIni);
+    GConfig->SetFloat(HUDUserSettingsSection, BackgroundMusicVolumeSettingKey, BackgroundMusicVolume, GGameUserSettingsIni);
+    GConfig->SetFloat(HUDUserSettingsSection, SfxVolumeSettingKey, SfxVolume, GGameUserSettingsIni);
+    GConfig->Flush(false, GGameUserSettingsIni);
+}
+
+void UPvPArenaHUDWidget::ReleaseBackgroundMusicAudioComponent()
+{
+    if (!BackgroundMusicAudioComponent)
+    {
+        CurrentBackgroundMusic = nullptr;
+        return;
+    }
+
+    BackgroundMusicAudioComponent->Stop();
+    BackgroundMusicAudioComponent->SetSound(nullptr);
+
+    if (BackgroundMusicAudioComponent->IsRegistered())
+    {
+        BackgroundMusicAudioComponent->UnregisterComponent();
+    }
+
+    BackgroundMusicAudioComponent = nullptr;
+    CurrentBackgroundMusic = nullptr;
+}
+
 void UPvPArenaHUDWidget::RefreshSettingsMenuState()
 {
+    const bool bPreviousIgnoreSettingsControlCallbacks = bIgnoreSettingsControlCallbacks;
+    bIgnoreSettingsControlCallbacks = true;
+
     if (SettingsPanel)
     {
         SettingsPanel->SetVisibility(bSettingsMenuOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -2009,6 +2122,8 @@ void UPvPArenaHUDWidget::RefreshSettingsMenuState()
     {
         SettingsVSyncButtonText->SetText(FText::FromString(FString::Printf(TEXT("수직 동기화: %s"), bVSyncEnabled ? TEXT("켜짐") : TEXT("꺼짐"))));
     }
+
+    bIgnoreSettingsControlCallbacks = bPreviousIgnoreSettingsControlCallbacks;
 }
 
 void UPvPArenaHUDWidget::ApplyResolutionIndex(int32 NewResolutionIndex)
