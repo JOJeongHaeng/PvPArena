@@ -112,10 +112,14 @@ bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
 
     APvPArenaPlayerState* LeftTeamPlayerState = NewObject<APvPArenaPlayerState>(PlayerOne);
     APvPArenaPlayerState* FreeForAllPlayerState = NewObject<APvPArenaPlayerState>(PlayerTwo);
+    APlayerController* PlayerThree = NewObject<APlayerController>();
+    APvPArenaPlayerState* UnassignedTeamPlayerState = NewObject<APvPArenaPlayerState>(PlayerThree);
     TestNotNull(TEXT("LeftTeam player state should be created"), LeftTeamPlayerState);
     TestNotNull(TEXT("Free-for-all player state should be created"), FreeForAllPlayerState);
+    TestNotNull(TEXT("PlayerThree should be created"), PlayerThree);
+    TestNotNull(TEXT("Unassigned team player state should be created"), UnassignedTeamPlayerState);
 
-    if (!LeftTeamPlayerState || !FreeForAllPlayerState)
+    if (!LeftTeamPlayerState || !FreeForAllPlayerState || !PlayerThree || !UnassignedTeamPlayerState)
     {
         return false;
     }
@@ -127,6 +131,10 @@ bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
     FreeForAllPlayerState->SetLobbyMatchMode(EPvPALobbyMatchMode::FreeForAll);
     FreeForAllPlayerState->SetLobbyTeam(EPvPALobbyTeam::None);
     PlayerTwo->PlayerState = FreeForAllPlayerState;
+
+    UnassignedTeamPlayerState->SetLobbyMatchMode(EPvPALobbyMatchMode::TeamVersus);
+    UnassignedTeamPlayerState->SetLobbyTeam(EPvPALobbyTeam::None);
+    PlayerThree->PlayerState = UnassignedTeamPlayerState;
 
     TArray<AActor*> TaggedCandidates;
     TaggedCandidates.Add(LeftTeamStart);
@@ -140,6 +148,25 @@ bool FRandomRespawnStartSelectionTest::RunTest(const FString& Parameters)
     const TArray<AActor*> FreeForAllCandidates = GameMode->FilterStartsForPlayer(TaggedCandidates, PlayerTwo);
     TestEqual(TEXT("Free-for-all players should only consider free-for-all starts"), FreeForAllCandidates.Num(), 1);
     TestEqual(TEXT("Free-for-all players should resolve the free-for-all start"), FreeForAllCandidates[0], static_cast<AActor*>(FreeForAllStart));
+
+    TArray<AActor*> MissingLeftTeamCandidates;
+    MissingLeftTeamCandidates.Add(RightTeamStart);
+    MissingLeftTeamCandidates.Add(FreeForAllStart);
+
+    const TArray<AActor*> MissingLeftTeamFilteredCandidates = GameMode->FilterStartsForPlayer(MissingLeftTeamCandidates, PlayerOne);
+    TestEqual(
+        TEXT("Team-versus players should not fall back to unrelated starts when their team spawn is missing"),
+        MissingLeftTeamFilteredCandidates.Num(),
+        0);
+
+    const TArray<AActor*> UnassignedTeamCandidates = GameMode->FilterStartsForPlayer(TaggedCandidates, PlayerThree);
+    TestEqual(
+        TEXT("Team-versus players without a team should not consider any team or free-for-all starts"),
+        UnassignedTeamCandidates.Num(),
+        0);
+    TestNull(
+        TEXT("Team-versus players without a team should not resolve a round start"),
+        GameMode->ChooseRoundStartForPlayer(UnassignedTeamCandidates, PlayerThree, TSet<TObjectKey<AActor>>()));
 
     return true;
 }

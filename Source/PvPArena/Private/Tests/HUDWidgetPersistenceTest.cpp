@@ -3,22 +3,22 @@
 #include "Misc/AutomationTest.h"
 #include "UI/PvPArenaHUDWidget.h"
 
-namespace
+namespace HUDWidgetPersistenceTestInternal
 {
-constexpr TCHAR SettingsSection[] = TEXT("PvPArena.HUDUserSettings");
-constexpr TCHAR MasterVolumeKey[] = TEXT("MasterVolume");
-constexpr TCHAR BackgroundMusicVolumeKey[] = TEXT("BackgroundMusicVolume");
-constexpr TCHAR SfxVolumeKey[] = TEXT("SfxVolume");
+constexpr TCHAR WidgetSettingsSection[] = TEXT("PvPArena.HUDUserSettings");
+constexpr TCHAR WidgetMasterVolumeKey[] = TEXT("MasterVolume");
+constexpr TCHAR WidgetBackgroundMusicVolumeKey[] = TEXT("BackgroundMusicVolume");
+constexpr TCHAR WidgetSfxVolumeKey[] = TEXT("SfxVolume");
 
-void RestoreStringSetting(const TCHAR* KeyName, const FString& PreviousValue, bool bHadValue)
+void RestoreWidgetStringSetting(const TCHAR* KeyName, const FString& PreviousValue, bool bHadValue)
 {
     if (bHadValue)
     {
-        GConfig->SetString(SettingsSection, KeyName, *PreviousValue, GGameUserSettingsIni);
+        GConfig->SetString(WidgetSettingsSection, KeyName, *PreviousValue, GGameUserSettingsIni);
     }
     else
     {
-        GConfig->RemoveKey(SettingsSection, KeyName, GGameUserSettingsIni);
+        GConfig->RemoveKey(WidgetSettingsSection, KeyName, GGameUserSettingsIni);
     }
 }
 }
@@ -56,9 +56,21 @@ bool FHUDWidgetPersistenceTest::RunTest(const FString& Parameters)
     FString PreviousMasterVolume;
     FString PreviousBackgroundMusicVolume;
     FString PreviousSfxVolume;
-    const bool bHadMasterVolume = GConfig->GetString(SettingsSection, MasterVolumeKey, PreviousMasterVolume, GGameUserSettingsIni);
-    const bool bHadBackgroundMusicVolume = GConfig->GetString(SettingsSection, BackgroundMusicVolumeKey, PreviousBackgroundMusicVolume, GGameUserSettingsIni);
-    const bool bHadSfxVolume = GConfig->GetString(SettingsSection, SfxVolumeKey, PreviousSfxVolume, GGameUserSettingsIni);
+    const bool bHadMasterVolume = GConfig->GetString(
+        HUDWidgetPersistenceTestInternal::WidgetSettingsSection,
+        HUDWidgetPersistenceTestInternal::WidgetMasterVolumeKey,
+        PreviousMasterVolume,
+        GGameUserSettingsIni);
+    const bool bHadBackgroundMusicVolume = GConfig->GetString(
+        HUDWidgetPersistenceTestInternal::WidgetSettingsSection,
+        HUDWidgetPersistenceTestInternal::WidgetBackgroundMusicVolumeKey,
+        PreviousBackgroundMusicVolume,
+        GGameUserSettingsIni);
+    const bool bHadSfxVolume = GConfig->GetString(
+        HUDWidgetPersistenceTestInternal::WidgetSettingsSection,
+        HUDWidgetPersistenceTestInternal::WidgetSfxVolumeKey,
+        PreviousSfxVolume,
+        GGameUserSettingsIni);
 
     UPvPArenaHUDWidget* SavingWidget = NewObject<UPvPArenaHUDWidget>();
     UPvPArenaHUDWidget* LoadingWidget = NewObject<UPvPArenaHUDWidget>();
@@ -100,9 +112,18 @@ bool FHUDWidgetPersistenceTest::RunTest(const FString& Parameters)
 
     LoadingWidget->ProcessEvent(ReleaseAudioFunction, nullptr);
 
-    RestoreStringSetting(MasterVolumeKey, PreviousMasterVolume, bHadMasterVolume);
-    RestoreStringSetting(BackgroundMusicVolumeKey, PreviousBackgroundMusicVolume, bHadBackgroundMusicVolume);
-    RestoreStringSetting(SfxVolumeKey, PreviousSfxVolume, bHadSfxVolume);
+    HUDWidgetPersistenceTestInternal::RestoreWidgetStringSetting(
+        HUDWidgetPersistenceTestInternal::WidgetMasterVolumeKey,
+        PreviousMasterVolume,
+        bHadMasterVolume);
+    HUDWidgetPersistenceTestInternal::RestoreWidgetStringSetting(
+        HUDWidgetPersistenceTestInternal::WidgetBackgroundMusicVolumeKey,
+        PreviousBackgroundMusicVolume,
+        bHadBackgroundMusicVolume);
+    HUDWidgetPersistenceTestInternal::RestoreWidgetStringSetting(
+        HUDWidgetPersistenceTestInternal::WidgetSfxVolumeKey,
+        PreviousSfxVolume,
+        bHadSfxVolume);
     GConfig->Flush(false, GGameUserSettingsIni);
 
     return true;

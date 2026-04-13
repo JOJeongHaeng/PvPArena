@@ -3,22 +3,22 @@
 #include "Game/PvPArenaGameInstance.h"
 #include "Misc/AutomationTest.h"
 
-namespace
+namespace GameInstanceAudioSettingsTestInternal
 {
-constexpr TCHAR SettingsSection[] = TEXT("PvPArena.HUDUserSettings");
-constexpr TCHAR MasterVolumeKey[] = TEXT("MasterVolume");
-constexpr TCHAR BackgroundMusicVolumeKey[] = TEXT("BackgroundMusicVolume");
-constexpr TCHAR SfxVolumeKey[] = TEXT("SfxVolume");
+constexpr TCHAR AudioSettingsSection[] = TEXT("PvPArena.HUDUserSettings");
+constexpr TCHAR AudioMasterVolumeKey[] = TEXT("MasterVolume");
+constexpr TCHAR AudioBackgroundMusicVolumeKey[] = TEXT("BackgroundMusicVolume");
+constexpr TCHAR AudioSfxVolumeKey[] = TEXT("SfxVolume");
 
-void RestoreStringSetting(const TCHAR* KeyName, const FString& PreviousValue, bool bHadValue)
+void RestoreAudioStringSetting(const TCHAR* KeyName, const FString& PreviousValue, bool bHadValue)
 {
     if (bHadValue)
     {
-        GConfig->SetString(SettingsSection, KeyName, *PreviousValue, GGameUserSettingsIni);
+        GConfig->SetString(AudioSettingsSection, KeyName, *PreviousValue, GGameUserSettingsIni);
     }
     else
     {
-        GConfig->RemoveKey(SettingsSection, KeyName, GGameUserSettingsIni);
+        GConfig->RemoveKey(AudioSettingsSection, KeyName, GGameUserSettingsIni);
     }
 }
 }
@@ -33,9 +33,21 @@ bool FGameInstanceAudioSettingsTest::RunTest(const FString& Parameters)
     FString PreviousMasterVolume;
     FString PreviousBackgroundMusicVolume;
     FString PreviousSfxVolume;
-    const bool bHadMasterVolume = GConfig->GetString(SettingsSection, MasterVolumeKey, PreviousMasterVolume, GGameUserSettingsIni);
-    const bool bHadBackgroundMusicVolume = GConfig->GetString(SettingsSection, BackgroundMusicVolumeKey, PreviousBackgroundMusicVolume, GGameUserSettingsIni);
-    const bool bHadSfxVolume = GConfig->GetString(SettingsSection, SfxVolumeKey, PreviousSfxVolume, GGameUserSettingsIni);
+    const bool bHadMasterVolume = GConfig->GetString(
+        GameInstanceAudioSettingsTestInternal::AudioSettingsSection,
+        GameInstanceAudioSettingsTestInternal::AudioMasterVolumeKey,
+        PreviousMasterVolume,
+        GGameUserSettingsIni);
+    const bool bHadBackgroundMusicVolume = GConfig->GetString(
+        GameInstanceAudioSettingsTestInternal::AudioSettingsSection,
+        GameInstanceAudioSettingsTestInternal::AudioBackgroundMusicVolumeKey,
+        PreviousBackgroundMusicVolume,
+        GGameUserSettingsIni);
+    const bool bHadSfxVolume = GConfig->GetString(
+        GameInstanceAudioSettingsTestInternal::AudioSettingsSection,
+        GameInstanceAudioSettingsTestInternal::AudioSfxVolumeKey,
+        PreviousSfxVolume,
+        GGameUserSettingsIni);
 
     UPvPArenaGameInstance* SavingInstance = NewObject<UPvPArenaGameInstance>();
     UPvPArenaGameInstance* LoadingInstance = NewObject<UPvPArenaGameInstance>();
@@ -56,9 +68,18 @@ bool FGameInstanceAudioSettingsTest::RunTest(const FString& Parameters)
     TestEqual(TEXT("Background music volume should persist through game instance storage"), LoadingInstance->GetBackgroundMusicVolume(), 0.45f);
     TestEqual(TEXT("Sfx volume should persist through game instance storage"), LoadingInstance->GetSfxVolume(), 0.55f);
 
-    RestoreStringSetting(MasterVolumeKey, PreviousMasterVolume, bHadMasterVolume);
-    RestoreStringSetting(BackgroundMusicVolumeKey, PreviousBackgroundMusicVolume, bHadBackgroundMusicVolume);
-    RestoreStringSetting(SfxVolumeKey, PreviousSfxVolume, bHadSfxVolume);
+    GameInstanceAudioSettingsTestInternal::RestoreAudioStringSetting(
+        GameInstanceAudioSettingsTestInternal::AudioMasterVolumeKey,
+        PreviousMasterVolume,
+        bHadMasterVolume);
+    GameInstanceAudioSettingsTestInternal::RestoreAudioStringSetting(
+        GameInstanceAudioSettingsTestInternal::AudioBackgroundMusicVolumeKey,
+        PreviousBackgroundMusicVolume,
+        bHadBackgroundMusicVolume);
+    GameInstanceAudioSettingsTestInternal::RestoreAudioStringSetting(
+        GameInstanceAudioSettingsTestInternal::AudioSfxVolumeKey,
+        PreviousSfxVolume,
+        bHadSfxVolume);
     GConfig->Flush(false, GGameUserSettingsIni);
 
     return true;

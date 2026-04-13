@@ -3,9 +3,9 @@
 #include "GameFramework/PlayerController.h"
 #include "Player/PvPArenaCharacter.h"
 
-namespace
+namespace CharacterSprintStateTestInternal
 {
-class ATestPvPArenaCharacter : public APvPArenaCharacter
+class ASprintStateTestCharacter : public APvPArenaCharacter
 {
 public:
     void SetTestController(AController* InController)
@@ -22,7 +22,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FCharacterSprintStateTest::RunTest(const FString& Parameters)
 {
-    ATestPvPArenaCharacter* Character = NewObject<ATestPvPArenaCharacter>();
+    CharacterSprintStateTestInternal::ASprintStateTestCharacter* Character =
+        NewObject<CharacterSprintStateTestInternal::ASprintStateTestCharacter>();
     TestNotNull(TEXT("Character should be created"), Character);
 
     if (!Character)
