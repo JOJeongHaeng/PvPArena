@@ -80,6 +80,11 @@ FString ResolvePlayerStartIdentifier(const APlayerStart* PlayerStart)
     return PlayerStart->GetName();
 #endif
 }
+
+bool RequiresTeamSpawn(const APvPArenaPlayerState* PlayerState)
+{
+    return PlayerState && PlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus;
+}
 }
 
 FString APvPArenaGameMode::BuildDefaultDisplayNickname(int32 PlayerIndex)
@@ -158,6 +163,13 @@ AActor* APvPArenaGameMode::ChoosePlayerStart_Implementation(AController* Player)
     TArray<AActor*> CandidateStarts;
     UGameplayStatics::GetAllActorsOfClass(this, APlayerStart::StaticClass(), CandidateStarts);
     CandidateStarts = FilterPlayerStartsForPlayer(CandidateStarts, Player);
+
+    const APvPArenaPlayerState* PlayerState = Player ? Cast<APvPArenaPlayerState>(Player->PlayerState) : nullptr;
+    if (RequiresTeamSpawn(PlayerState) && CandidateStarts.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Team-versus player has no matching PlayerStart and will not fall back to a generic spawn."));
+        return nullptr;
+    }
 
     if (AActor* ChosenStart = ChooseRespawnStartForPlayer(CandidateStarts, Player))
     {
@@ -518,6 +530,11 @@ TArray<AActor*> APvPArenaGameMode::FilterPlayerStartsForPlayer(const TArray<AAct
         }
     }
 
+    if (PlayerState->GetLobbyMatchMode() == EPvPALobbyMatchMode::TeamVersus)
+    {
+        return FilteredStarts;
+    }
+
     return FilteredStarts.IsEmpty() ? CandidateStarts : FilteredStarts;
 }
 
@@ -654,6 +671,10 @@ void APvPArenaGameMode::ResetAllPlayersForNextRound()
         {
             UsedRoundStartSpots.Add(RoundStart);
             RestartPlayerAtPlayerStart(Controller, RoundStart);
+        }
+        else if (RequiresTeamSpawn(Cast<APvPArenaPlayerState>(Controller->PlayerState)))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Skipping round restart spawn because team-versus player has no matching team PlayerStart."));
         }
         else
         {
@@ -1295,6 +1316,10 @@ void APvPArenaGameMode::ResetControllersForFreeForAllSuddenDeath(const TArray<AP
         {
             UsedRoundStartSpots.Add(RoundStart);
             RestartPlayerAtPlayerStart(Controller, RoundStart);
+        }
+        else if (RequiresTeamSpawn(PlayerState))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Skipping sudden-death spawn because team-versus player has no matching team PlayerStart."));
         }
         else
         {

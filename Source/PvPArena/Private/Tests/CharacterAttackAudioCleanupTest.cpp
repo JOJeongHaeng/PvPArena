@@ -3,9 +3,9 @@
 #include "Misc/AutomationTest.h"
 #include "Player/PvPArenaCharacter.h"
 
-namespace
+namespace CharacterAttackAudioCleanupTestInternal
 {
-class ATestPvPArenaCharacter : public APvPArenaCharacter
+class AAttackAudioCleanupTestCharacter : public APvPArenaCharacter
 {
 public:
     void InvokeEndPlay()
@@ -22,7 +22,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FCharacterAttackAudioCleanupTest::RunTest(const FString& Parameters)
 {
-    ATestPvPArenaCharacter* Character = NewObject<ATestPvPArenaCharacter>();
+    CharacterAttackAudioCleanupTestInternal::AAttackAudioCleanupTestCharacter* Character =
+        NewObject<CharacterAttackAudioCleanupTestInternal::AAttackAudioCleanupTestCharacter>();
     TestNotNull(TEXT("Cleanup test should create a character"), Character);
 
     if (!Character)
